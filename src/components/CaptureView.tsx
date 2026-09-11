@@ -45,6 +45,10 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
   const [imageUrl, setImageUrl] = useState<string>('')
   const [aspect, setAspect] = useState(1)
   const [bulls, setBulls] = useState<Bull[]>([])
+  /** Whether the ring's position came from a real detection rather than a
+   *  guessed placeholder — only a guess needs the athlete to be able to drag
+   *  it, so a correct detection is left alone and out of the way. */
+  const [ringDetected, setRingDetected] = useState(false)
   const [notes, setNotes] = useState('')
   /** How many shots the model found, or null when it never ran. */
   const [detected, setDetected] = useState<number | null>(null)
@@ -67,6 +71,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     if (!settings.apiKey) {
       setDetected(null)
       setBulls([seedBull(ratio)])
+      setRingDetected(false)
       setNotes('No API key set, so nothing was read automatically. Place the ring and tap in your shots.')
       setStage('markup')
       return
@@ -79,6 +84,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       const detection = await detectShots(picked, position, settings, ratio, PRECISION_SHOTS)
       setDetected(detection.bulls.reduce((n, b) => n + b.holes.length, 0))
       setBulls(detection.bulls.length ? detection.bulls : [seedBull(ratio)])
+      setRingDetected(detection.bulls.length > 0)
       setNotes(
         detection.bulls.length
           ? detection.notes
@@ -87,6 +93,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     } catch (e) {
       setDetected(null)
       setBulls([seedBull(ratio)])
+      setRingDetected(false)
       setError(e instanceof VisionError ? e.message : 'Something went wrong reading the photo.')
       setNotes('')
     }
@@ -129,6 +136,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     setFile(null)
     setImageUrl('')
     setBulls([])
+    setRingDetected(false)
     setSaved(null)
     setNotes('')
     setDetected(null)
@@ -181,7 +189,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
           </div>
         )}
         {notes && <div className="notice">{notes}</div>}
-        <MarkupView imageUrl={imageUrl} bulls={bulls} aspect={aspect} onChange={setBulls} />
+        <MarkupView imageUrl={imageUrl} bulls={bulls} aspect={aspect} onChange={setBulls} ringLocked={ringDetected} />
         <div className="row" style={{ marginTop: 14 }}>
           <button className="secondary" onClick={reset}>Start over</button>
           <button className="primary" onClick={save}>

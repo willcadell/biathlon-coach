@@ -7,6 +7,11 @@ interface Props {
   /** Image width divided by height. */
   aspect: number
   onChange: (bulls: Bull[]) => void
+  /** True once the ring's position came from a real detection rather than a
+   *  guessed placeholder. A correct ring is left alone — not draggable, no
+   *  resize handle — so it stops competing with the shots for every tap and
+   *  drag right where a good group is thickest. A guess still needs both. */
+  ringLocked: boolean
 }
 
 type Drag =
@@ -43,7 +48,7 @@ const ZOOM_STEP = 1.6
  * poisons every statistic downstream. Fixing it by hand takes a few seconds and
  * makes the whole thing trustworthy, so this screen is not skippable.
  */
-export function MarkupView({ imageUrl, bulls, aspect, onChange }: Props) {
+export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<Drag>(null)
   const [selected, setSelected] = useState<{ bull: number; hole: number } | null>(null)
@@ -227,51 +232,56 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange }: Props) {
                 strokeDasharray="4 3" vectorEffect="non-scaling-stroke"
                 style={{ pointerEvents: 'none' }}
               />
-              {/*
-                A wide, invisible companion on the same path — grab and drag
-                ANYWHERE on the ring's edge to move it. A shooter's shots
-                cluster right around the ring's own centre, so a solid drag
-                handle sitting there would forever be buried under them; the
-                edge is never where the group is.
-              */}
-              <ellipse
-                cx={b.centre.x * 100} cy={b.centre.y * 100}
-                rx={b.semiMajor * 100} ry={b.semiMinor * 100}
-                transform={`rotate(${b.rotationDeg} ${b.centre.x * 100} ${b.centre.y * 100})`}
-                fill="none" stroke="transparent" strokeWidth={8}
-                style={{ cursor: 'move', touchAction: 'none' }}
-                onPointerDown={(e) => {
-                  // While adding, every tap is meant to place a shot — this
-                  // band is wide enough to cross a lot of the black, and
-                  // would otherwise steal taps meant for the surface under it.
-                  if (pinchStarting.current || adding) return
-                  e.stopPropagation()
-                  const p = pointAt(e)
-                  if (!p) return
-                  capture(e)
-                  setDrag({ kind: 'move', bull: bi, offset: { x: b.centre.x - p.x, y: b.centre.y - p.y } })
-                }}
-              />
+              {!ringLocked && (
+                <>
+                  {/*
+                    A wide, invisible companion on the same path — grab and
+                    drag ANYWHERE on the ring's edge to move it. A shooter's
+                    shots cluster right around the ring's own centre, so a
+                    solid drag handle sitting there would forever be buried
+                    under them; the edge is never where the group is.
+                  */}
+                  <ellipse
+                    cx={b.centre.x * 100} cy={b.centre.y * 100}
+                    rx={b.semiMajor * 100} ry={b.semiMinor * 100}
+                    transform={`rotate(${b.rotationDeg} ${b.centre.x * 100} ${b.centre.y * 100})`}
+                    fill="none" stroke="transparent" strokeWidth={8}
+                    style={{ cursor: 'move', touchAction: 'none' }}
+                    onPointerDown={(e) => {
+                      // While adding, every tap is meant to place a shot —
+                      // this band is wide enough to cross a lot of the
+                      // black, and would otherwise steal taps meant for the
+                      // surface under it.
+                      if (pinchStarting.current || adding) return
+                      e.stopPropagation()
+                      const p = pointAt(e)
+                      if (!p) return
+                      capture(e)
+                      setDrag({ kind: 'move', bull: bi, offset: { x: b.centre.x - p.x, y: b.centre.y - p.y } })
+                    }}
+                  />
+                  {/* Resize handle on the long axis. */}
+                  <circle
+                    cx={(b.centre.x + b.semiMajor * Math.cos(rad(b.rotationDeg))) * 100}
+                    cy={(b.centre.y + b.semiMajor * Math.sin(rad(b.rotationDeg))) * 100}
+                    r={1.6} fill="#fff" stroke="#1baf7a" strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ cursor: 'ew-resize', touchAction: 'none' }}
+                    onPointerDown={(e) => {
+                      if (pinchStarting.current || adding) return
+                      e.stopPropagation()
+                      capture(e)
+                      setDrag({ kind: 'radius', bull: bi })
+                    }}
+                  />
+                </>
+              )}
               {/* A small, non-interactive crosshair marks the origin itself,
                   so it never competes with a shot for the tap underneath it. */}
               <g stroke="#1baf7a" strokeWidth={0.6} vectorEffect="non-scaling-stroke" style={{ pointerEvents: 'none' }}>
                 <line x1={b.centre.x * 100 - 1} y1={b.centre.y * 100} x2={b.centre.x * 100 + 1} y2={b.centre.y * 100} />
                 <line x1={b.centre.x * 100} y1={b.centre.y * 100 - 1} x2={b.centre.x * 100} y2={b.centre.y * 100 + 1} />
               </g>
-              {/* Resize handle on the long axis. */}
-              <circle
-                cx={(b.centre.x + b.semiMajor * Math.cos(rad(b.rotationDeg))) * 100}
-                cy={(b.centre.y + b.semiMajor * Math.sin(rad(b.rotationDeg))) * 100}
-                r={1.6} fill="#fff" stroke="#1baf7a" strokeWidth={2}
-                vectorEffect="non-scaling-stroke"
-                style={{ cursor: 'ew-resize', touchAction: 'none' }}
-                onPointerDown={(e) => {
-                  if (pinchStarting.current || adding) return
-                  e.stopPropagation()
-                  capture(e)
-                  setDrag({ kind: 'radius', bull: bi })
-                }}
-              />
 
               {b.holes.map((h, hi) => {
                 orderCounter += 1
@@ -331,9 +341,10 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange }: Props) {
 
       <p className="meta" style={{ marginTop: 10 }}>
         {holeCount} shot{holeCount === 1 ? '' : 's'} marked. Drag any number onto its hole. Pinch to
-        zoom anywhere, including on the ring or a shot. The green ring is the aiming mark — drag
-        anywhere on its dashed edge to slide it, or its white handle to resize it, until it sits
-        exactly on the black, because everything is measured against it.
+        zoom anywhere, including on the ring or a shot.{' '}
+        {ringLocked
+          ? 'The green ring is the aiming mark, placed automatically — everything is measured against it.'
+          : 'The green ring is the aiming mark — drag anywhere on its dashed edge to slide it, or its white handle to resize it, until it sits exactly on the black, because everything is measured against it.'}
       </p>
     </div>
   )
