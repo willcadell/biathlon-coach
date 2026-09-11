@@ -1,0 +1,13 @@
+{
+  "name": "Biathlon Coach",
+  "short_name": "Biathlon",
+  "description": "Score biathlon targets from a photo and train what the groups say.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0d0d",
+  "theme_color": "#1a1a19",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
