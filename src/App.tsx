@@ -164,12 +164,11 @@ export default function App() {
         ))}
         <div className="brand" aria-hidden="true">
           <svg viewBox="0 0 24 24">
-            <rect width="24" height="24" rx="6" fill="#1a1a19" />
-            <circle cx="12" cy="12" r="7.5" fill="none" stroke="#3987e5" strokeWidth="1.3" />
-            <circle cx="12" cy="12" r="4.2" fill="none" stroke="#3987e5" strokeWidth="1" opacity="0.55" />
-            <circle cx="10.2" cy="10.7" r="1.1" fill="#d95926" />
-            <circle cx="13" cy="12.5" r="1.1" fill="#d95926" />
-            <circle cx="11.5" cy="13.7" r="1.1" fill="#d95926" />
+            <circle cx="12" cy="12" r="9" fill="none" stroke="#3987e5" strokeWidth="1.4" />
+            <circle cx="12" cy="12" r="5" fill="none" stroke="#3987e5" strokeWidth="1.1" opacity="0.6" />
+            <circle cx="9.8" cy="10.4" r="1.3" fill="#d95926" />
+            <circle cx="13.4" cy="12.6" r="1.3" fill="#d95926" />
+            <circle cx="11" cy="14.3" r="1.3" fill="#d95926" />
           </svg>
           Biathlon Coach
         </div>
