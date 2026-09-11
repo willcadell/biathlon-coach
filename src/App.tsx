@@ -162,6 +162,17 @@ export default function App() {
             {t.label}
           </button>
         ))}
+        <div className="brand" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect width="24" height="24" rx="6" fill="#1a1a19" />
+            <circle cx="12" cy="12" r="7.5" fill="none" stroke="#3987e5" strokeWidth="1.3" />
+            <circle cx="12" cy="12" r="4.2" fill="none" stroke="#3987e5" strokeWidth="1" opacity="0.55" />
+            <circle cx="10.2" cy="10.7" r="1.1" fill="#d95926" />
+            <circle cx="13" cy="12.5" r="1.1" fill="#d95926" />
+            <circle cx="11.5" cy="13.7" r="1.1" fill="#d95926" />
+          </svg>
+          Biathlon Coach
+        </div>
       </nav>
     </div>
   )

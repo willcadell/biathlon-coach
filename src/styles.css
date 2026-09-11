@@ -65,7 +65,7 @@ body {
 
 .main {
   flex: 1;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(136px + env(safe-area-inset-bottom));
 }
 
 h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
@@ -93,7 +93,11 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
   display: flex;
   background: var(--surface-1);
   border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
+  /* The extra 40px reserves a clear strip below the tab row itself — a
+     host's own injected footer badge (bottom-right) has somewhere to sit
+     that isn't on top of Training/Settings, and it's also where our own
+     mark goes, on the left. */
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
   z-index: 20;
 }
 .tabs button {
@@ -111,7 +115,21 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
   gap: 3px;
 }
 .tabs button[aria-current='page'] { color: var(--series-1); font-weight: 600; }
-.tabs svg { width: 22px; height: 22px; }
+.tabs button svg { width: 22px; height: 22px; }
+
+.tabs .brand {
+  position: absolute;
+  left: 14px;
+  bottom: calc(11px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.tabs .brand svg { width: 16px; height: 16px; flex: none; }
 
 /* --- Controls -------------------------------------------------------- */
 button.primary, button.secondary, .filelabel {
@@ -253,7 +271,7 @@ label.check input { width: 18px; height: 18px; accent-color: var(--series-1); }
 .selectbar {
   position: fixed;
   left: 0; right: 0;
-  bottom: calc(58px + env(safe-area-inset-bottom));
+  bottom: calc(98px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px;
   background: var(--surface-1);
