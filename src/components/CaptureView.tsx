@@ -250,6 +250,12 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
           ? `Read automatically, ${COST_PER_IMAGE[settings.model]} per photo. You correct it before scoring.`
           : 'No API key set — you will mark the shots by hand. Add a key in Settings to have them found for you.'}
       </p>
+
+      {onExit && (
+        <button className="secondary" style={{ marginTop: 14 }} onClick={onExit}>
+          Cancel, back to workout
+        </button>
+      )}
     </>
   )
 }
