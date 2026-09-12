@@ -126,7 +126,7 @@ const bout = (position: Position, pts: {x:number;y:number}[], skiedIn = false, d
     shotAt: new Date(Date.now() - daysAgo * 86400000).toISOString(),
     position, targetFaceId: DEFAULT_SETTINGS.targetFaceId,
     bulletDiameterMm: DEFAULT_SETTINGS.bulletDiameterMm, imageId: 'x', shots,
-    context: { heartRate: 0, skiedIn, notes: '' },
+    context: { skiedIn, notes: '' },
     mmPerUnit: 1, metrics: computeMetrics(shots, position, CTX),
   }
 }
@@ -208,7 +208,7 @@ ok('crop width-fraction scales a length by the crop width only',
 // --- Metal bouts: no photo, no shape, just a hit rate per position.
 const metal = (position: Position, misses: number): MetalBout => ({
   kind: 'metal', id: crypto.randomUUID(), workoutId: 'w',
-  shotAt: new Date().toISOString(), position, misses,
+  shotAt: new Date().toISOString(), position, misses, heartRate: 0, comboId: null,
 })
 const metalSet = [metal('prone', 0), metal('prone', 1), metal('standing', 2)]
 const stats = metalStats(metalSet)

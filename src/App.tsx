@@ -114,15 +114,23 @@ export default function App() {
   }, [activeWorkout, bouts, metalBouts])
 
   async function startWorkout(wind: Wind, windDirection: WindDirection) {
-    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), wind, windDirection, clickLog: [] }
+    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '' }
     await putWorkout(workout)
     setActiveWorkout(workout.id)
     refresh()
   }
 
-  async function updateWorkout(next: Workout) {
-    await putWorkout(next)
-    refresh()
+  /**
+   * Update local state immediately, before the write even lands, and persist
+   * in the background. Awaiting the write first (then re-fetching) left a gap
+   * where a second rapid edit — a different field, changed a keystroke later —
+   * would build on the pre-write snapshot and silently clobber the first
+   * edit once both writes landed. Applying the change to state synchronously
+   * means the very next edit already sees it.
+   */
+  function updateWorkout(next: Workout) {
+    setWorkouts((prev) => prev.map((w) => (w.id === next.id ? next : w)))
+    void putWorkout(next)
   }
 
   return (
@@ -135,7 +143,7 @@ export default function App() {
             entries={activeEntries}
             onStart={(wind, windDirection) => void startWorkout(wind, windDirection)}
             onFinish={() => setActiveWorkout(null)}
-            onWorkoutChanged={(w) => void updateWorkout(w)}
+            onWorkoutChanged={updateWorkout}
             onDataChanged={refresh}
           />
         )}

@@ -124,8 +124,6 @@ export type Wind = 'none' | 'light' | 'moderate' | 'strong'
  *  groups. Wind lives on the Workout instead — it doesn't change bout to
  *  bout inside one session, so it is entered once, not retyped every time. */
 export interface Context {
-  /** Heart rate on entering the range, bpm. 0 = not recorded. */
-  heartRate: number
   /** Did the athlete ski in, or shoot cold off the mat? */
   skiedIn: boolean
   /** Free notes: ammo lot, rifle, how it felt. */
@@ -191,6 +189,15 @@ export interface MetalBout {
   position: Position
   /** How many of the five discs were missed, 0..5. */
   misses: number
+  /** Heart rate coming off the range/ski, bpm. 0 = not recorded. Matters
+   *  more here than on a precision bout — cold-vs-raced heart rate is
+   *  exactly what separates a calm-range hit rate from a race one. */
+  heartRate: number
+  /** Ties this bout to others fired in the same ski-shoot combo — a
+   *  repeated interval session (ski a loop, shoot, repeat) — so they read
+   *  together as one round-by-round set instead of loose entries. Null for
+   *  a standalone metal bout. */
+  comboId: string | null
 }
 
 /** Either kind of bout a workout can hold. */
@@ -220,10 +227,15 @@ export interface Workout {
   id: string
   /** ISO timestamp of the first bout, or when the workout was started. */
   startedAt: string
+  /** Optional label — falls back to the date wherever it's shown when empty. */
+  name: string
   wind: Wind
   /** Clock position the wind blew from. Only meaningful when wind is not 'none'. */
   windDirection: WindDirection
   clickLog: ClickAdjustment[]
+  /** Free notes about the session as a whole — how it felt, what changed,
+   *  anything worth remembering that isn't tied to one specific bout. */
+  notes: string
 }
 
 export interface Ellipse {

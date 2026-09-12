@@ -11,7 +11,7 @@ import { ResultsView } from './ResultsView'
 
 type Stage = 'setup' | 'reading' | 'markup' | 'done'
 
-const EMPTY_CONTEXT: Context = { heartRate: 0, skiedIn: false, notes: '' }
+const EMPTY_CONTEXT: Context = { skiedIn: false, notes: '' }
 
 /**
  * A blank aiming mark to drag into place when there is nothing to correct.
@@ -229,15 +229,6 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
         </label>
 
         <label className="field">
-          <span>Heart rate on entry</span>
-          <input
-            type="number" inputMode="numeric" placeholder="—" min={0} max={230}
-            value={context.heartRate || ''}
-            onChange={(e) => setContext({ ...context, heartRate: Number(e.target.value) || 0 })}
-          />
-        </label>
-
-        <label className="field">
           <span>Notes<small>Ammunition, rifle, how the position felt.</small></span>
           <textarea
             value={context.notes}
@@ -247,9 +238,9 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       </div>
 
       <label className="filelabel">
-        Photograph the target
+        Photograph or choose a photo
         <input
-          type="file" accept="image/*" capture="environment"
+          type="file" accept="image/*"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
         />
       </label>

@@ -106,11 +106,18 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
     return (
       <>
         <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
-        <h1 style={{ marginTop: 10 }}>Workout</h1>
+        <h1 style={{ marginTop: 10 }}>{openWorkout.name || 'Workout'}</h1>
         <p className="lede">
           {fmt(openWorkout.startedAt)} · {WIND_LABEL[openWorkout.wind]}
           {openWorkout.wind !== 'none' && ` from ${openWorkout.windDirection} o'clock`}
         </p>
+
+        {openWorkout.notes && (
+          <div className="card">
+            <h3>Notes</h3>
+            <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.notes}</p>
+          </div>
+        )}
 
         {openWorkout.clickLog.length > 0 && (
           <div className="card">
@@ -142,7 +149,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <div className="grow">
                 <div className="title">{DISCS_PER_METAL_BOUT - e.misses}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
-                <div className="meta">{fmt(e.shotAt)} · metal</div>
+                <div className="meta">{fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}</div>
               </div>
               <button
                 className="link"
@@ -301,10 +308,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
             )}
             <div className="grow">
               <div className="title">
-                {fmt(w.startedAt)}
+                {w.name || fmt(w.startedAt)}
                 {w.wind !== 'none' && <span className="pill">{w.wind} wind</span>}
               </div>
               <div className="meta">
+                {w.name && `${fmt(w.startedAt)} · `}
                 {ownBouts.length} precision · {ownMetal.length} metal
                 {mixedFaces && ownBouts.length > 0 && ` · ${faceById(ownBouts[0].targetFaceId).name}`}
               </div>

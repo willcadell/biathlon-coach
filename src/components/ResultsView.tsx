@@ -138,12 +138,11 @@ export function ResultsView({ bout, settings, workout }: { bout: Bout; settings:
         </div>
       )}
 
-      {(bout.context.heartRate > 0 || bout.context.notes || bout.context.skiedIn) && (
+      {(bout.context.notes || bout.context.skiedIn) && (
         <div className="card" style={{ marginTop: 12 }}>
           <h3>Conditions</h3>
           <p className="meta" style={{ marginBottom: 0 }}>
             {bout.context.skiedIn ? 'Skied in' : 'Cold, off the mat'}
-            {bout.context.heartRate > 0 && ` · ${bout.context.heartRate} bpm on entry`}
             {bout.context.notes && ` · ${bout.context.notes}`}
           </p>
         </div>

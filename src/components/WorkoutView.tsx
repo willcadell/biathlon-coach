@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, Position, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { DISCS_PER_METAL_BOUT } from '../lib/metal'
-import { putMetalBout } from '../lib/db'
+import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { uuid } from '../lib/id'
 import { CaptureView } from './CaptureView'
 
@@ -53,6 +53,10 @@ function WindFields({
 }
 
 function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Workout) => void }) {
+  // Once at least one adjustment exists, the entry form collapses behind a
+  // button — filling it back in for every future correction is more
+  // clutter than the log itself is worth once it is no longer empty.
+  const [open, setOpen] = useState(workout.clickLog.length === 0)
   const [vertical, setVertical] = useState(0)
   const [verticalDir, setVerticalDir] = useState<'up' | 'down'>('up')
   const [horizontal, setHorizontal] = useState(0)
@@ -69,6 +73,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
     setVertical(0)
     setHorizontal(0)
     setNote('')
+    setOpen(false)
   }
 
   const remove = (id: string) => onChange({ ...workout, clickLog: workout.clickLog.filter((c) => c.id !== id) })
@@ -76,7 +81,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
   return (
     <div className="card">
       {workout.clickLog.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: open ? 14 : 0 }}>
           {workout.clickLog.map((c) => (
             <div key={c.id} className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
               <span style={{ flex: 1, fontSize: 14 }}>
@@ -92,64 +97,88 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
         </div>
       )}
 
-      <div className="row">
-        <label className="field">
-          <span>Vertical clicks</span>
-          <input
-            type="number" inputMode="numeric" min={0} value={vertical || ''}
-            onChange={(e) => setVertical(Math.max(0, Number(e.target.value) || 0))}
-          />
-        </label>
-        <label className="field">
-          <span>&nbsp;</span>
-          <div className="seg">
-            {(['up', 'down'] as const).map((d) => (
-              <button key={d} aria-pressed={verticalDir === d} onClick={() => setVerticalDir(d)}>{d}</button>
-            ))}
+      {!open ? (
+        <button className="secondary" onClick={() => setOpen(true)}>+ Log another adjustment</button>
+      ) : (
+        <>
+          <div className="row">
+            <label className="field">
+              <span>Vertical clicks</span>
+              <input
+                type="number" inputMode="numeric" min={0} value={vertical || ''}
+                onChange={(e) => setVertical(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </label>
+            <label className="field">
+              <span>&nbsp;</span>
+              <div className="seg">
+                {(['up', 'down'] as const).map((d) => (
+                  <button key={d} aria-pressed={verticalDir === d} onClick={() => setVerticalDir(d)}>{d}</button>
+                ))}
+              </div>
+            </label>
           </div>
-        </label>
-      </div>
-      <div className="row">
-        <label className="field">
-          <span>Horizontal clicks</span>
-          <input
-            type="number" inputMode="numeric" min={0} value={horizontal || ''}
-            onChange={(e) => setHorizontal(Math.max(0, Number(e.target.value) || 0))}
-          />
-        </label>
-        <label className="field">
-          <span>&nbsp;</span>
-          <div className="seg">
-            {(['left', 'right'] as const).map((d) => (
-              <button key={d} aria-pressed={horizontalDir === d} onClick={() => setHorizontalDir(d)}>{d}</button>
-            ))}
+          <div className="row">
+            <label className="field">
+              <span>Horizontal clicks</span>
+              <input
+                type="number" inputMode="numeric" min={0} value={horizontal || ''}
+                onChange={(e) => setHorizontal(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </label>
+            <label className="field">
+              <span>&nbsp;</span>
+              <div className="seg">
+                {(['left', 'right'] as const).map((d) => (
+                  <button key={d} aria-pressed={horizontalDir === d} onClick={() => setHorizontalDir(d)}>{d}</button>
+                ))}
+              </div>
+            </label>
           </div>
-        </label>
-      </div>
-      <label className="field" style={{ marginBottom: 0 }}>
-        <span>Note<small>What prompted it, if it matters later.</small></span>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <button
-        className="secondary" style={{ marginTop: 12 }}
-        onClick={add} disabled={vertical === 0 && horizontal === 0}
-      >
-        Log this adjustment
-      </button>
+          <label className="field" style={{ marginBottom: 0 }}>
+            <span>Note<small>What prompted it, if it matters later.</small></span>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <div className="row" style={{ marginTop: 12 }}>
+            {workout.clickLog.length > 0 && (
+              <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
+            )}
+            {/* No disabled condition: 0 and 0 is a real result — "checked
+                the zero, nothing needed" is worth logging too. */}
+            <button className="secondary" onClick={add}>Log this adjustment</button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-function MetalForm({ workoutId, onSaved, onCancel }: { workoutId: string; onSaved: () => void; onCancel: () => void }) {
-  const [position, setPosition] = useState<Position>('prone')
-  const [misses, setMisses] = useState(0)
+function MetalForm({
+  workoutId, initial, comboId, onSaved, onCancel,
+}: {
+  workoutId: string
+  /** Present when editing an existing metal bout rather than adding a new one. */
+  initial?: MetalBout
+  /** The active combo to attach a NEW bout to, if any. Ignored when editing —
+   *  an existing bout keeps whatever combo it was already part of. */
+  comboId?: string | null
+  onSaved: () => void
+  onCancel: () => void
+}) {
+  const [position, setPosition] = useState<Position>(initial?.position ?? 'prone')
+  const [misses, setMisses] = useState(initial?.misses ?? 0)
+  const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
   const [saving, setSaving] = useState(false)
 
   async function save() {
     setSaving(true)
     const bout: MetalBout = {
-      kind: 'metal', id: uuid(), workoutId,
-      shotAt: new Date().toISOString(), position, misses,
+      kind: 'metal',
+      id: initial?.id ?? uuid(),
+      workoutId,
+      shotAt: initial?.shotAt ?? new Date().toISOString(),
+      position, misses, heartRate,
+      comboId: initial ? initial.comboId : (comboId ?? null),
     }
     await putMetalBout(bout)
     onSaved()
@@ -157,7 +186,7 @@ function MetalForm({ workoutId, onSaved, onCancel }: { workoutId: string; onSave
 
   return (
     <>
-      <h1>Metal bout</h1>
+      <h1>{initial ? 'Edit metal bout' : comboId ? 'Combo round' : 'Metal bout'}</h1>
       <p className="lede">Five discs, prone or standing. Record how many stayed up.</p>
       <div className="card">
         <label className="field">
@@ -170,13 +199,21 @@ function MetalForm({ workoutId, onSaved, onCancel }: { workoutId: string; onSave
             ))}
           </div>
         </label>
-        <label className="field" style={{ marginBottom: 0 }}>
+        <label className="field">
           <span>Misses<small>Out of {DISCS_PER_METAL_BOUT} discs.</small></span>
           <div className="seg">
             {Array.from({ length: DISCS_PER_METAL_BOUT + 1 }, (_, n) => (
               <button key={n} aria-pressed={misses === n} onClick={() => setMisses(n)}>{n}</button>
             ))}
           </div>
+        </label>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
+          <input
+            type="number" inputMode="numeric" placeholder="—" min={0} max={230}
+            value={heartRate || ''}
+            onChange={(e) => setHeartRate(Number(e.target.value) || 0)}
+          />
         </label>
       </div>
       <div className="row">
@@ -187,7 +224,7 @@ function MetalForm({ workoutId, onSaved, onCancel }: { workoutId: string; onSave
   )
 }
 
-function PrecisionRow({ bout }: { bout: Bout }) {
+function PrecisionRow({ bout, onDeleted }: { bout: Bout; onDeleted: () => void }) {
   return (
     <div className="boutrow" style={{ cursor: 'default' }}>
       <div className="grow">
@@ -198,21 +235,104 @@ function PrecisionRow({ bout }: { bout: Bout }) {
           {bout.shots.length} shot{bout.shots.length === 1 ? '' : 's'} · {bout.metrics.meanRadius.toFixed(0)} mm mean radius
         </div>
       </div>
+      <button
+        className="link"
+        style={{ flex: 'none' }}
+        onClick={async () => {
+          if (!confirm('Delete this precision bout and its photo? This cannot be undone.')) return
+          await deleteBout(bout.id)
+          onDeleted()
+        }}
+      >
+        Remove
+      </button>
     </div>
   )
 }
 
-function MetalRow({ bout }: { bout: MetalBout }) {
+function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => void; onDeleted: () => void }) {
   return (
     <div className="boutrow" style={{ cursor: 'default' }}>
       <div className="grow">
         <div className="title">
           {DISCS_PER_METAL_BOUT - bout.misses}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{bout.position}</span>
         </div>
-        <div className="meta">metal</div>
+        <div className="meta">metal{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
+        <button className="link" onClick={onEdit}>Edit</button>
+        <button
+          className="link"
+          onClick={async () => {
+            if (!confirm('Delete this metal bout?')) return
+            await deleteMetalBout(bout.id)
+            onDeleted()
+          }}
+        >
+          Remove
+        </button>
       </div>
     </div>
   )
+}
+
+function ComboRow({
+  rounds, onEditRound, onDeleted,
+}: {
+  rounds: MetalBout[]
+  onEditRound: (bout: MetalBout) => void
+  onDeleted: () => void
+}) {
+  const shots = rounds.length * DISCS_PER_METAL_BOUT
+  const misses = rounds.reduce((n, b) => n + b.misses, 0)
+  return (
+    <div className="card">
+      <div className="title" style={{ marginBottom: 8 }}>
+        Combo · {rounds.length} round{rounds.length === 1 ? '' : 's'} · {shots - misses}/{shots} hits
+      </div>
+      {rounds.map((r, i) => (
+        <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
+          <span className="meta" style={{ flex: 1 }}>
+            Round {i + 1} · {r.position} · {DISCS_PER_METAL_BOUT - r.misses}/{DISCS_PER_METAL_BOUT}
+            {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
+          </span>
+          <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
+            <button className="link" onClick={() => onEditRound(r)}>Edit</button>
+            <button
+              className="link"
+              onClick={async () => {
+                if (!confirm('Delete this round?')) return
+                await deleteMetalBout(r.id)
+                onDeleted()
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** A precision bout, a standalone metal bout, or every metal bout sharing one
+ *  combo — grouped so a ski-shoot interval session reads as one set of
+ *  rounds instead of loose entries, while everything else stays chronological. */
+type EntryGroup = Bout | MetalBout | { comboId: string; rounds: MetalBout[] }
+
+function groupEntries(entries: WorkoutEntry[]): EntryGroup[] {
+  const seen = new Set<string>()
+  const out: EntryGroup[] = []
+  for (const e of entries) {
+    if (e.kind === 'metal' && e.comboId) {
+      if (seen.has(e.comboId)) continue
+      seen.add(e.comboId)
+      out.push({ comboId: e.comboId, rounds: entries.filter((x): x is MetalBout => x.kind === 'metal' && x.comboId === e.comboId) })
+    } else {
+      out.push(e)
+    }
+  }
+  return out
 }
 
 type Mode = 'entries' | 'addPrecision' | 'addMetal'
@@ -235,8 +355,14 @@ interface Props {
  */
 export function WorkoutView({ settings, workout, entries, onStart, onFinish, onWorkoutChanged, onDataChanged }: Props) {
   const [mode, setMode] = useState<Mode>('entries')
+  const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
+  const [activeComboId, setActiveComboId] = useState<string | null>(null)
   const [startWind, setStartWind] = useState<Wind>('none')
   const [startWindDirection, setStartWindDirection] = useState<WindDirection>('12')
+
+  const comboRounds = activeComboId
+    ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
+    : 0
 
   if (!workout) {
     return (
@@ -269,16 +395,27 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
     return (
       <MetalForm
         workoutId={workout.id}
-        onSaved={() => { onDataChanged(); setMode('entries') }}
-        onCancel={() => setMode('entries')}
+        initial={editingMetal ?? undefined}
+        comboId={activeComboId}
+        onSaved={() => { onDataChanged(); setEditingMetal(null); setMode('entries') }}
+        onCancel={() => { setEditingMetal(null); setMode('entries') }}
       />
     )
   }
 
   return (
     <>
-      <h1>Workout</h1>
+      <h1>{workout.name || 'Workout'}</h1>
       <p className="lede">Started {fmt(workout.startedAt)}.</p>
+
+      <label className="field">
+        <span>Name<small>Optional — shown instead of the date in History.</small></span>
+        <input
+          type="text" placeholder={fmt(workout.startedAt)}
+          value={workout.name ?? ''}
+          onChange={(e) => onWorkoutChanged({ ...workout, name: e.target.value })}
+        />
+      </label>
 
       <h2>Conditions</h2>
       <div className="card">
@@ -294,12 +431,58 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
 
       <h2>This workout</h2>
       {entries.length === 0 && <p className="meta">Nothing added yet.</p>}
-      {entries.map((e) => (e.kind === 'precision' ? <PrecisionRow key={e.id} bout={e} /> : <MetalRow key={e.id} bout={e} />))}
+      {groupEntries(entries).map((item) =>
+        'rounds' in item ? (
+          <ComboRow
+            key={item.comboId}
+            rounds={item.rounds}
+            onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
+            onDeleted={onDataChanged}
+          />
+        ) : item.kind === 'precision' ? (
+          <PrecisionRow key={item.id} bout={item} onDeleted={onDataChanged} />
+        ) : (
+          <MetalRow
+            key={item.id}
+            bout={item}
+            onEdit={() => { setEditingMetal(item); setMode('addMetal') }}
+            onDeleted={onDataChanged}
+          />
+        ),
+      )}
 
       <div className="row" style={{ marginTop: 14 }}>
-        <button className="secondary" onClick={() => setMode('addMetal')}>+ Metal bout</button>
+        <button className="secondary" onClick={() => { setEditingMetal(null); setMode('addMetal') }}>+ Metal bout</button>
         <button className="primary" onClick={() => setMode('addPrecision')}>+ Precision bout</button>
       </div>
+
+      {activeComboId ? (
+        <div className="card" style={{ marginTop: 10 }}>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <span style={{ flex: 1, fontSize: 14 }}>
+              Combo in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
+            </span>
+            <button className="link" onClick={() => setActiveComboId(null)}>End combo</button>
+          </div>
+          <p className="meta" style={{ marginTop: 4, marginBottom: 0 }}>
+            Every metal bout you add now joins this combo, until you end it.
+          </p>
+        </div>
+      ) : (
+        <button
+          className="link" style={{ marginTop: 10 }}
+          onClick={() => setActiveComboId(uuid())}
+        >
+          + Start a combo (repeated ski-and-shoot rounds)
+        </button>
+      )}
+
+      <h2>Notes</h2>
+      <textarea
+        value={workout.notes ?? ''}
+        placeholder="How the whole session went, what to try next time…"
+        onChange={(e) => onWorkoutChanged({ ...workout, notes: e.target.value })}
+      />
 
       <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish workout</button>
     </>
