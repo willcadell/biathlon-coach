@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Bout, MetalBout, Settings, Workout } from '../lib/types'
 import { faceById } from '../lib/types'
-import { DISCS_PER_METAL_BOUT } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, deleteWorkout, getImage } from '../lib/db'
 import { ResultsView } from './ResultsView'
 import { TrendChart } from './TrendChart'
+import { MiniTargets } from './MiniTargets'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -148,8 +149,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
           ) : (
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <div className="grow">
-                <div className="title">{DISCS_PER_METAL_BOUT - e.misses}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
-                <div className="meta">{fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}</div>
+                <div className="title">{hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
+                <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <MiniTargets hits={hitsOf(e)} />
+                  {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}
+                </div>
               </div>
               <button
                 className="link"
@@ -211,7 +215,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
   const metalPct = (set: MetalBout[]) => {
     const shots = set.length * DISCS_PER_METAL_BOUT
     if (!shots) return '—'
-    const misses = set.reduce((n, b) => n + b.misses, 0)
+    const misses = set.reduce((n, b) => n + missCount(hitsOf(b)), 0)
     return `${Math.round(((shots - misses) / shots) * 100)}%`
   }
   const mixedFaces = new Set(bouts.map((b) => b.targetFaceId)).size > 1

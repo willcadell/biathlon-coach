@@ -10,8 +10,8 @@ import {
 import { analyse } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
-import { metalStats } from '../src/lib/metal.ts'
-import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type Position, type Settings, type Shot } from '../src/lib/types.ts'
+import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../src/lib/metal.ts'
+import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot } from '../src/lib/types.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
 
@@ -205,19 +205,31 @@ ok('crop remap round-trips', Math.abs(inverseX - 0.25) < 1e-9 && Math.abs(invers
 ok('crop width-fraction scales a length by the crop width only',
    Math.abs(fromCropWidthFraction(wideRect, 0.5) - 0.2) < 1e-9)
 
-// --- Metal bouts: no photo, no shape, just a hit rate per position.
-const metal = (position: Position, misses: number): MetalBout => ({
+// --- Metal bouts: no photo, no shape — a hit rate per position, and per target.
+const metal = (position: Position, missed: MetalTarget[]): MetalBout => ({
   kind: 'metal', id: crypto.randomUUID(), workoutId: 'w',
-  shotAt: new Date().toISOString(), position, misses, heartRate: 0, comboId: null,
+  shotAt: new Date().toISOString(), position, heartRate: 0, comboId: null,
+  hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>,
 })
-const metalSet = [metal('prone', 0), metal('prone', 1), metal('standing', 2)]
+const metalSet = [metal('prone', []), metal('prone', ['alpha']), metal('standing', ['alpha', 'beta'])]
 const stats = metalStats(metalSet)
 const proneStat = stats.find((s) => s.position === 'prone')
 const standingStat = stats.find((s) => s.position === 'standing')
 ok('metal hit rate averages across bouts of the same position', proneStat?.hitRatePct === 90, JSON.stringify(proneStat))
 ok('metal hit rate is independent per position', standingStat?.hitRatePct === 60, JSON.stringify(standingStat))
-ok('a position with no metal bouts is left out', metalStats([metal('prone', 0)]).length === 1)
+ok('a position with no metal bouts is left out', metalStats([metal('prone', [])]).length === 1)
 ok('no metal bouts gives no stats', metalStats([]).length === 0)
+ok('hitCount and missCount are complementary', hitCount(metal('prone', ['alpha', 'beta']).hits) + missCount(metal('prone', ['alpha', 'beta']).hits) === METAL_TARGETS.length)
+
+// A target missed disproportionately often is exactly the pattern per-target
+// recording exists to surface — a bare miss count could never show this.
+const patternSet = [metal('prone', ['alpha']), metal('prone', ['alpha']), metal('standing', ['charlie'])]
+const targets = targetStats(patternSet)
+const alpha = targets.find((t) => t.target === 'alpha')
+const charlie = targets.find((t) => t.target === 'charlie')
+ok('the target missed most often is identifiable', alpha?.misses === 2 && alpha?.missRatePct === 67, JSON.stringify(alpha))
+ok('a target missed once elsewhere is tracked separately', charlie?.misses === 1 && charlie?.missRatePct === 33, JSON.stringify(charlie))
+ok('no bouts gives no target stats', targetStats([]).length === 0)
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
 if (failures > 0) process.exit(1)

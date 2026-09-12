@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Bout, MetalBout, Settings } from '../lib/types'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
-import { metalStats } from '../lib/metal'
+import { metalStats, targetStats } from '../lib/metal'
 
 /** Bouts older than this stop counting — technique from three months ago is history. */
 const WINDOW_DAYS = 60
@@ -24,6 +24,7 @@ export function TrainingView({ bouts, metalBouts, settings }: { bouts: Bout[]; m
   const findings = useMemo(() => analyse(recent, settings), [recent, settings])
   const plan = useMemo(() => recommend(findings), [findings])
   const metal = useMemo(() => metalStats(recentMetal), [recentMetal])
+  const targets = useMemo(() => targetStats(recentMetal), [recentMetal])
 
   if (recent.length === 0 && metal.length === 0) {
     return (
@@ -64,6 +65,20 @@ export function TrainingView({ bouts, metalBouts, settings }: { bouts: Bout[]; m
                 <div className="k">{s.position}</div>
                 <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
                 <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}, {s.totalMisses} miss{s.totalMisses === 1 ? '' : 'es'}</div>
+              </div>
+            ))}
+          </div>
+
+          <h3 style={{ marginTop: 16 }}>Which targets get missed</h3>
+          <p className="meta" style={{ marginTop: -6 }}>
+            Miss rate per target, alpha to echo, left to right downrange.
+          </p>
+          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {targets.map((t) => (
+              <div className="stat" key={t.target}>
+                <div className="k">{t.target}</div>
+                <div className="v">{t.missRatePct}<small>%</small></div>
+                <div className="n">{t.misses}/{t.bouts}</div>
               </div>
             ))}
           </div>

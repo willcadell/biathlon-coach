@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, Position, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
-import { DISCS_PER_METAL_BOUT } from '../lib/metal'
+import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
+import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { uuid } from '../lib/id'
 import { CaptureView } from './CaptureView'
+import { MiniTargets } from './MiniTargets'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
   '12': '12 · headwind',
@@ -153,6 +154,43 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
   )
 }
 
+/**
+ * Five targets, left to right, exactly as they sit downrange. Each starts
+ * black — a target that hasn't fallen — and a tap turns it white, the same
+ * way it looks the moment a hit actually lands. Recording it this way,
+ * rather than just a count, is what lets a pattern in WHICH target keeps
+ * getting missed show up later.
+ */
+function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; onChange: (hits: Record<MetalTarget, boolean>) => void }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+      {METAL_TARGETS.map((t) => (
+        <button
+          key={t}
+          type="button"
+          aria-pressed={hits[t]}
+          onClick={() => onChange({ ...hits, [t]: !hits[t] })}
+          style={{
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            background: 'none', border: 0, cursor: 'pointer', padding: '4px 0',
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 40, height: 40, borderRadius: '50%',
+              background: hits[t] ? 'var(--raised)' : 'var(--series-1)',
+              border: '2.5px solid var(--series-1)',
+              boxSizing: 'border-box',
+            }}
+          />
+          <span className="meta" style={{ textTransform: 'capitalize' }}>{t}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function MetalForm({
   workoutId, initial, comboId, onSaved, onCancel,
 }: {
@@ -166,7 +204,7 @@ function MetalForm({
   onCancel: () => void
 }) {
   const [position, setPosition] = useState<Position>(initial?.position ?? 'prone')
-  const [misses, setMisses] = useState(initial?.misses ?? 0)
+  const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
   const [saving, setSaving] = useState(false)
 
@@ -177,7 +215,7 @@ function MetalForm({
       id: initial?.id ?? uuid(),
       workoutId,
       shotAt: initial?.shotAt ?? new Date().toISOString(),
-      position, misses, heartRate,
+      position, hits, heartRate,
       comboId: initial ? initial.comboId : (comboId ?? null),
     }
     await putMetalBout(bout)
@@ -187,7 +225,7 @@ function MetalForm({
   return (
     <>
       <h1>{initial ? 'Edit metal bout' : comboId ? 'Combo round' : 'Metal bout'}</h1>
-      <p className="lede">Five discs, prone or standing. Record how many stayed up.</p>
+      <p className="lede">Five targets, prone or standing. Tap the ones that fell.</p>
       <div className="card">
         <label className="field">
           <span>Position</span>
@@ -200,12 +238,8 @@ function MetalForm({
           </div>
         </label>
         <label className="field">
-          <span>Misses<small>Out of {DISCS_PER_METAL_BOUT} discs.</small></span>
-          <div className="seg">
-            {Array.from({ length: DISCS_PER_METAL_BOUT + 1 }, (_, n) => (
-              <button key={n} aria-pressed={misses === n} onClick={() => setMisses(n)}>{n}</button>
-            ))}
-          </div>
+          <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
+          <TargetDial hits={hits} onChange={setHits} />
         </label>
         <label className="field" style={{ marginBottom: 0 }}>
           <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
@@ -251,13 +285,17 @@ function PrecisionRow({ bout, onDeleted }: { bout: Bout; onDeleted: () => void }
 }
 
 function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => void; onDeleted: () => void }) {
+  const hits = hitsOf(bout)
   return (
     <div className="boutrow" style={{ cursor: 'default' }}>
       <div className="grow">
         <div className="title">
-          {DISCS_PER_METAL_BOUT - bout.misses}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{bout.position}</span>
+          {hitCount(hits)}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{bout.position}</span>
         </div>
-        <div className="meta">metal{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}</div>
+        <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <MiniTargets hits={hits} />
+          metal{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
         <button className="link" onClick={onEdit}>Edit</button>
@@ -284,7 +322,7 @@ function ComboRow({
   onDeleted: () => void
 }) {
   const shots = rounds.length * DISCS_PER_METAL_BOUT
-  const misses = rounds.reduce((n, b) => n + b.misses, 0)
+  const misses = rounds.reduce((n, b) => n + missCount(hitsOf(b)), 0)
   return (
     <div className="card">
       <div className="title" style={{ marginBottom: 8 }}>
@@ -292,8 +330,9 @@ function ComboRow({
       </div>
       {rounds.map((r, i) => (
         <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
-          <span className="meta" style={{ flex: 1 }}>
-            Round {i + 1} · {r.position} · {DISCS_PER_METAL_BOUT - r.misses}/{DISCS_PER_METAL_BOUT}
+          <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <MiniTargets hits={hitsOf(r)} />
+            Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
             {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
           </span>
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>

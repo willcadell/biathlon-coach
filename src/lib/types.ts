@@ -181,14 +181,20 @@ export interface Bout {
  * coaching diagnostics a precision bout can. What it tracks instead is hit
  * rate over time, which is the number that actually decides a race.
  */
+/** The five metal targets, left to right as the shooter sees them downrange —
+ *  standard biathlon call signs. */
+export type MetalTarget = 'alpha' | 'beta' | 'charlie' | 'delta' | 'echo'
+
 export interface MetalBout {
   kind: 'metal'
   id: string
   workoutId: string
   shotAt: string
   position: Position
-  /** How many of the five discs were missed, 0..5. */
-  misses: number
+  /** Which of the five targets fell (were hit), left to right. Recorded per
+   *  target rather than as a bare count so a pattern — a target that keeps
+   *  getting missed — can actually be found later. */
+  hits: Record<MetalTarget, boolean>
   /** Heart rate coming off the range/ski, bpm. 0 = not recorded. Matters
    *  more here than on a precision bout — cold-vs-raced heart rate is
    *  exactly what separates a calm-range hit rate from a race one. */
