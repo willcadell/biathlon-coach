@@ -1,162 +1,337 @@
-import type { Bout, MetalBout, Workout } from './types'
+import { supabase } from './supabase'
+import type { Bout, ClickAdjustment, MetalBout, Position, Shot, Wind, WindDirection, Workout } from './types'
+import { PRECISION_SHOTS } from './types'
 
-const DB_NAME = 'biathlon-coach'
-const DB_VERSION = 2
-const BOUTS = 'bouts'
-const IMAGES = 'images'
-const WORKOUTS = 'workouts'
-const METAL = 'metal'
+const BUCKET = 'target-photos'
 
-export interface StoredImage {
-  id: string
-  /** Full-size-ish capture, downscaled for storage. */
-  blob: Blob
-  /** Small square preview for list views. */
-  thumb: Blob
-}
-
-let dbPromise: Promise<IDBDatabase> | null = null
-
-function open(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(BOUTS)) {
-        const store = db.createObjectStore(BOUTS, { keyPath: 'id' })
-        store.createIndex('shotAt', 'shotAt')
-      }
-      if (!db.objectStoreNames.contains(IMAGES)) {
-        db.createObjectStore(IMAGES, { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains(WORKOUTS)) {
-        const store = db.createObjectStore(WORKOUTS, { keyPath: 'id' })
-        store.createIndex('startedAt', 'startedAt')
-      }
-      if (!db.objectStoreNames.contains(METAL)) {
-        const store = db.createObjectStore(METAL, { keyPath: 'id' })
-        store.createIndex('shotAt', 'shotAt')
-      }
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
-  return dbPromise
-}
-
-function run<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return open().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(store, mode)
-        const req = fn(tx.objectStore(store))
-        req.onsuccess = () => resolve(req.result)
-        req.onerror = () => reject(req.error)
-      }),
-  )
+async function currentAthleteId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) throw new Error('Not signed in')
+  return data.user.id
 }
 
 // --- Workouts ---
 
-export const putWorkout = (workout: Workout) => run(WORKOUTS, 'readwrite', (s) => s.put(workout)).then(() => undefined)
+interface WorkoutRow {
+  id: string
+  started_at: string
+  name: string
+  wind: Wind
+  wind_direction: WindDirection
+  notes: string
+}
 
-export const getWorkout = (id: string) => run<Workout | undefined>(WORKOUTS, 'readonly', (s) => s.get(id))
+interface ClickRow {
+  id: string
+  workout_id: string
+  logged_at: string
+  vertical: number
+  vertical_dir: 'up' | 'down'
+  horizontal: number
+  horizontal_dir: 'left' | 'right'
+  clips: number
+  note: string
+}
 
-export const allWorkouts = () =>
-  run<Workout[]>(WORKOUTS, 'readonly', (s) => s.getAll()).then((workouts) =>
-    workouts.sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
-  )
+function toClick(row: ClickRow): ClickAdjustment {
+  return {
+    id: row.id,
+    loggedAt: row.logged_at,
+    vertical: row.vertical,
+    verticalDir: row.vertical_dir,
+    horizontal: row.horizontal,
+    horizontalDir: row.horizontal_dir,
+    // Rows saved before this existed have no value.
+    clips: row.clips ?? 0,
+    note: row.note,
+  }
+}
+
+function toWorkout(row: WorkoutRow, clicks: ClickRow[]): Workout {
+  return {
+    id: row.id,
+    startedAt: row.started_at,
+    name: row.name,
+    wind: row.wind,
+    windDirection: row.wind_direction,
+    notes: row.notes,
+    clickLog: clicks
+      .filter((c) => c.workout_id === row.id)
+      .map(toClick)
+      .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt)),
+  }
+}
+
+export async function putWorkout(workout: Workout): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('workouts').upsert({
+    id: workout.id,
+    athlete_id: athleteId,
+    started_at: workout.startedAt,
+    name: workout.name,
+    wind: workout.wind,
+    wind_direction: workout.windDirection,
+    notes: workout.notes,
+  })
+  if (error) throw error
+
+  // The click log is small and always saved as a whole workout — replace it
+  // wholesale rather than diffing inserts/edits/deletes against the server.
+  const { error: delErr } = await supabase.from('click_adjustments').delete().eq('workout_id', workout.id)
+  if (delErr) throw delErr
+  if (workout.clickLog.length > 0) {
+    const { error: insErr } = await supabase.from('click_adjustments').insert(
+      workout.clickLog.map((c) => ({
+        id: c.id,
+        workout_id: workout.id,
+        logged_at: c.loggedAt,
+        vertical: c.vertical,
+        vertical_dir: c.verticalDir,
+        horizontal: c.horizontal,
+        horizontal_dir: c.horizontalDir,
+        clips: c.clips,
+        note: c.note,
+      })),
+    )
+    if (insErr) throw insErr
+  }
+}
+
+export async function allWorkouts(): Promise<Workout[]> {
+  const [{ data: rows, error }, { data: clicks, error: clickErr }] = await Promise.all([
+    supabase.from('workouts').select('*').order('started_at', { ascending: false }),
+    supabase.from('click_adjustments').select('*'),
+  ])
+  if (error) throw error
+  if (clickErr) throw clickErr
+  return (rows ?? []).map((r) => toWorkout(r, clicks ?? []))
+}
 
 /** Delete a workout and everything shot under it: its precision bouts, their
- *  photos, and its metal bouts. */
+ *  photos, and its metal bouts. The DB cascades the bout/metal-bout/click
+ *  rows; photos in Storage don't cascade, so they're removed here first. */
 export async function deleteWorkout(id: string): Promise<void> {
-  const [bouts, metal] = await Promise.all([allBouts(), allMetalBouts()])
-  const ownBouts = bouts.filter((b) => b.workoutId === id)
-  const ownMetal = metal.filter((m) => m.workoutId === id)
-  const db = await open()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([BOUTS, IMAGES, METAL, WORKOUTS], 'readwrite')
-    for (const bout of ownBouts) {
-      tx.objectStore(BOUTS).delete(bout.id)
-      if (bout.imageId) tx.objectStore(IMAGES).delete(bout.imageId)
-    }
-    for (const m of ownMetal) tx.objectStore(METAL).delete(m.id)
-    tx.objectStore(WORKOUTS).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+  const { data: bouts } = await supabase.from('precision_bouts').select('image_path').eq('workout_id', id)
+  await removeBoutPhotos((bouts ?? []).map((b) => b.image_path))
+  const { error } = await supabase.from('workouts').delete().eq('id', id)
+  if (error) throw error
 }
 
 // --- Precision bouts ---
 
-export const putBout = (bout: Bout) => run(BOUTS, 'readwrite', (s) => s.put(bout)).then(() => undefined)
+export interface BoutRow {
+  id: string
+  workout_id: string
+  shot_at: string
+  position: Position
+  target_face_id: string
+  bullet_diameter_mm: number
+  expected_shots: number
+  image_path: string | null
+  mm_per_unit: number
+  shots: Shot[]
+  metrics: Bout['metrics']
+  skied_in: boolean
+  notes: string
+}
 
-export const allBouts = () =>
-  run<Bout[]>(BOUTS, 'readonly', (s) => s.getAll()).then((bouts) =>
-    bouts.sort((a, b) => b.shotAt.localeCompare(a.shotAt)),
-  )
+export function toBout(row: BoutRow): Bout {
+  return {
+    kind: 'precision',
+    id: row.id,
+    workoutId: row.workout_id,
+    shotAt: row.shot_at,
+    position: row.position,
+    targetFaceId: row.target_face_id,
+    bulletDiameterMm: row.bullet_diameter_mm,
+    expectedShots: row.expected_shots,
+    imagePath: row.image_path,
+    shots: row.shots,
+    context: { skiedIn: row.skied_in, notes: row.notes },
+    mmPerUnit: row.mm_per_unit,
+    metrics: row.metrics,
+  }
+}
+
+export async function allBouts(): Promise<Bout[]> {
+  const { data, error } = await supabase.from('precision_bouts').select('*').order('shot_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(toBout)
+}
+
+/** Save a freshly-scored bout together with its photo. The photo is
+ *  uploaded first so the row is never left pointing at a path that doesn't
+ *  exist yet. */
+export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob; thumb: Blob }): Promise<Bout> {
+  const athleteId = await currentAthleteId()
+  const imagePath = `${athleteId}/${bout.id}`
+  const { error: fullErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(`${imagePath}.jpg`, image.full, { contentType: image.full.type || 'image/jpeg', upsert: true })
+  if (fullErr) throw fullErr
+  const { error: thumbErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(`${imagePath}-thumb.jpg`, image.thumb, { contentType: image.thumb.type || 'image/jpeg', upsert: true })
+  if (thumbErr) throw thumbErr
+
+  const full: Bout = { ...bout, imagePath }
+  const { error } = await supabase.from('precision_bouts').insert({
+    id: full.id,
+    workout_id: full.workoutId,
+    athlete_id: athleteId,
+    shot_at: full.shotAt,
+    position: full.position,
+    target_face_id: full.targetFaceId,
+    bullet_diameter_mm: full.bulletDiameterMm,
+    expected_shots: full.expectedShots ?? PRECISION_SHOTS,
+    image_path: imagePath,
+    mm_per_unit: full.mmPerUnit,
+    shots: full.shots,
+    metrics: full.metrics,
+    skied_in: full.context.skiedIn,
+    notes: full.context.notes,
+  })
+  if (error) throw error
+  return full
+}
+
+/** Re-score an already-saved bout after the athlete refines the shot
+ *  placement — same photo, same row, just the shots and what follows from
+ *  them. Nothing about the photo or the bout's identity changes. */
+export async function updateBoutShots(
+  id: string,
+  patch: Pick<Bout, 'shots' | 'mmPerUnit' | 'metrics'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('precision_bouts')
+    .update({ shots: patch.shots, mm_per_unit: patch.mmPerUnit, metrics: patch.metrics })
+    .eq('id', id)
+  if (error) throw error
+}
 
 export async function deleteBout(id: string): Promise<void> {
-  const bout = await run<Bout | undefined>(BOUTS, 'readonly', (s) => s.get(id))
-  await run(BOUTS, 'readwrite', (s) => s.delete(id))
-  if (bout?.imageId) await run(IMAGES, 'readwrite', (s) => s.delete(bout.imageId))
+  const { data: row } = await supabase.from('precision_bouts').select('image_path').eq('id', id).maybeSingle()
+  await removeBoutPhotos([row?.image_path ?? null])
+  const { error } = await supabase.from('precision_bouts').delete().eq('id', id)
+  if (error) throw error
 }
 
-/** Delete several bouts and their photos in one transaction. */
-export async function deleteBouts(ids: string[]): Promise<void> {
-  const db = await open()
-  const wanted = new Set(ids)
-  const bouts = (await allBouts()).filter((b) => wanted.has(b.id))
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([BOUTS, IMAGES], 'readwrite')
-    for (const bout of bouts) {
-      tx.objectStore(BOUTS).delete(bout.id)
-      if (bout.imageId) tx.objectStore(IMAGES).delete(bout.imageId)
-    }
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
+async function removeBoutPhotos(imagePaths: (string | null)[]): Promise<void> {
+  const objects = imagePaths.filter((p): p is string => p !== null).flatMap((p) => [`${p}.jpg`, `${p}-thumb.jpg`])
+  if (objects.length === 0) return
+  const { error } = await supabase.storage.from(BUCKET).remove(objects)
+  if (error) throw error
+}
+
+/** Signed, time-limited URLs for a batch of bout thumbnails — one request
+ *  for the whole list rather than one per row. Signed rather than public
+ *  because the bucket holds every athlete's photos behind the same RLS
+ *  ownership check as the rest of the app. */
+export async function boutThumbUrls(imagePaths: string[]): Promise<Record<string, string>> {
+  if (imagePaths.length === 0) return {}
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrls(imagePaths.map((p) => `${p}-thumb.jpg`), 3600)
+  if (error) throw error
+  const out: Record<string, string> = {}
+  data.forEach((d, i) => {
+    if (d.signedUrl) out[imagePaths[i]] = d.signedUrl
   })
+  return out
 }
 
-/**
- * Drop every stored photo but keep the scored bouts.
- *
- * Photos are almost all of the space this app uses, and once a bout is scored
- * the shot positions are the record — the picture is only evidence.
- */
+/** Signed URL for one bout's full-size photo, for reviewing a single bout in
+ *  detail — unlike boutThumbUrls' small previews for a whole list. Null once
+ *  the athlete has deleted the photos but kept the scored bout. */
+export async function boutImageUrl(imagePath: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(`${imagePath}.jpg`, 3600)
+  if (error) throw error
+  return data?.signedUrl ?? null
+}
+
+/** Drop every stored photo but keep the scored bouts. Photos are almost all
+ *  of the space this app uses, and once a bout is scored the shot positions
+ *  are the record — the picture is only evidence. */
 export async function clearImages(): Promise<void> {
-  await run(IMAGES, 'readwrite', (s) => s.clear())
+  const { data: bouts, error } = await supabase.from('precision_bouts').select('id, image_path')
+  if (error) throw error
+  const withPhotos = (bouts ?? []).filter((b) => b.image_path !== null)
+  if (withPhotos.length === 0) return
+  await removeBoutPhotos(withPhotos.map((b) => b.image_path))
+  const { error: updErr } = await supabase
+    .from('precision_bouts')
+    .update({ image_path: null })
+    .in('id', withPhotos.map((b) => b.id))
+  if (updErr) throw updErr
 }
-
-export const putImage = (image: StoredImage) =>
-  run(IMAGES, 'readwrite', (s) => s.put(image)).then(() => undefined)
-
-export const getImage = (id: string) => run<StoredImage | undefined>(IMAGES, 'readonly', (s) => s.get(id))
 
 // --- Metal bouts ---
 
-export const putMetalBout = (bout: MetalBout) => run(METAL, 'readwrite', (s) => s.put(bout)).then(() => undefined)
-
-export const allMetalBouts = () =>
-  run<MetalBout[]>(METAL, 'readonly', (s) => s.getAll()).then((bouts) =>
-    bouts.sort((a, b) => b.shotAt.localeCompare(a.shotAt)),
-  )
-
-export const deleteMetalBout = (id: string) => run(METAL, 'readwrite', (s) => s.delete(id)).then(() => undefined)
-
-/** Everything, as JSON, so nothing is trapped in this browser. */
-export async function exportAll(): Promise<string> {
-  const [workouts, bouts, metal] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts()])
-  return JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), workouts, bouts, metal }, null, 2)
+export interface MetalRow {
+  id: string
+  workout_id: string
+  shot_at: string
+  position: Position
+  hit_alpha: boolean
+  hit_beta: boolean
+  hit_charlie: boolean
+  hit_delta: boolean
+  hit_echo: boolean
+  heart_rate: number
+  combo_id: string | null
 }
 
-/** Rough storage usage, so the athlete knows when the photos are piling up. */
-export async function usage(): Promise<{ usedMb: number; quotaMb: number } | null> {
-  if (!navigator.storage?.estimate) return null
-  const est = await navigator.storage.estimate()
+export function toMetalBout(row: MetalRow): MetalBout {
   return {
-    usedMb: Math.round(((est.usage ?? 0) / 1e6) * 10) / 10,
-    quotaMb: Math.round((est.quota ?? 0) / 1e6),
+    kind: 'metal',
+    id: row.id,
+    workoutId: row.workout_id,
+    shotAt: row.shot_at,
+    position: row.position,
+    hits: {
+      alpha: row.hit_alpha,
+      beta: row.hit_beta,
+      charlie: row.hit_charlie,
+      delta: row.hit_delta,
+      echo: row.hit_echo,
+    },
+    heartRate: row.heart_rate,
+    comboId: row.combo_id,
   }
+}
+
+export async function putMetalBout(bout: MetalBout): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('metal_bouts').upsert({
+    id: bout.id,
+    workout_id: bout.workoutId,
+    athlete_id: athleteId,
+    shot_at: bout.shotAt,
+    position: bout.position,
+    hit_alpha: bout.hits.alpha,
+    hit_beta: bout.hits.beta,
+    hit_charlie: bout.hits.charlie,
+    hit_delta: bout.hits.delta,
+    hit_echo: bout.hits.echo,
+    heart_rate: bout.heartRate,
+    combo_id: bout.comboId,
+  })
+  if (error) throw error
+}
+
+export async function allMetalBouts(): Promise<MetalBout[]> {
+  const { data, error } = await supabase.from('metal_bouts').select('*').order('shot_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(toMetalBout)
+}
+
+export async function deleteMetalBout(id: string): Promise<void> {
+  const { error } = await supabase.from('metal_bouts').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Everything, as JSON, so nothing is trapped in one account. */
+export async function exportAll(): Promise<string> {
+  const [workouts, bouts, metal] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts()])
+  return JSON.stringify({ version: 3, exportedAt: new Date().toISOString(), workouts, bouts, metal }, null, 2)
 }

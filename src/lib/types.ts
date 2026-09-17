@@ -164,8 +164,10 @@ export interface Bout {
    *  enforced — the actual count is whatever ends up in `shots`. Bouts saved
    *  before this existed have no value, so read it as `?? 5`. */
   expectedShots?: number
-  /** IndexedDB key of the stored photo blob. */
-  imageId: string
+  /** Storage path of the photo, without extension — `<path>.jpg` is the
+   *  full image, `<path>-thumb.jpg` the list thumbnail. Null once the
+   *  athlete has deleted the photos but kept the scored bout. */
+  imagePath: string | null
   shots: Shot[]
   context: Context
   /** Millimetres per normalised image unit, derived at calibration time. */
@@ -219,6 +221,8 @@ export interface ClickAdjustment {
   verticalDir: 'up' | 'down'
   horizontal: number
   horizontalDir: 'left' | 'right'
+  /** Magazines fired afterward to confirm the new zero held, 0-9. */
+  clips: number
   note: string
 }
 
@@ -293,6 +297,16 @@ export interface BoutMetrics {
   innerTens: number
   /** Shots close enough to a ring line that the reading could go either way. */
   borderlineShots: number
+  /**
+   * True for a shot whose hole straddles the true edge of the hit zone
+   * (HIT_ZONE_MM) — a "splitter". On a real steel target, contact right at
+   * the edge is a coin flip on whether the disc actually falls, the same way
+   * a hole touching a printed ring line is a coin flip on which ring it
+   * counts for. Parallel to shots, in firing order.
+   */
+  splitters: boolean[]
+  /** Count of the above, the usual shorthand for a notice. */
+  splitterShots: number
 }
 
 export interface SightCorrection {
@@ -313,6 +327,7 @@ export type FindingId =
   | 'fatigue_drift'
   | 'standing_gap'
   | 'unstable_npa'
+  | 'wind_sensitivity'
   | 'solid'
 
 export interface Finding {
@@ -364,6 +379,11 @@ export interface Settings {
   aimingMarkMm: number
   /** Right- or left-handed, so bias diagnoses point the right way. */
   handedness: 'right' | 'left'
+  /** Experimental: find shots with plain image processing instead of
+   *  sending the crop to Claude — free and instant, but rougher, and a
+   *  merged cluster is flagged rather than split for you. Off by default;
+   *  the ring itself is always found this way regardless of this setting. */
+  localHoleDetection: boolean
 }
 
 /** A precision (paper, photo-scored) bout is always this many shots. A metal
@@ -403,4 +423,5 @@ export const DEFAULT_SETTINGS: Settings = {
   // Kept in step with the chosen face, and editable for an odd target.
   aimingMarkMm: 112.4,
   handedness: 'right',
+  localHoleDetection: false,
 }

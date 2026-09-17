@@ -3,8 +3,9 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import * as z from 'zod/v4'
 import type { Bull, Detection, Position, Settings } from './types'
 import { faceById } from './types'
-import { forVision, cropForVision } from './imaging'
+import { forVision, cropForVision, locateBlackInBlob, locateHolesInBlob } from './imaging'
 import { outerRingCrop, fromCropFraction, fromCropWidthFraction, type CropRect } from './geometry'
+import { ringRadii } from './scoring'
 
 const HoleSchema = z.object({
   x: z.number().describe('Horizontal centre of the hole, 0 at the left image edge, 1 at the right.'),
@@ -36,24 +37,12 @@ Count from the outside of the group inward. Holes near the edge of the group are
 
 Report only what you can see. Missing a hole is better than inventing one, and the athlete corrects you by hand before anything is scored. Put anything that limits your confidence in notes.`
 
-// --- Pass 1: locate. A rough, cheap pass whose only job is to find where each
-// aiming mark sits so the photo can be cropped tightly around it. It does not
-// look for holes at all, which makes it a much easier — and more reliable —
-// task than the full reading, even on a whole, cluttered sheet at low
-// effective resolution.
-
-const LocateBullSchema = z.object(GeometrySchema)
-
-const LocateSchema = z.object({
-  bulls: z.array(LocateBullSchema),
-  notes: z.string().describe('Anything odd about the photo that might make an aiming mark hard to find.'),
-})
-
-const LOCATE_SYSTEM = `You locate the black aiming marks on a photograph of precision shooting targets. This is a rough first pass used only to crop tightly around each one before a careful second pass finds the actual bullet holes, so approximate is fine — but do not miss a face that has been shot at.
-
-- The BLACK is the solid filled area in the middle of a target face. Report its outer edge, not the scoring rings printed inside or outside it.
-- Describe it as an ellipse. Photographed square-on, semiMajor and semiMinor are equal. Photographed at an angle it appears squashed, so report the true long and short half-widths as they appear.
-- A sheet often carries several separate faces. Report every one that has been shot at, even a face with a single shot on it.`
+// --- Pass 1: locate. Finding where the aiming mark sits, so the photo can
+// be cropped tightly around it, used to be a rough Claude call of its own —
+// but an easy, high-contrast photo could still come back wildly wrong, with
+// no way to make it try again the same way twice. Classical image
+// processing (blackLocator.ts) replaces it: threshold, find the largest
+// solid dark region, fit an ellipse. Same answer every time, no API call.
 
 // --- Pass 2: read each crop. Every crop is a zoomed, high-resolution view of
 // exactly one aiming mark and the scoring rings around it, so the model sees
@@ -260,22 +249,15 @@ function explainCallFailure(error: unknown): VisionError {
   return new VisionError('Could not reach the API. Check your connection — you can still mark the holes by hand.')
 }
 
-/** Cap on how many aiming marks get their own zoomed crop, so one unusual
- *  photo cannot turn into an unbounded number of API calls. Comfortably above
- *  the five bulls a biathlon zeroing card uses. */
-const MAX_CROPS = 6
-
 /**
  * Ask Claude where the holes are.
  *
- * Two passes. The first finds roughly where each aiming mark is, on a small
- * overview of the whole photo — an easy task even at low resolution. The
- * second crops the ORIGINAL, full-resolution photo tightly around each one
- * (out to its outermost scoring ring, not just the black, so a shot on the
- * white paper is not cropped away) and reads holes from those close-up views,
- * batched into a single call. Each hole ends up with far more real pixels
- * behind it than a whole-sheet photo could ever give it at the same API
- * image-size limit.
+ * The aiming mark is found first, deterministically (see blackLocator.ts —
+ * no API call). The photo is then cropped tightly around it — out to its
+ * outermost scoring ring, not just the black, so a shot on the white paper
+ * is not cropped away — and Claude reads holes from that close-up view.
+ * The crop ends up with far more real pixels behind each hole than a
+ * whole-sheet photo could ever give it at the same API image-size limit.
  *
  * This runs straight from the browser with the athlete's own key, which keeps
  * the app a set of static files with no server behind it. The tradeoff is
@@ -291,26 +273,19 @@ export async function detectShots(
   /** How many shots this bout is expected to have — 5 normally, 10 for a precision test. */
   expectedShots: number,
 ): Promise<Detection> {
+  if (settings.localHoleDetection) return detectShotsLocally(file, settings, aspect)
+
   if (!settings.apiKey) throw new VisionError('No API key set. Add one in Settings.')
 
   const client = new Anthropic({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true })
   const face = faceById(settings.targetFaceId)
 
-  let located: Bull[]
-  try {
-    located = await locateBulls(client, file, settings, aspect)
-  } catch (error) {
-    throw explainCallFailure(error)
-  }
+  const located = await locateBlackInBlob(file)
+  const crop = located ? outerRingCrop(located, face, aspect) : null
 
-  const crops = located
-    .slice(0, MAX_CROPS)
-    .map((bull) => outerRingCrop(bull, face, aspect))
-    .filter((rect) => rect.x1 - rect.x0 > 1e-4 && rect.y1 - rect.y0 > 1e-4)
-
-  if (crops.length === 0) {
-    // Nothing to crop around — read the whole frame in one pass rather than
-    // leaving the athlete with an empty screen.
+  if (!crop || crop.x1 - crop.x0 <= 1e-4 || crop.y1 - crop.y0 <= 1e-4) {
+    // Nothing found to crop around — read the whole frame in one pass rather
+    // than leaving the athlete with an empty screen.
     try {
       return await detectWholeImage(client, file, settings, aspect, face.name, position, expectedShots)
     } catch (error) {
@@ -319,49 +294,39 @@ export async function detectShots(
   }
 
   try {
-    return await detectFromCrops(client, file, settings, crops, face.name, position, expectedShots)
+    return await detectFromCrops(client, file, settings, [crop], face.name, position, expectedShots)
   } catch (error) {
     throw explainCallFailure(error)
   }
 }
 
-async function locateBulls(
-  client: Anthropic,
-  file: Blob,
-  settings: Settings,
-  aspect: number,
-): Promise<Bull[]> {
-  const data = await forVision(file)
-  const response = await client.messages.parse({
-    model: settings.model,
-    max_tokens: 2000,
-    system: LOCATE_SYSTEM,
-    output_config: { format: zodOutputFormat(LocateSchema), effort: 'low' },
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } },
-          { type: 'text', text: 'Find every black aiming mark in this photograph.' },
-        ],
-      },
-    ],
-  })
-
-  if (response.stop_reason === 'refusal') {
-    throw new VisionError('The model declined to read this image. Mark the holes by hand instead.')
+/**
+ * The fully local path: no API call at all, for the "localHoleDetection"
+ * experiment. Deliberately conservative — see holeLocator.ts — so this
+ * reports what it's unsure about rather than presenting a guess as settled.
+ */
+async function detectShotsLocally(file: Blob, settings: Settings, aspect: number): Promise<Detection> {
+  const face = faceById(settings.targetFaceId)
+  const located = await locateBlackInBlob(file)
+  if (!located) {
+    return { bulls: [], notes: 'No aiming mark found automatically. Place the ring and tap in your shots.', confidence: 0 }
   }
-  const parsed = response.parsed_output
-  if (!parsed) return []
 
-  return parsed.bulls.map((b, i) => ({
-    id: `bull-${i + 1}`,
-    centre: toWidthUnits(b.centreX, b.centreY, aspect),
-    semiMajor: Math.max(b.semiMajor, 1e-4),
-    semiMinor: Math.max(Math.min(b.semiMinor, b.semiMajor), 1e-4),
-    rotationDeg: b.rotationDeg,
-    holes: [],
-  }))
+  const crop = outerRingCrop(located, face, aspect)
+  const ringRadiiFrac = ringRadii(face).map((r) => r / (face.blackMm / 2))
+  const { holes, ambiguous } = await locateHolesInBlob(
+    file, crop, located, settings.aimingMarkMm, settings.bulletDiameterMm, ringRadiiFrac,
+  )
+  const ambiguousCount = ambiguous.filter(Boolean).length
+
+  return {
+    bulls: [{ ...located, holes }],
+    notes:
+      'Experimental local detection — no Claude call was made. Check every marker; a merged group is flagged, ' +
+      'not split, and a real hole can still be missed.' +
+      (ambiguousCount > 0 ? ` ${ambiguousCount} marker${ambiguousCount === 1 ? '' : 's'} may cover more than one shot.` : ''),
+    confidence: ambiguousCount > 0 ? 0.4 : 0.6,
+  }
 }
 
 async function detectFromCrops(

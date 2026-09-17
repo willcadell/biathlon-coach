@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { Settings } from '../lib/types'
 import { faceById, TARGET_FACES } from '../lib/types'
 import { ringRadii } from '../lib/scoring'
 import { COST_PER_IMAGE, testApiKey, type KeyCheck } from '../lib/vision'
-import { clearImages, exportAll, usage } from '../lib/db'
+import { clearImages, exportAll } from '../lib/db'
 import { DRILLS } from '../lib/training'
 
 interface Props {
@@ -11,10 +11,14 @@ interface Props {
   onChange: (s: Settings) => void
   boutCount: number
   onDataChanged: () => void
+  /** Which identity this session is acting as. */
+  mode: 'athlete' | 'coach'
+  /** Present only when the signed-in user has both an athlete and a coach
+   *  identity — there's nothing to switch to otherwise. */
+  onSwitchRole?: () => void
 }
 
-export function SettingsView({ settings, onChange, boutCount, onDataChanged }: Props) {
-  const [space, setSpace] = useState<{ usedMb: number; quotaMb: number } | null>(null)
+export function SettingsView({ settings, onChange, boutCount, onDataChanged, mode, onSwitchRole }: Props) {
   const [check, setCheck] = useState<KeyCheck | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -29,8 +33,6 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged }: P
   }
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value })
-
-  useEffect(() => { void usage().then(setSpace) }, [boutCount])
 
   async function download() {
     const json = await exportAll()
@@ -48,6 +50,20 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged }: P
   return (
     <>
       <h1>Settings</h1>
+
+      {onSwitchRole && (
+        <>
+          <h2>Session</h2>
+          <div className="card">
+            <p style={{ marginTop: 0 }}>
+              Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
+            </p>
+            <button className="secondary" onClick={onSwitchRole}>
+              Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
+            </button>
+          </div>
+        </>
+      )}
 
       <h2>Your target</h2>
       <div className="card">
@@ -203,16 +219,27 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged }: P
           Nothing passes through a server of mine, because there isn't one. Use a key you are happy
           to keep on your phone, and revoke it if you lose the device.
         </div>
+
+        <label className="check" style={{ marginTop: 12 }}>
+          <input
+            type="checkbox"
+            checked={settings.localHoleDetection}
+            onChange={(e) => set('localHoleDetection', e.target.checked)}
+          />
+          Experimental: find shots without Claude
+        </label>
+        <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted)' }}>
+          Free and instant, no API call at all — the ring is always found this way regardless, but
+          this also skips Claude for the shots themselves. Rougher: it can miss a real hole, and marks
+          a merged group with one flagged marker instead of splitting it. Check every marker closely.
+        </small>
       </div>
 
       <h2>Your data</h2>
       <div className="card">
         <p>
-          {boutCount} bout{boutCount === 1 ? '' : 's'} and their photos are stored in this browser.
-          {space && ` About ${space.usedMb} MB used.`}
-        </p>
-        <p className="meta">
-          Clearing this site's data in your browser deletes all of it. Export regularly if it matters.
+          {boutCount} bout{boutCount === 1 ? '' : 's'} and their photos are stored in your account, not
+          this device — sign in anywhere and they're there.
         </p>
         <button className="secondary" onClick={download} style={{ marginTop: 8 }}>
           Export everything as JSON
@@ -223,7 +250,6 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged }: P
           onClick={async () => {
             if (!confirm('Delete every stored photo? Scores, groups and training stay exactly as they are.')) return
             await clearImages()
-            setSpace(await usage())
             onDataChanged()
           }}
         >

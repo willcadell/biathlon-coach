@@ -3,8 +3,8 @@ import type { Bout, Bull, Context, Position, Settings, Workout } from '../lib/ty
 import { PRECISION_SHOTS, settingsContext } from '../lib/types'
 import { bullsToShots, computeMetrics, mmPerUnitFor } from '../lib/geometry'
 import { detectShots, VisionError, COST_PER_IMAGE } from '../lib/vision'
-import { aspectOf, forStorage, forThumb } from '../lib/imaging'
-import { putBout, putImage } from '../lib/db'
+import { aspectOf, forStorage, forThumb, locateBlackInBlob } from '../lib/imaging'
+import { putBout, updateBoutShots } from '../lib/db'
 import { uuid } from '../lib/id'
 import { MarkupView } from './MarkupView'
 import { ResultsView } from './ResultsView'
@@ -54,6 +54,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
   const [detected, setDetected] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState<Bout | null>(null)
+  const [saving, setSaving] = useState(false)
   const urlRef = useRef<string>('')
 
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current) }, [])
@@ -68,11 +69,19 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     setImageUrl(urlRef.current)
     setAspect(ratio)
 
-    if (!settings.apiKey) {
+    if (!settings.apiKey && !settings.localHoleDetection) {
       setDetected(null)
-      setBulls([seedBull(ratio)])
-      setRingDetected(false)
-      setNotes('No API key set, so nothing was read automatically. Place the ring and tap in your shots.')
+      // No API key means no automatic hole-reading, but the ring itself
+      // doesn't need one — it's found with plain image processing, not
+      // Claude, so the athlete still gets it placed correctly for free.
+      const located = await locateBlackInBlob(stored)
+      setBulls([located ?? seedBull(ratio)])
+      setRingDetected(located !== null)
+      setNotes(
+        located
+          ? 'No API key set, so shots were not read automatically. The ring was still found — tap in your shots.'
+          : 'No API key set, and no aiming mark was found automatically. Place the ring and tap in your shots.',
+      )
       setStage('markup')
       return
     }
@@ -107,27 +116,51 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       setError('Mark at least one shot before scoring.')
       return
     }
-    const imageId = uuid()
-    const bout: Bout = {
-      kind: 'precision',
-      id: uuid(),
-      workoutId: workout.id,
-      shotAt: new Date().toISOString(),
-      position,
-      targetFaceId: settings.targetFaceId,
-      bulletDiameterMm: settings.bulletDiameterMm,
-      expectedShots: PRECISION_SHOTS,
-      imageId,
-      shots,
-      context,
-      mmPerUnit: mmPerUnitFor(bulls, settings.aimingMarkMm),
-      metrics: computeMetrics(shots, position, settingsContext(settings)),
+    setError('')
+    setSaving(true)
+    const mmPerUnit = mmPerUnitFor(bulls, settings.aimingMarkMm)
+    const metrics = computeMetrics(shots, position, settingsContext(settings))
+    try {
+      if (saved) {
+        // Refining a bout that's already saved: same photo, same row —
+        // only the shots and what follows from them change.
+        await updateBoutShots(saved.id, { shots, mmPerUnit, metrics })
+        setSaved({ ...saved, shots, mmPerUnit, metrics })
+      } else {
+        const bout: Omit<Bout, 'imagePath'> = {
+          kind: 'precision',
+          id: uuid(),
+          workoutId: workout.id,
+          shotAt: new Date().toISOString(),
+          position,
+          targetFaceId: settings.targetFaceId,
+          bulletDiameterMm: settings.bulletDiameterMm,
+          expectedShots: PRECISION_SHOTS,
+          shots,
+          context,
+          mmPerUnit,
+          metrics,
+        }
+        setSaved(await putBout(bout, { full: file, thumb: await forThumb(file) }))
+      }
+      setStage('done')
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save this bout. Check your connection and try again.')
+    } finally {
+      setSaving(false)
     }
-    await putImage({ id: imageId, blob: file, thumb: await forThumb(file) })
-    await putBout(bout)
-    setSaved(bout)
-    setStage('done')
-    onSaved()
+  }
+
+  /** Back to the correction screen for a bout that's already saved, with
+   *  exactly the ring and shots it was saved with — nothing is re-detected,
+   *  since the athlete is fixing a specific marker, not starting over. */
+  function refine() {
+    setError('')
+    setNotes('')
+    setDetected(null)
+    setRingDetected(false)
+    setStage('markup')
   }
 
   function reset() {
@@ -141,6 +174,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     setNotes('')
     setDetected(null)
     setError('')
+    setSaving(false)
     setContext(EMPTY_CONTEXT)
     setStage('setup')
   }
@@ -150,9 +184,10 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       <>
         <h1>Bout scored</h1>
         <p className="lede">Saved to your history.</p>
-        <ResultsView bout={saved} settings={settings} workout={workout} />
+        <ResultsView bout={saved} settings={settings} workout={workout} imageUrl={imageUrl} />
         <div className="row" style={{ marginTop: 16 }}>
           {onExit && <button className="secondary" onClick={onExit}>Back to workout</button>}
+          <button className="secondary" onClick={refine}>Refine placement</button>
           <button className="primary" onClick={reset}>Score another</button>
         </div>
       </>
@@ -174,11 +209,13 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
     const mismatch = found && detected !== PRECISION_SHOTS
     return (
       <>
-        <h1>{found ? `Found ${detected} shot${detected === 1 ? '' : 's'}` : 'Mark your shots'}</h1>
+        <h1>{saved ? 'Refine placement' : found ? `Found ${detected} shot${detected === 1 ? '' : 's'}` : 'Mark your shots'}</h1>
         <p className="lede">
-          {found
-            ? 'Check every marker before scoring, and drag anything that sits off its hole. A shot marked 5 mm out is a 5 mm error in every number that follows.'
-            : 'Place the green ring on the black, then tap in each shot. A shot marked 5 mm out is a 5 mm error in every number that follows.'}
+          {saved
+            ? 'Adjust the ring or any shot, then save — the score updates from wherever things end up.'
+            : found
+              ? 'Check every marker before scoring, and drag anything that sits off its hole. A shot marked 5 mm out is a 5 mm error in every number that follows.'
+              : 'Place the green ring on the black, then tap in each shot. A shot marked 5 mm out is a 5 mm error in every number that follows.'}
         </p>
         {error && <div className="notice error">{error}</div>}
         {mismatch && (
@@ -191,9 +228,15 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
         {notes && <div className="notice">{notes}</div>}
         <MarkupView imageUrl={imageUrl} bulls={bulls} aspect={aspect} onChange={setBulls} ringLocked={ringDetected} />
         <div className="row" style={{ marginTop: 14 }}>
-          <button className="secondary" onClick={reset}>Start over</button>
-          <button className="primary" onClick={save}>
-            {found ? 'Confirm and score' : 'Score it'}
+          <button
+            className="secondary"
+            onClick={() => (saved ? setStage('done') : reset())}
+            disabled={saving}
+          >
+            {saved ? 'Cancel' : 'Start over'}
+          </button>
+          <button className="primary" onClick={() => void save()} disabled={saving}>
+            {saving ? 'Saving…' : saved ? 'Save changes' : found ? 'Confirm and score' : 'Score it'}
           </button>
         </div>
       </>

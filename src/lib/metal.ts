@@ -57,16 +57,28 @@ export interface TargetStat {
   bouts: number
   misses: number
   missRatePct: number
+  hits: number
+  /** Biathletes talk in hit rate, not miss rate — bouts is the count that hits
+   *  100% of, the same way DISCS_PER_METAL_BOUT is 100% within one bout. */
+  hitRatePct: number
 }
 
-/** Miss rate per target, across whatever bouts are handed in — the point of
- *  recording hits individually instead of as a bare count: a target that
- *  keeps falling last (or not at all) is a real, fixable pattern, and a
+/** Hit and miss rate per target, across whatever bouts are handed in — the
+ *  point of recording hits individually instead of as a bare count: a target
+ *  that keeps falling last (or not at all) is a real, fixable pattern, and a
  *  count alone could never show it. */
 export function targetStats(bouts: MetalBout[]): TargetStat[] {
   if (bouts.length === 0) return []
   return METAL_TARGETS.map((target) => {
     const misses = bouts.filter((b) => !hitsOf(b)[target]).length
-    return { target, bouts: bouts.length, misses, missRatePct: Math.round((misses / bouts.length) * 100) }
+    const hits = bouts.length - misses
+    return {
+      target,
+      bouts: bouts.length,
+      misses,
+      missRatePct: Math.round((misses / bouts.length) * 100),
+      hits,
+      hitRatePct: Math.round((hits / bouts.length) * 100),
+    }
   })
 }

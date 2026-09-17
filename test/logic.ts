@@ -7,11 +7,12 @@ import {
   bullsToShots, computeMetrics, groupEllipse, degreesFromVertical, toTargetPlane,
   ellipseBoundingBox, outerRingCrop, fromCropFraction, fromCropWidthFraction,
 } from '../src/lib/geometry.ts'
-import { analyse } from '../src/lib/diagnostics.ts'
+import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../src/lib/metal.ts'
-import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot } from '../src/lib/types.ts'
+import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
+import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
 
@@ -67,6 +68,22 @@ const withFlier = mk([{x:0,y:0},{x:2,y:1},{x:-1,y:2},{x:1,y:-2},{x:40,y:35}])
 ok('flier found at index 4', computeMetrics(withFlier, 'prone', CTX).flierIndex === 4)
 ok('no flier in an even group', computeMetrics(tight, 'prone', CTX).flierIndex === null)
 
+// --- Splitters: prone hit zone is 45 mm across (radius 22.5), .22 bullet
+// radius 2.8 mm, so a hole is a splitter from 19.7 to 25.3 mm out.
+const edge = mk([{x:0,y:0},{x:20,y:0},{x:22.5,y:0},{x:25,y:0},{x:30,y:0}])
+const em = computeMetrics(edge, 'prone', CTX)
+ok('dead centre is not a splitter', em.splitters[0] === false)
+ok('just inside the hit zone is a splitter', em.splitters[1] === true)
+ok('exactly on the hit-zone edge is a splitter', em.splitters[2] === true)
+ok('just outside the hit zone is a splitter', em.splitters[3] === true)
+ok('well outside the hit zone is a clean miss, not a splitter', em.splitters[4] === false)
+ok('splitterShots counts them', em.splitterShots === 3, String(em.splitterShots))
+
+// The same edge, on the much larger standing hit zone (115 mm, radius 57.5),
+// should not falsely flag as splitters — position-aware, not a flat distance.
+const standingEdge = mk([{x:22.5,y:0}])
+ok('splitter check is position-aware', computeMetrics(standingEdge, 'standing', CTX).splitters[0] === false)
+
 // --- Multi-bull overlay: five bulls, one shot each, all 5 mm right of their own centre.
 const bulls: Bull[] = [0,1,2,3,4].map((i) => ({
   id: `b${i}`, centre: { x: 0.15 + i * 0.17, y: 0.5 }, semiMajor: 0.05, semiMinor: 0.05, rotationDeg: 0,
@@ -119,13 +136,13 @@ ok('score if zeroed beats the score as fired', om.ringTotalIfZeroed > om.ringTot
    `${om.ringTotal} -> ${om.ringTotalIfZeroed}`)
 
 // --- Diagnostics.
-const bout = (position: Position, pts: {x:number;y:number}[], skiedIn = false, daysAgo = 1): Bout => {
+const bout = (position: Position, pts: {x:number;y:number}[], skiedIn = false, daysAgo = 1, workoutId = 'w'): Bout => {
   const shots = mk(pts)
   return {
-    kind: 'precision', id: crypto.randomUUID(), workoutId: 'w',
+    kind: 'precision', id: crypto.randomUUID(), workoutId,
     shotAt: new Date(Date.now() - daysAgo * 86400000).toISOString(),
     position, targetFaceId: DEFAULT_SETTINGS.targetFaceId,
-    bulletDiameterMm: DEFAULT_SETTINGS.bulletDiameterMm, imageId: 'x', shots,
+    bulletDiameterMm: DEFAULT_SETTINGS.bulletDiameterMm, imagePath: 'x', shots,
     context: { skiedIn, notes: '' },
     mmPerUnit: 1, metrics: computeMetrics(shots, position, CTX),
   }
@@ -157,6 +174,27 @@ f = analyse(gap, DEFAULT_SETTINGS)
 ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.id).join(','))
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
+
+// --- Wind sensitivity: same shooter, tight both times, but pushed sideways
+// only in the bouts shot in strong wind.
+const mkWorkout = (id: string, wind: Workout['wind']): Workout => ({
+  id, startedAt: new Date().toISOString(), name: '', wind, windDirection: '3', clickLog: [], notes: '',
+})
+const calmBouts = [0, 1].map((i) => bout('prone', [{x:2,y:1},{x:1,y:-1},{x:3,y:0},{x:1,y:1},{x:2,y:-1}], false, i+1, `w-calm-${i}`))
+const windyBouts = [0, 1].map((i) => bout('prone', [{x:16,y:1},{x:14,y:-1},{x:15,y:0},{x:14,y:1},{x:16,y:-1}], false, i+1, `w-windy-${i}`))
+const windWorkouts = [
+  ...calmBouts.map((b) => mkWorkout(b.workoutId, 'none')),
+  ...windyBouts.map((b) => mkWorkout(b.workoutId, 'strong')),
+]
+f = analyse([...calmBouts, ...windyBouts], DEFAULT_SETTINGS, windWorkouts)
+ok('wind sensitivity diagnosed', f.some((x) => x.id === 'wind_sensitivity'), f.map(x=>x.id).join(','))
+ok('wind sensitivity silent with no workouts given', !analyse([...calmBouts, ...windyBouts], DEFAULT_SETTINGS).some((x) => x.id === 'wind_sensitivity'))
+
+// --- Single-bout read: the same strung-vertically shape as above, from one
+// bout alone, with no trend to confirm it against.
+const oneStrung = bout('prone', [{x:0,y:-18},{x:1,y:-9},{x:-1,y:1},{x:0,y:10},{x:1,y:19}])
+ok('single bout flags vertical stringing', analyseSingleBout(oneStrung, DEFAULT_SETTINGS).some((x) => x.id === 'vertical_stringing'))
+ok('single bout cannot see a drift trend', !analyseSingleBout(oneStrung, DEFAULT_SETTINGS).some((x) => x.id === 'fatigue_drift'))
 
 // Changing the face rescales every score without touching the stored shots.
 const airSettings: Settings = { ...DEFAULT_SETTINGS, targetFaceId: 'issf-10m-air', bulletDiameterMm: 4.5 }
@@ -230,6 +268,107 @@ const charlie = targets.find((t) => t.target === 'charlie')
 ok('the target missed most often is identifiable', alpha?.misses === 2 && alpha?.missRatePct === 67, JSON.stringify(alpha))
 ok('a target missed once elsewhere is tracked separately', charlie?.misses === 1 && charlie?.missRatePct === 33, JSON.stringify(charlie))
 ok('no bouts gives no target stats', targetStats([]).length === 0)
+
+// --- Deterministic black-locator: synthetic images with a known answer,
+// covering exactly the failure modes real photos exposed (see blackLocator.ts).
+function blankCanvas(width: number, height: number): PixelBuffer {
+  const data = new Uint8ClampedArray(width * height * 4).fill(255)
+  return { width, height, data }
+}
+function paintDisc(img: PixelBuffer, cx: number, cy: number, r: number, gray: number, rInner = 0) {
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      const d2 = (x - cx) ** 2 + (y - cy) ** 2
+      if (d2 <= r * r && d2 >= rInner * rInner) {
+        const i = (y * img.width + x) * 4
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = gray
+      }
+    }
+  }
+}
+function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gray: number) {
+  for (let y = y0; y < y0 + size; y++) {
+    for (let x = x0; x < x0 + size; x++) {
+      const i = (y * img.width + x) * 4
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = gray
+    }
+  }
+}
+
+{
+  const img = blankCanvas(200, 200)
+  paintDisc(img, 100, 100, 60, 10)
+  const r = locateBlack(img)
+  ok(
+    'finds a plain black disc on white',
+    r !== null && Math.abs(r.cx - 100) < 2 && Math.abs(r.cy - 100) < 2 && Math.abs(r.semiMajor - 60) < 2,
+    JSON.stringify(r),
+  )
+}
+
+{
+  // A flash-blown shot hole inside the black must not fragment it — the
+  // real bug this fixed (blackLocator.ts's fillEnclosedHoles).
+  const img = blankCanvas(200, 200)
+  paintDisc(img, 100, 100, 60, 10)
+  paintDisc(img, 90, 90, 8, 255)
+  const r = locateBlack(img)
+  ok(
+    'a small enclosed flash hole is filled, not left fragmenting the disc',
+    r !== null && Math.abs(r.semiMajor - 60) < 3 && r.fillRatio > 0.9,
+    JSON.stringify(r),
+  )
+}
+
+{
+  // A separate dark shape sitting nearby — a shadow, a score table — must
+  // never get welded onto the real black the way naive dilation did.
+  const img = blankCanvas(300, 300)
+  paintDisc(img, 60, 60, 40, 10)
+  paintSquare(img, 250, 250, 20, 10)
+  const r = locateBlack(img)
+  ok(
+    'a separate nearby dark shape is not merged into the black',
+    r !== null && Math.abs(r.cx - 60) < 3 && Math.abs(r.cy - 60) < 3 && Math.abs(r.semiMajor - 40) < 3,
+    JSON.stringify(r),
+  )
+}
+
+{
+  // The gap between the black and an outer scoring ring is also technically
+  // "enclosed," but far too big to be a shot hole — must stay unfilled.
+  const img = blankCanvas(300, 300)
+  paintDisc(img, 150, 150, 40, 10)
+  paintDisc(img, 150, 150, 75, 10, 70)
+  const r = locateBlack(img)
+  ok(
+    'the gap to an outer scoring ring is too big to fill, so only the black is measured',
+    r !== null && Math.abs(r.semiMajor - 40) < 3,
+    JSON.stringify(r),
+  )
+}
+
+{
+  const img = blankCanvas(200, 200)
+  paintDisc(img, 100, 100, 3, 10)
+  ok('a speck too small to be a real aiming mark is ignored', locateBlack(img) === null)
+}
+
+{
+  // A good shooter blows out the centre of the black with overlapping
+  // shots — too big a hole to count as a small flash spot, so it stays
+  // unfilled. A mass-based fit would drag the centre toward the remaining
+  // crescent; the boundary fit never looks at the interior at all.
+  const img = blankCanvas(200, 200)
+  paintDisc(img, 100, 100, 60, 10)
+  paintDisc(img, 115, 100, 20, 255)
+  const r = locateBlack(img)
+  ok(
+    'a blown-out centre cluster does not drag the fit off-centre',
+    r !== null && Math.abs(r.cx - 100) < 2 && Math.abs(r.cy - 100) < 2 && Math.abs(r.semiMajor - 60) < 2,
+    JSON.stringify(r),
+  )
+}
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
 if (failures > 0) process.exit(1)

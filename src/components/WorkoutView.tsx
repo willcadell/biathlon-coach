@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
+import { analyse } from '../lib/diagnostics'
 import { uuid } from '../lib/id'
 import { CaptureView } from './CaptureView'
 import { MiniTargets } from './MiniTargets'
@@ -53,6 +54,8 @@ function WindFields({
   )
 }
 
+const clampToDigits = (n: number, max: number) => Math.max(0, Math.min(max, Math.trunc(n) || 0))
+
 function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Workout) => void }) {
   // Once at least one adjustment exists, the entry form collapses behind a
   // button — filling it back in for every future correction is more
@@ -62,17 +65,19 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
   const [verticalDir, setVerticalDir] = useState<'up' | 'down'>('up')
   const [horizontal, setHorizontal] = useState(0)
   const [horizontalDir, setHorizontalDir] = useState<'left' | 'right'>('left')
+  const [clips, setClips] = useState(0)
   const [note, setNote] = useState('')
 
   function add() {
     const entry: ClickAdjustment = {
       id: uuid(),
       loggedAt: new Date().toISOString(),
-      vertical, verticalDir, horizontal, horizontalDir, note,
+      vertical, verticalDir, horizontal, horizontalDir, clips, note,
     }
     onChange({ ...workout, clickLog: [...workout.clickLog, entry] })
     setVertical(0)
     setHorizontal(0)
+    setClips(0)
     setNote('')
     setOpen(false)
   }
@@ -90,6 +95,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
                 {c.vertical > 0 && c.horizontal > 0 && ', '}
                 {c.horizontal > 0 && `${c.horizontal} click${c.horizontal === 1 ? '' : 's'} ${c.horizontalDir}`}
                 {c.vertical === 0 && c.horizontal === 0 && 'No movement'}
+                {c.clips > 0 && ` · ${c.clips} clip${c.clips === 1 ? '' : 's'} to confirm`}
                 {c.note && <span className="meta"> — {c.note}</span>}
               </span>
               <button className="link" onClick={() => remove(c.id)}>Remove</button>
@@ -102,44 +108,56 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
         <button className="secondary" onClick={() => setOpen(true)}>+ Log another adjustment</button>
       ) : (
         <>
-          <div className="row">
-            <label className="field">
-              <span>Vertical clicks</span>
+          <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', gap: 10 }}>
+            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
+              <span>Vert</span>
               <input
-                type="number" inputMode="numeric" min={0} value={vertical || ''}
-                onChange={(e) => setVertical(Math.max(0, Number(e.target.value) || 0))}
+                type="number" inputMode="numeric" min={0} max={99} value={vertical || ''}
+                onChange={(e) => setVertical(clampToDigits(Number(e.target.value), 99))}
               />
             </label>
-            <label className="field">
-              <span>&nbsp;</span>
-              <div className="seg">
-                {(['up', 'down'] as const).map((d) => (
-                  <button key={d} aria-pressed={verticalDir === d} onClick={() => setVerticalDir(d)}>{d}</button>
-                ))}
-              </div>
-            </label>
-          </div>
-          <div className="row">
-            <label className="field">
-              <span>Horizontal clicks</span>
+            <div className="seg" style={{ flex: 'none' }}>
+              <button
+                type="button" aria-pressed={verticalDir === 'up'} aria-label="Up" title="Up"
+                onClick={() => setVerticalDir('up')} style={{ width: 40 }}
+              >↑</button>
+              <button
+                type="button" aria-pressed={verticalDir === 'down'} aria-label="Down" title="Down"
+                onClick={() => setVerticalDir('down')} style={{ width: 40 }}
+              >↓</button>
+            </div>
+
+            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
+              <span>Horiz</span>
               <input
-                type="number" inputMode="numeric" min={0} value={horizontal || ''}
-                onChange={(e) => setHorizontal(Math.max(0, Number(e.target.value) || 0))}
+                type="number" inputMode="numeric" min={0} max={99} value={horizontal || ''}
+                onChange={(e) => setHorizontal(clampToDigits(Number(e.target.value), 99))}
               />
             </label>
-            <label className="field">
-              <span>&nbsp;</span>
-              <div className="seg">
-                {(['left', 'right'] as const).map((d) => (
-                  <button key={d} aria-pressed={horizontalDir === d} onClick={() => setHorizontalDir(d)}>{d}</button>
-                ))}
-              </div>
+            <div className="seg" style={{ flex: 'none' }}>
+              <button
+                type="button" aria-pressed={horizontalDir === 'left'} aria-label="Left" title="Left"
+                onClick={() => setHorizontalDir('left')} style={{ width: 40 }}
+              >←</button>
+              <button
+                type="button" aria-pressed={horizontalDir === 'right'} aria-label="Right" title="Right"
+                onClick={() => setHorizontalDir('right')} style={{ width: 40 }}
+              >→</button>
+            </div>
+
+            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
+              <span>Clips<small>To confirm</small></span>
+              <input
+                type="number" inputMode="numeric" min={0} max={9} value={clips || ''}
+                onChange={(e) => setClips(clampToDigits(Number(e.target.value), 9))}
+              />
+            </label>
+
+            <label className="field" style={{ flex: '1 1 160px', marginBottom: 0 }}>
+              <span>Note</span>
+              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span>Note<small>What prompted it, if it matters later.</small></span>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
-          </label>
           <div className="row" style={{ marginTop: 12 }}>
             {workout.clickLog.length > 0 && (
               <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
@@ -207,9 +225,11 @@ function MetalForm({
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   async function save() {
     setSaving(true)
+    setError('')
     const bout: MetalBout = {
       kind: 'metal',
       id: initial?.id ?? uuid(),
@@ -218,8 +238,13 @@ function MetalForm({
       position, hits, heartRate,
       comboId: initial ? initial.comboId : (comboId ?? null),
     }
-    await putMetalBout(bout)
-    onSaved()
+    try {
+      await putMetalBout(bout)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save this bout. Check your connection and try again.')
+      setSaving(false)
+    }
   }
 
   return (
@@ -250,9 +275,12 @@ function MetalForm({
           />
         </label>
       </div>
+      {error && <div className="notice error">{error}</div>}
       <div className="row">
         <button className="secondary" onClick={onCancel}>Cancel</button>
-        <button className="primary" disabled={saving} onClick={() => void save()}>Save</button>
+        <button className="primary" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
     </>
   )
@@ -374,6 +402,36 @@ function groupEntries(entries: WorkoutEntry[]): EntryGroup[] {
   return out
 }
 
+/**
+ * The precision-bout suggestions collected across one workout, in one place,
+ * rather than repeated after every single bout — a few bouts in, a pattern
+ * across the session is worth more than any one group's read.
+ */
+function WorkoutAnalysis({ bouts, workout, settings }: { bouts: Bout[]; workout: Workout; settings: Settings }) {
+  const findings = useMemo(() => analyse(bouts, settings, [workout]), [bouts, settings, workout])
+  if (bouts.length === 0) return null
+
+  return (
+    <>
+      <h2>Workout analysis</h2>
+      <p className="meta" style={{ marginTop: -6 }}>
+        From the {bouts.length} precision bout{bouts.length === 1 ? '' : 's'} logged this session — a
+        running read, not a verdict. It sharpens as you log more.
+      </p>
+      {findings.length === 0 ? (
+        <p className="meta">Nothing stands out yet.</p>
+      ) : (
+        findings.map((f, i) => (
+          <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
+            <h3>{f.title}</h3>
+            <p style={{ marginBottom: 0 }}>{f.cause}</p>
+          </div>
+        ))
+      )}
+    </>
+  )
+}
+
 type Mode = 'entries' | 'addPrecision' | 'addMetal'
 
 interface Props {
@@ -396,25 +454,22 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
-  const [startWind, setStartWind] = useState<Wind>('none')
-  const [startWindDirection, setStartWindDirection] = useState<WindDirection>('12')
 
   const comboRounds = activeComboId
     ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
     : 0
+
+  const precisionBouts = entries.filter((e): e is Bout => e.kind === 'precision')
 
   if (!workout) {
     return (
       <>
         <h1>Start a workout</h1>
         <p className="lede">
-          Add as many precision bouts and metal bouts as you shoot in one session. Wind is entered
-          once here, not per bout.
+          Add as many precision bouts and metal bouts as you shoot in one session. Wind and
+          conditions are entered in the workout itself, once it's started.
         </p>
-        <div className="card">
-          <WindFields wind={startWind} windDirection={startWindDirection} onWind={setStartWind} onWindDirection={setStartWindDirection} />
-        </div>
-        <button className="primary" onClick={() => onStart(startWind, startWindDirection)}>Start workout</button>
+        <button className="primary" onClick={() => onStart('none', '12')}>Start workout</button>
       </>
     )
   }
@@ -467,6 +522,8 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
 
       <h2>Zero clicks logged</h2>
       <ClickLog workout={workout} onChange={onWorkoutChanged} />
+
+      <WorkoutAnalysis bouts={precisionBouts} workout={workout} settings={settings} />
 
       <h2>This workout</h2>
       {entries.length === 0 && <p className="meta">Nothing added yet.</p>}

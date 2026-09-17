@@ -187,6 +187,11 @@ export function computeMetrics(shots: Shot[], position: Position, ctx: ScoringCo
   const score = scoreBout(pts, face, ctx.bulletDiameterMm)
   const mpi = centroid(pts)
   const origin: Point = { x: 0, y: 0 }
+  const bulletRadius = ctx.bulletDiameterMm / 2
+  // Same inward-gauge idea as ring scoring: the hole counts as touching the
+  // hit-zone edge if its near or far side straddles that boundary, not just
+  // its centre.
+  const splitters = pts.map((p) => Math.abs(dist(p, origin) - hitRadius) <= bulletRadius)
 
   let extremeSpread = 0
   for (let i = 0; i < pts.length; i++) {
@@ -219,6 +224,8 @@ export function computeMetrics(shots: Shot[], position: Position, ctx: ScoringCo
     ).total,
     innerTens: score.innerTens,
     borderlineShots: score.borderline,
+    splitters,
+    splitterShots: splitters.filter(Boolean).length,
   }
 }
 

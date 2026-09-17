@@ -1,4 +1,4 @@
-import type { Bout, Finding, Position, Settings, SightCorrection } from './types'
+import type { Bout, Finding, Position, Settings, SightCorrection, Workout } from './types'
 import { HIT_ZONE_MM } from './types'
 import { centroid, degreesFromVertical, sightCorrection } from './geometry'
 
@@ -34,14 +34,16 @@ function describeOffset(x: number, y: number): string {
  * deliberately conservative — telling a beginner they jerk the trigger when the
  * real fault is a sight two clicks off is worse than saying nothing.
  */
-export function analyse(bouts: Bout[], settings: Settings): Finding[] {
+export function analyse(bouts: Bout[], settings: Settings, workouts: Workout[] = []): Finding[] {
   const findings: Finding[] = []
   if (bouts.length === 0) return findings
+
+  const windByWorkout = new Map(workouts.map((w) => [w.id, w]))
 
   for (const position of ['prone', 'standing'] as Position[]) {
     const group = bouts.filter((b) => b.position === position)
     if (group.length === 0) continue
-    findings.push(...analysePosition(group, position, settings))
+    findings.push(...analysePosition(group, position, settings, windByWorkout))
   }
 
   findings.push(...comparePositions(bouts))
@@ -71,7 +73,24 @@ export function analyse(bouts: Bout[], settings: Settings): Finding[] {
 
 const rank = (s: Finding['severity']) => (s === 'priority' ? 2 : s === 'watch' ? 1 : 0)
 
-function analysePosition(group: Bout[], position: Position, settings: Settings): Finding[] {
+/**
+ * A read of one just-scored group alone, using the same shape signatures as
+ * the multi-bout analysis above but with no trend to confirm against — so
+ * only faults a single group's shape can actually show (a bad zero, a
+ * strung or oversized group) can fire here. Anything that needs a pattern
+ * across bouts (drift, an unreliable position, wind) needs more data than
+ * one photo can give it, and correctly stays silent.
+ */
+export function analyseSingleBout(bout: Bout, settings: Settings): Finding[] {
+  return analysePosition([bout], bout.position, settings)
+}
+
+function analysePosition(
+  group: Bout[],
+  position: Position,
+  settings: Settings,
+  windByWorkout?: Map<string, Workout>,
+): Finding[] {
   const out: Finding[] = []
   const n = group.length
   const hitRadius = HIT_ZONE_MM[position] / 2
@@ -115,7 +134,9 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
       title: `Shots stringing vertically ${label}`,
       evidence: `${Math.round(verticalShare * 100)}% of your ${label} bouts produced a tall narrow group, averaging ${avgAspect.toFixed(1)}:1 taller than wide.`,
       cause:
-        'Vertical spread is almost always timing: the shot is breaking at different points in the breathing cycle, or the position is held by muscle rather than bone so it creeps between shots.',
+        position === 'prone'
+          ? 'Vertical spread prone is almost always timing or the position itself: the shot breaking at different points in the breathing cycle, the sling loose enough to let the rifle bounce between shots, or the butt sitting low enough on the shoulder that recoil changes where it lands. Check the sling tension and shoulder placement stay identical shot to shot before assuming it is only breathing.'
+          : 'Vertical spread standing is almost always timing: the shot is breaking at different points in the breathing cycle, or the hold is fading as you run out of air and muscle it back up rather than resetting.',
       severity: 'priority',
       confidence: 0.8 * w,
       sampleSize: n,
@@ -130,8 +151,8 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
       evidence: `${Math.round(horizontalShare * 100)}% of your ${label} bouts produced a wide flat group, averaging ${avgAspect.toFixed(1)}:1 wider than tall.`,
       cause:
         position === 'prone'
-          ? 'Sideways spread prone usually means the natural point of aim is off to one side, so you are steering the rifle back onto the target for every shot and it fights you.'
-          : 'Sideways spread standing is balance: the sway is left-to-right and the shot is being released as it passes the target rather than when it settles.',
+          ? 'Sideways spread prone usually means the natural point of aim is off to one side, so you are steering the rifle back onto the target for every shot and it fights you back between them. An elbow that creeps in or slides out over the course of a bout produces the same signature, so check your elbow lands in the same spot on the mat every time before retraining the aim.'
+          : 'Sideways spread standing is balance: the sway is left-to-right and the shot is being released as it passes the target rather than when it settles. A trigger finger pressing sideways against the stock instead of straight back can add the same sideways nudge on every shot — worth ruling out on its own.',
       severity: 'priority',
       confidence: 0.75 * w,
       sampleSize: n,
@@ -155,7 +176,7 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
       id: 'trigger_bias',
       title: `Group pulling ${side} ${label}`,
       evidence: `${Math.round(biasShare * 100)}% of your ${label} bouts centred ${side}, with a group too loose (${mm(avgMeanRadius)} mean radius) to be a sight error alone.`,
-      cause: `For a ${settings.handedness}-handed shooter this is the classic anticipation signature: the hand tightens as the trigger breaks and pushes the muzzle ${side}. Confirm it by having someone load a dummy round without telling you — if the rifle dips on the empty click, this is it.`,
+      cause: `For a ${settings.handedness}-handed shooter this is the classic anticipation signature: the hand tightens as the trigger breaks and pushes the muzzle ${side}, often because something in the room or the clock is pulling attention off the sight picture right as the shot breaks. Confirm it by having someone load a dummy round without telling you — if the rifle dips on the empty click, this is it.`,
       severity: 'priority',
       confidence: 0.6 * w,
       sampleSize: n,
@@ -170,7 +191,7 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
       title: `Group too loose ${label}`,
       evidence: `Mean radius averages ${mm(avgMeanRadius)} ${label} against a hit zone of only ${mm(hitRadius)} radius, and the group is round rather than strung in any direction.`,
       cause:
-        'An evenly round, oversized group means the rifle is moving in every direction while you shoot — the position is not yet stable enough to hold the target. This is a strength-and-repetition problem, not a technique subtlety.',
+        'An evenly round, oversized group means the rifle is moving in every direction while you shoot — the position is not yet stable enough to hold the target. Usually this is a strength-and-repetition problem rather than a technique subtlety, but if it shows up even on your better sessions it is worth ruling out the rifle itself: worn ammunition, a loose bedding screw, or a barrel that needs cleaning can all open up an otherwise good group in every direction at once.',
       severity: 'priority',
       confidence: 0.85 * w,
       sampleSize: n,
@@ -229,7 +250,9 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
       title: `Group walking across the bout ${label}`,
       evidence: `In ${Math.round(driftShare * 100)}% of your ${label} bouts the shots move steadily in one direction from shot 1 to shot 5, rather than scattering around a fixed centre.`,
       cause:
-        'A steady walk means the position is slipping while you shoot — an elbow sliding, the sling settling, or breath being held so long the body starts to move. Random scatter is a hold problem; a walk is a position-build problem.',
+        position === 'prone'
+          ? 'A steady walk prone means the position is slipping while you shoot — a sling that settles and tightens over the bout, an elbow sliding out from under you, or breath being held so long the body starts to move. Random scatter is a hold problem; a walk is a position-build problem, so check what changes physically between shot 1 and shot 5 rather than the sight picture.'
+          : 'A steady walk standing means the position is slipping while you shoot — usually the natural point of aim was never quite right, so gravity and fatigue pull you back toward where the body actually wants to stand, shot by shot. Random scatter is a hold problem; a walk is a position-build problem.',
       severity: 'watch',
       confidence: 0.7 * w,
       sampleSize: n,
@@ -246,12 +269,38 @@ function analysePosition(group: Bout[], position: Position, settings: Settings):
         title: `Group centre moves between bouts ${label}`,
         evidence: `Your ${label} group centre wanders ${mm(spread)} from bout to bout — more than the ${mm(avgMeanRadius)} spread inside a single bout.`,
         cause:
-          'Each bout shoots tightly enough, but you are building a slightly different position every time, so the whole group lands somewhere new. Nothing about the sight can fix this; the position needs to become repeatable first.',
+          'Each bout shoots tightly enough, but you are building a slightly different position every time, so the whole group lands somewhere new. This is a natural-point-of-aim problem: settle into position, close your eyes, relax, and open them again — if the sight has moved off the target, you built the position around forcing the rifle there rather than around where your body naturally rests. Nothing about the sight can fix this; the position needs to become repeatable first.',
         severity: 'priority',
         confidence: 0.75 * w,
         sampleSize: n,
         position,
       })
+    }
+  }
+
+  // --- Windy bouts landing further off centre than calm ones is the wind
+  // talking, not the rifle or the position — and unlike the others, this one
+  // is directly checkable because wind is logged per workout.
+  if (windByWorkout) {
+    const windOf = (b: Bout) => windByWorkout.get(b.workoutId)?.wind ?? 'none'
+    const windy = group.filter((b) => windOf(b) === 'moderate' || windOf(b) === 'strong')
+    const calm = group.filter((b) => windOf(b) === 'none' || windOf(b) === 'light')
+    if (windy.length >= 2 && calm.length >= 2) {
+      const windyOffset = mean(windy.map((b) => Math.abs(b.metrics.mpi.x)))
+      const calmOffset = mean(calm.map((b) => Math.abs(b.metrics.mpi.x)))
+      if (windyOffset > calmOffset + 0.2 * hitRadius && windyOffset > 1.4 * Math.max(calmOffset, 1)) {
+        out.push({
+          id: 'wind_sensitivity',
+          title: `Group pushed sideways in wind ${label}`,
+          evidence: `Your ${label} bouts shot in moderate-or-stronger wind centre ${mm(windyOffset)} off the vertical axis on average, against ${mm(calmOffset)} for bouts shot calm — measured across ${windy.length} windy and ${calm.length} calm bout${calm.length === 1 ? '' : 's'}.`,
+          cause:
+            'This is the wind moving the bullet, not a fault in the rifle or the position. Resist correcting the sight from a windy bout — dial it out today and a calm session tomorrow will be off by the same amount the other way. Read the zero only from calm bouts, and treat the windy ones as a wind-doping exercise instead.',
+          severity: 'watch',
+          confidence: 0.6 * weight(Math.min(windy.length, calm.length)),
+          sampleSize: windy.length + calm.length,
+          position,
+        })
+      }
     }
   }
 

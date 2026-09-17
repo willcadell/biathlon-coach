@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Bull, ImagePoint } from '../lib/types'
 
 interface Props {
@@ -39,6 +39,10 @@ function capture(e: React.PointerEvent) {
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
 const ZOOM_STEP = 1.6
+/** Zoom level a double-click jumps to — close enough to check a hole
+ *  against a ring line, not so close the athlete has to scroll to find
+ *  their spot again. A second double-click zooms back out to MIN_ZOOM. */
+const DOUBLE_CLICK_ZOOM = 2.5
 
 /**
  * The correction step: the model's reading of the photo, laid over the photo,
@@ -50,6 +54,7 @@ const ZOOM_STEP = 1.6
  */
 export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
+  const scrollWrap = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<Drag>(null)
   const [selected, setSelected] = useState<{ bull: number; hole: number } | null>(null)
   const [adding, setAdding] = useState(false)
@@ -67,6 +72,33 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
   // every single-finger handler below checks this and bails, so that finger
   // starts a pinch instead of a drag or a tap wherever it happens to land.
   const pinchStarting = useRef(false)
+
+  // Double-click to zoom, for a mouse — pinch covers touch already. A plain
+  // double-tap on a touchscreen doesn't fire a browser dblclick event, so
+  // this only ever engages from an actual mouse.
+  const pendingFocus = useRef<{ contentX: number; contentY: number; clientX: number; clientY: number } | null>(null)
+  useLayoutEffect(() => {
+    const target = pendingFocus.current
+    const container = scrollWrap.current
+    if (!target || !container) return
+    pendingFocus.current = null
+    const rect = container.getBoundingClientRect()
+    container.scrollLeft = target.contentX * zoom - (target.clientX - rect.left)
+    container.scrollTop = target.contentY * zoom - (target.clientY - rect.top)
+  }, [zoom])
+
+  const onDoubleClick = (e: React.MouseEvent) => {
+    const box = wrap.current?.getBoundingClientRect()
+    if (!box) return
+    // The clicked point in unscaled content pixels — box is already the
+    // zoomed (rendered) size, so dividing out the current zoom recovers the
+    // position transformOrigin: '0 0' keeps fixed regardless of scale.
+    const contentX = (e.clientX - box.left) / zoom
+    const contentY = (e.clientY - box.top) / zoom
+    const nextZoom = zoom >= DOUBLE_CLICK_ZOOM - 0.01 ? MIN_ZOOM : Math.min(MAX_ZOOM, DOUBLE_CLICK_ZOOM)
+    pendingFocus.current = { contentX, contentY, clientX: e.clientX, clientY: e.clientY }
+    setZoom(nextZoom)
+  }
 
   const holeCount = bulls.reduce((n, b) => n + b.holes.length, 0)
 
@@ -203,6 +235,7 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
         </button>
       </div>
       <div
+        ref={scrollWrap}
         style={
           zoom > 1
             ? { overflow: 'auto', touchAction: 'pan-x pan-y', maxHeight: '70vh', borderRadius: 'var(--radius)' }
@@ -217,6 +250,7 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
         onPointerMove={onPointerMove}
         onPointerUp={onWrapperPointerEnd}
         onPointerCancel={onWrapperPointerEnd}
+        onDoubleClick={onDoubleClick}
         style={{ cursor: adding ? 'crosshair' : 'default', transform: `scale(${zoom})`, transformOrigin: '0 0' }}
       >
         <img src={imageUrl} alt="Your target" draggable={false} />
@@ -341,7 +375,8 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
 
       <p className="meta" style={{ marginTop: 10 }}>
         {holeCount} shot{holeCount === 1 ? '' : 's'} marked. Drag any number onto its hole. Pinch to
-        zoom anywhere, including on the ring or a shot.{' '}
+        zoom anywhere, including on the ring or a shot, or double-click a spot to zoom straight to
+        it on a computer.{' '}
         {ringLocked
           ? 'The green ring is the aiming mark, placed automatically — everything is measured against it.'
           : 'The green ring is the aiming mark — drag anywhere on its dashed edge to slide it, or its white handle to resize it, until it sits exactly on the black, because everything is measured against it.'}

@@ -1,16 +1,30 @@
 import { useEffect, useState } from 'react'
-import type { Bout, MetalBout, Settings, Workout } from '../lib/types'
+import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib/types'
 import { faceById } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, hitCount, hitsOf, missCount } from '../lib/metal'
-import { deleteBout, deleteMetalBout, deleteWorkout, getImage } from '../lib/db'
+import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
+import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
 import { ResultsView } from './ResultsView'
-import { TrendChart } from './TrendChart'
 import { MiniTargets } from './MiniTargets'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 const WIND_LABEL: Record<Workout['wind'], string> = { none: 'No wind', light: 'Light wind', moderate: 'Moderate wind', strong: 'Strong wind' }
+
+/** A one-line total of every zero adjustment logged this workout, for beside
+ *  the wind — the click log below still lists each one with its note. */
+function clickSummary(clickLog: ClickAdjustment[]): string {
+  const up = clickLog.filter((c) => c.verticalDir === 'up').reduce((n, c) => n + c.vertical, 0)
+  const down = clickLog.filter((c) => c.verticalDir === 'down').reduce((n, c) => n + c.vertical, 0)
+  const left = clickLog.filter((c) => c.horizontalDir === 'left').reduce((n, c) => n + c.horizontal, 0)
+  const right = clickLog.filter((c) => c.horizontalDir === 'right').reduce((n, c) => n + c.horizontal, 0)
+  const clips = clickLog.reduce((n, c) => n + c.clips, 0)
+
+  const moves = [up && `${up}↑`, down && `${down}↓`, left && `${left}←`, right && `${right}→`].filter(Boolean)
+  const clipsPart = clips > 0 ? `${clips} clip${clips === 1 ? '' : 's'}` : ''
+  if (moves.length === 0) return clipsPart || 'no movement'
+  return clipsPart ? `${moves.join(' ')} · ${clipsPart}` : moves.join(' ')
+}
 
 interface Props {
   workouts: Workout[]
@@ -23,6 +37,7 @@ interface Props {
 export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }: Props) {
   const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null)
   const [openBoutId, setOpenBoutId] = useState<string | null>(null)
+  const [openBoutImage, setOpenBoutImage] = useState<string | null>(null)
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -51,29 +66,36 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
 
   useEffect(() => {
     let cancelled = false
-    const urls: string[] = []
-    void Promise.all(
-      bouts.map(async (b) => {
-        const img = await getImage(b.imageId)
-        if (!img) return null
-        const url = URL.createObjectURL(img.thumb)
-        urls.push(url)
-        return [b.id, url] as const
-      }),
-    ).then((pairs) => {
-      if (cancelled) {
-        urls.forEach(URL.revokeObjectURL)
-        return
+    const paths = bouts.map((b) => b.imagePath).filter((p): p is string => p !== null)
+    void boutThumbUrls(paths).then((urlByPath) => {
+      if (cancelled) return
+      const byBoutId: Record<string, string> = {}
+      for (const b of bouts) {
+        if (b.imagePath && urlByPath[b.imagePath]) byBoutId[b.id] = urlByPath[b.imagePath]
       }
-      setThumbs(Object.fromEntries(pairs.filter((p): p is readonly [string, string] => p !== null)))
+      setThumbs(byBoutId)
     })
     return () => {
       cancelled = true
-      urls.forEach(URL.revokeObjectURL)
     }
   }, [bouts])
 
   const openBout = bouts.find((b) => b.id === openBoutId)
+
+  useEffect(() => {
+    if (!openBout?.imagePath) {
+      setOpenBoutImage(null)
+      return
+    }
+    let cancelled = false
+    void boutImageUrl(openBout.imagePath).then((url) => {
+      if (!cancelled) setOpenBoutImage(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [openBout?.imagePath])
+
   if (openBout) {
     const boutWorkout = workouts.find((w) => w.id === openBout.workoutId)
     return (
@@ -81,7 +103,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
         <button className="link" onClick={() => setOpenBoutId(null)}>← Back to workout</button>
         <h1 style={{ marginTop: 10 }}>{openBout.position === 'prone' ? 'Prone' : 'Standing'}</h1>
         <p className="lede">{fmt(openBout.shotAt)}</p>
-        <ResultsView bout={openBout} settings={settings} workout={boutWorkout} />
+        <ResultsView bout={openBout} settings={settings} workout={boutWorkout} imageUrl={openBoutImage} />
         <button
           className="secondary danger"
           style={{ marginTop: 16 }}
@@ -111,6 +133,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
         <p className="lede">
           {fmt(openWorkout.startedAt)} · {WIND_LABEL[openWorkout.wind]}
           {openWorkout.wind !== 'none' && ` from ${openWorkout.windDirection} o'clock`}
+          {openWorkout.clickLog.length > 0 && ` · ${clickSummary(openWorkout.clickLog)}`}
         </p>
 
         {openWorkout.notes && (
@@ -128,6 +151,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
                 {c.vertical > 0 && `${c.vertical} click${c.vertical === 1 ? '' : 's'} ${c.verticalDir}`}
                 {c.vertical > 0 && c.horizontal > 0 && ', '}
                 {c.horizontal > 0 && `${c.horizontal} click${c.horizontal === 1 ? '' : 's'} ${c.horizontalDir}`}
+                {c.vertical === 0 && c.horizontal === 0 && 'No movement'}
+                {c.clips > 0 && ` · ${c.clips} clip${c.clips === 1 ? '' : 's'} to confirm`}
                 {c.note && ` — ${c.note}`}
               </p>
             ))}
@@ -199,25 +224,6 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
 
   const total = bouts.reduce((n, b) => n + b.shots.length, 0)
   const metalShots = metalBouts.length * DISCS_PER_METAL_BOUT
-  const prone = bouts.filter((b) => b.position === 'prone')
-  const standing = bouts.filter((b) => b.position === 'standing')
-  const metalProne = metalBouts.filter((b) => b.position === 'prone')
-  const metalStanding = metalBouts.filter((b) => b.position === 'standing')
-  /** Ring points scored as a percentage of what was possible — a ring value
-   *  out of 10 turned into the same units as a metal hit rate, so the two
-   *  disciplines read side by side without pretending they are one score. */
-  const precisionPct = (set: Bout[]) => {
-    const shots = set.reduce((n, b) => n + b.shots.length, 0)
-    if (!shots) return '—'
-    const avg = set.reduce((n, b) => n + b.metrics.ringTotal, 0) / shots
-    return `${Math.round((avg / 10) * 100)}%`
-  }
-  const metalPct = (set: MetalBout[]) => {
-    const shots = set.length * DISCS_PER_METAL_BOUT
-    if (!shots) return '—'
-    const misses = set.reduce((n, b) => n + missCount(hitsOf(b)), 0)
-    return `${Math.round(((shots - misses) / shots) * 100)}%`
-  }
   const mixedFaces = new Set(bouts.map((b) => b.targetFaceId)).size > 1
 
   return (
@@ -226,68 +232,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
       <p className="lede">
         {workouts.length} workout{workouts.length === 1 ? '' : 's'}, {bouts.length} precision bout{bouts.length === 1 ? '' : 's'}
         {' '}({total} shot{total === 1 ? '' : 's'}), {metalBouts.length} metal bout{metalBouts.length === 1 ? '' : 's'}
-        {' '}({metalShots} shot{metalShots === 1 ? '' : 's'}).
+        {' '}({metalShots} shot{metalShots === 1 ? '' : 's'}). The breakdown and trends are in Analysis.
       </p>
-
-      <h3>Overall</h3>
-      <div className="stats">
-        <div className="stat">
-          <div className="k">Precision</div>
-          <div className="v">{precisionPct(bouts)}</div>
-          <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Metal</div>
-          <div className="v">{metalPct(metalBouts)}</div>
-          <div className="n">{metalBouts.length} bout{metalBouts.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: 16 }}>Precision</h3>
-      <div className="stats">
-        <div className="stat">
-          <div className="k">Prone</div>
-          <div className="v">{precisionPct(prone)}</div>
-          <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Standing</div>
-          <div className="v">{precisionPct(standing)}</div>
-          <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: 16 }}>Metal</h3>
-      <div className="stats">
-        <div className="stat">
-          <div className="k">Prone</div>
-          <div className="v">{metalPct(metalProne)}</div>
-          <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Standing</div>
-          <div className="v">{metalPct(metalStanding)}</div>
-          <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      {bouts.length >= 2 && (
-        <>
-          <h2>Score over time</h2>
-          <div className="card">
-            <TrendChart bouts={bouts} metric="score" />
-          </div>
-
-          <h2>Group size over time</h2>
-          <p className="lede">
-            Score says how you did. Group size says whether the shooting or the sight was
-            responsible, because a group can tighten while the score stays flat.
-          </p>
-          <div className="card">
-            <TrendChart bouts={bouts} metric="group" />
-          </div>
-        </>
-      )}
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '24px 0 8px' }}>
         <h2 style={{ margin: 0 }}>Workouts</h2>
