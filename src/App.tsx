@@ -65,7 +65,7 @@ function saveMode(userId: string, mode: Role | null): void {
 const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[] = [
   {
     id: 'shoot',
-    label: 'Shoot',
+    label: '545 Coach',
     requiresMode: 'athlete',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -309,16 +309,6 @@ function SignedInApp({
             {t.label}
           </button>
         ))}
-        <div className="brand" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9" fill="none" stroke="#3987e5" strokeWidth="1.4" />
-            <circle cx="12" cy="12" r="5" fill="none" stroke="#3987e5" strokeWidth="1.1" opacity="0.6" />
-            <circle cx="9.8" cy="10.4" r="1.3" fill="#d95926" />
-            <circle cx="13.4" cy="12.6" r="1.3" fill="#d95926" />
-            <circle cx="11" cy="14.3" r="1.3" fill="#d95926" />
-          </svg>
-          545 Coaching
-        </div>
       </nav>
     </div>
   )

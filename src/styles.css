@@ -93,11 +93,7 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
   display: flex;
   background: var(--surface-1);
   border-top: 1px solid var(--border);
-  /* The extra 68px reserves a clear strip below the tab row itself — a
-     host's own injected footer badge (bottom-right) has somewhere to sit
-     that isn't on top of Training/Settings, and it's also where our own
-     mark goes, on the left, sized to match. */
-  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
   z-index: 20;
 }
 .tabs button {
@@ -116,23 +112,6 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
 }
 .tabs button[aria-current='page'] { color: var(--series-1); font-weight: 600; }
 .tabs button svg { width: 22px; height: 22px; }
-
-.tabs .brand {
-  position: absolute;
-  left: 14px;
-  bottom: calc(13px + env(safe-area-inset-bottom));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 18px 12px 11px;
-  border-radius: 999px;
-  background: #1a1a19;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  pointer-events: none;
-}
-.tabs .brand svg { width: 20px; height: 20px; flex: none; }
 
 /* --- Controls -------------------------------------------------------- */
 button.primary, button.secondary, .filelabel {
