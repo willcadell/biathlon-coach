@@ -6,6 +6,7 @@ import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
+import { shareTargetImage } from '../lib/share'
 import { CaptureView } from './CaptureView'
 import { MiniTargets } from './MiniTargets'
 
@@ -315,7 +316,34 @@ function MetalForm({
   )
 }
 
-function PrecisionRow({ bout, onDeleted }: { bout: Bout; onDeleted: () => void }) {
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+      <path d="M12 15V4M12 4l-4 4M12 4l4 4" />
+      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+    </svg>
+  )
+}
+
+function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Workout; onDeleted: () => void }) {
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState('')
+
+  async function share() {
+    setSharing(true)
+    setShareError('')
+    try {
+      await shareTargetImage(bout, workout)
+    } catch (e) {
+      // The user closing the share sheet without picking anything throws
+      // an AbortError — that is a cancel, not a failure worth reporting.
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      setShareError(errorMessage(e, 'Could not create a shareable image.'))
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <div className="boutrow" style={{ cursor: 'default' }}>
       <div className="grow">
@@ -325,18 +353,23 @@ function PrecisionRow({ bout, onDeleted }: { bout: Bout; onDeleted: () => void }
         <div className="meta">
           {bout.shots.length} shot{bout.shots.length === 1 ? '' : 's'} · {bout.metrics.meanRadius.toFixed(0)} mm mean radius
         </div>
+        {shareError && <div className="notice error" style={{ marginTop: 6 }}>{shareError}</div>}
       </div>
-      <button
-        className="link"
-        style={{ flex: 'none' }}
-        onClick={async () => {
-          if (!confirm('Delete this precision bout and its photo? This cannot be undone.')) return
-          await deleteBout(bout.id)
-          onDeleted()
-        }}
-      >
-        Remove
-      </button>
+      <div style={{ display: 'flex', gap: 12, flex: 'none', alignItems: 'center' }}>
+        <button className="link" aria-label="Share this target" disabled={sharing} onClick={() => void share()}>
+          <ShareIcon />
+        </button>
+        <button
+          className="link"
+          onClick={async () => {
+            if (!confirm('Delete this precision bout and its photo? This cannot be undone.')) return
+            await deleteBout(bout.id)
+            onDeleted()
+          }}
+        >
+          Remove
+        </button>
+      </div>
     </div>
   )
 }
@@ -589,7 +622,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
             onDeleted={onDataChanged}
           />
         ) : item.kind === 'precision' ? (
-          <PrecisionRow key={item.id} bout={item} onDeleted={onDataChanged} />
+          <PrecisionRow key={item.id} bout={item} workout={workout} onDeleted={onDataChanged} />
         ) : (
           <MetalRow
             key={item.id}
