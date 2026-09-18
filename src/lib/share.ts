@@ -182,7 +182,7 @@ export function buildTargetShareImage(bout: Bout, workout: Workout): Blob | Prom
   ctx.fillStyle = COLORS.textMuted
   ctx.fillText(
     `${bout.shots.length} shot${bout.shots.length === 1 ? '' : 's'} · ${bout.metrics.meanRadius.toFixed(0)} mm mean radius`,
-    WIDTH / 2, 1172,
+    WIDTH / 2, 1205,
   )
 
   ctx.font = '500 26px -apple-system, sans-serif'
