@@ -344,6 +344,7 @@ export type FindingId =
   | 'standing_gap'
   | 'unstable_npa'
   | 'wind_sensitivity'
+  | 'early_signs'
   | 'solid'
 
 export interface Finding {

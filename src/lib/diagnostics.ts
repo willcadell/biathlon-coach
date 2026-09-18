@@ -304,6 +304,31 @@ function analysePosition(
     }
   }
 
+  // --- Too few bouts for any rule above to speak with confidence, but the
+  // numbers aren't clean either — say so honestly instead of staying silent,
+  // which reads as "nothing to see" when the truth is "not enough to say
+  // yet." Deliberately doesn't name a cause: with under three bouts, the
+  // sight, the position, and an off day all look the same.
+  if (out.length === 0 && n > 0 && n < 3) {
+    const totalShots = group.reduce((sum, b) => sum + b.shots.length, 0)
+    const perShot = totalShots ? group.reduce((sum, b) => sum + b.metrics.ringTotal, 0) / totalShots : 0
+    const rough = perShot > 0 && perShot < 7
+    const offCentre = avgMpiOffset > 0.25 * hitRadius
+    const loose = avgMeanRadius > 0.6 * hitRadius
+    if (rough || offCentre || loose) {
+      out.push({
+        id: 'early_signs',
+        title: `Early signs are mixed ${label}`,
+        evidence: `Only ${n} ${label} bout${n === 1 ? '' : 's'} so far${perShot > 0 ? `, averaging ${perShot.toFixed(1)} points a shot` : ''} — ${describeOffset(avgMpi.x, avgMpi.y)} of the ten, ${mm(avgMeanRadius)} mean radius.`,
+        cause: `Not enough ${label} bouts yet to say what's behind it — could be the sight, the position, or just an off day. Log two or three more ${label} bouts before drawing a conclusion; with that much data the picture above will speak for itself.`,
+        severity: 'watch',
+        confidence: 0.3 * weight(n),
+        sampleSize: n,
+        position,
+      })
+    }
+  }
+
   return out
 }
 

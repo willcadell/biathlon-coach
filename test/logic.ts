@@ -175,6 +175,26 @@ ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
 
+// --- Early signs: too few bouts (n<3) for any confirmed rule to fire, but
+// the group is meaningfully off-centre — should say so rather than stay
+// silent. Standing hit radius is 57.5 mm; 17 mm offset clears the 0.25x
+// bar (14.375 mm) but not zero_offset's own 0.35x bar (20.125 mm), and the
+// tiny 4 mm mean radius keeps wide_group and the stringing checks well out
+// of range, isolating this to the new fallback alone.
+const thinOffCentre = [0, 1].map((i) =>
+  bout('standing', [{x:22,y:0},{x:12,y:0},{x:17,y:5},{x:17,y:-5},{x:17,y:0}], false, i + 1),
+)
+f = analyse(thinOffCentre, DEFAULT_SETTINGS)
+ok('early signs surfaced from a thin, off-centre sample', f.some((x) => x.id === 'early_signs'), f.map(x=>x.id).join(','))
+
+// A thin sample with genuinely clean numbers should stay quiet — this is
+// not "always say something for n<3", only "don't hide a real signal".
+const thinClean = [0, 1].map((i) =>
+  bout('standing', [{x:2,y:1},{x:-2,y:2},{x:1,y:-2},{x:-1,y:-1},{x:0,y:1}], false, i + 1),
+)
+f = analyse(thinClean, DEFAULT_SETTINGS)
+ok('no early-signs false positive on a thin, clean sample', !f.some((x) => x.id === 'early_signs'), f.map(x=>x.id).join(','))
+
 // --- Wind sensitivity: same shooter, tight both times, but pushed sideways
 // only in the bouts shot in strong wind.
 const mkWorkout = (id: string, wind: Workout['wind']): Workout => ({

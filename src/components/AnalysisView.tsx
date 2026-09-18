@@ -52,6 +52,8 @@ export function AnalysisView({
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
 }) {
   const [openDrill, setOpenDrill] = useState<string | null>(null)
+  const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
+  const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
 
   const prone = bouts.filter((b) => b.position === 'prone')
   const standing = bouts.filter((b) => b.position === 'standing')
@@ -63,14 +65,20 @@ export function AnalysisView({
     return bouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff).slice(0, MAX_BOUTS)
   }, [bouts])
 
-  const recentMetal = useMemo(() => {
-    const cutoff = Date.now() - WINDOW_DAYS * 86400_000
-    return metalBouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff)
-  }, [metalBouts])
-
   const findings = useMemo(() => analyse(recent, settings, workouts), [recent, settings, workouts])
   const plan = useMemo(() => recommend(findings), [findings])
-  const targets = useMemo(() => targetStats(recentMetal), [recentMetal])
+
+  // Most recent N bouts for that position specifically, not a day-based
+  // window — a coach checking in monthly wants "the last 10 I actually
+  // shot", not "whatever fell inside the last 60 days".
+  const targetsProne = useMemo(() => {
+    const sorted = [...metalProne].sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    return targetStats(sorted.slice(0, proneWindow))
+  }, [metalProne, proneWindow])
+  const targetsStanding = useMemo(() => {
+    const sorted = [...metalStanding].sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    return targetStats(sorted.slice(0, standingWindow))
+  }, [metalStanding, standingWindow])
 
   if (bouts.length === 0 && metalBouts.length === 0) {
     return (
@@ -102,22 +110,13 @@ export function AnalysisView({
     <>
       <h1>Analysis</h1>
 
-      <h3>Overall</h3>
-      <div className="stats">
+      <h3>Precision</h3>
+      <div className="stats three">
         <div className="stat">
-          <div className="k">Precision</div>
+          <div className="k">Overall</div>
           <div className="v">{precisionPct(bouts)}</div>
           <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
         </div>
-        <div className="stat">
-          <div className="k">Metal</div>
-          <div className="v">{metalPct(metalBouts)}</div>
-          <div className="n">{metalBouts.length} bout{metalBouts.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: 16 }}>Precision</h3>
-      <div className="stats">
         <div className="stat">
           <div className="k">Prone</div>
           <div className="v">{precisionPct(prone)}</div>
@@ -130,56 +129,6 @@ export function AnalysisView({
         </div>
       </div>
 
-      <h3 style={{ marginTop: 16 }}>Metal</h3>
-      <div className="stats">
-        <div className="stat">
-          <div className="k">Prone</div>
-          <div className="v">{metalPct(metalProne)}</div>
-          <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Standing</div>
-          <div className="v">{metalPct(metalStanding)}</div>
-          <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      <h2 style={{ marginTop: 20 }}>Score over time</h2>
-      <p className="lede">
-        Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.
-      </p>
-      <div className="card">
-        <TrendChart bouts={bouts} workouts={workouts} metric="score" />
-      </div>
-
-      <h2>Group size over time</h2>
-      <p className="lede">
-        Score says how you did. Group size says whether the shooting or the sight was
-        responsible, because a group can tighten while the score stays flat.
-      </p>
-      <div className="card">
-        <TrendChart bouts={bouts} workouts={workouts} metric="group" />
-      </div>
-
-      {targets.length > 0 && (
-        <>
-          <h2 style={{ marginTop: 20 }}>Which targets get hit</h2>
-          <p className="meta" style={{ marginTop: -6 }}>
-            Hit rate per target, alpha to echo, left to right downrange — last {recentMetal.length}{' '}
-            metal bout{recentMetal.length === 1 ? '' : 's'}.
-          </p>
-          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {targets.map((t) => (
-              <div className="stat" key={t.target}>
-                <div className="k">{t.target}</div>
-                <div className="v">{t.hitRatePct}<small>%</small></div>
-                <div className="n">{t.hits}/{t.bouts}</div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
       {thin && (
         <div className="notice" style={{ marginTop: 16 }}>
           This is a first read from very little recent data. Treat it as a hint until you have three
@@ -190,7 +139,8 @@ export function AnalysisView({
       {recent.length > 0 && <h2 style={{ marginTop: 20 }}>What your groups are saying</h2>}
       {recent.length > 0 && (
         <p className="lede" style={{ marginTop: -6 }}>
-          Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'}.
+          Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'} —
+          the last {WINDOW_DAYS} days, not your all-time record.
         </p>
       )}
       {findings.map((f, i) => (
@@ -249,6 +199,103 @@ export function AnalysisView({
           or your skis, and it is no substitute for a coach watching you shoot — but it will tell you
           which question to ask one.
         </p>
+      )}
+
+      <h2 style={{ marginTop: 24 }}>Score over time</h2>
+      <p className="lede">
+        Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.
+      </p>
+      <div className="card">
+        <TrendChart bouts={bouts} workouts={workouts} metric="score" />
+      </div>
+
+      <h2>Group size over time</h2>
+      <p className="lede">
+        Score says how you did. Group size says whether the shooting or the sight was
+        responsible, because a group can tighten while the score stays flat.
+      </p>
+      <div className="card">
+        <TrendChart bouts={bouts} workouts={workouts} metric="group" />
+      </div>
+
+      <h3 style={{ marginTop: 24 }}>Metal</h3>
+      <div className="stats">
+        <div className="stat">
+          <div className="k">Prone</div>
+          <div className="v">{metalPct(metalProne)}</div>
+          <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
+        </div>
+        <div className="stat">
+          <div className="k">Standing</div>
+          <div className="v">{metalPct(metalStanding)}</div>
+          <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
+        </div>
+      </div>
+
+      {targetsProne.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+            <h2 style={{ margin: 0 }}>Which targets get hit — prone</h2>
+            <div className="seg" style={{ flex: 'none', width: 96 }}>
+              {([5, 10, 20] as const).map((n) => (
+                <button
+                  key={n}
+                  aria-pressed={proneWindow === n}
+                  onClick={() => setProneWindow(n)}
+                  style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="meta" style={{ marginTop: -6 }}>
+            Hit rate per target, alpha to echo, left to right downrange — last {targetsProne[0]?.bouts ?? 0}{' '}
+            prone metal bout{targetsProne[0]?.bouts === 1 ? '' : 's'}.
+          </p>
+          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {targetsProne.map((t) => (
+              <div className="stat" key={t.target}>
+                <div className="k">{t.target}</div>
+                <div className="v">{t.hitRatePct}<small>%</small></div>
+                <div className="n">{t.hits}/{t.bouts}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {targetsStanding.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+            <h2 style={{ margin: 0 }}>Which targets get hit — standing</h2>
+            <div className="seg" style={{ flex: 'none', width: 96 }}>
+              {([5, 10, 20] as const).map((n) => (
+                <button
+                  key={n}
+                  aria-pressed={standingWindow === n}
+                  onClick={() => setStandingWindow(n)}
+                  style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="meta" style={{ marginTop: -6 }}>
+            Hit rate per target, alpha to echo, left to right downrange — last {targetsStanding[0]?.bouts ?? 0}{' '}
+            standing metal bout{targetsStanding[0]?.bouts === 1 ? '' : 's'}.
+          </p>
+          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {targetsStanding.map((t) => (
+              <div className="stat" key={t.target}>
+                <div className="k">{t.target}</div>
+                <div className="v">{t.hitRatePct}<small>%</small></div>
+                <div className="n">{t.hits}/{t.bouts}</div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <details style={{ marginTop: 24 }}>

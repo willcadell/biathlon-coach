@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Bout, Position, Workout } from '../lib/types'
-import { HIT_ZONE_MM } from '../lib/types'
 
 export type Metric = 'score' | 'group'
 
@@ -27,13 +26,13 @@ const SPECS: Record<Metric, Spec> = {
     format: (v) => `${Math.round(v)}%`,
   },
   group: {
-    value: (b) => (b.metrics.meanRadius / (HIT_ZONE_MM[b.position] / 2)) * 100,
-    axisMax: 100,
-    tickStep: 25,
-    reference: 100,
-    caption: 'Group size against the metal you would face in a race, averaged across each workout. Lower is tighter.',
-    label: 'Group size as a percentage of the biathlon hit-zone radius, one point per workout, split by shooting position',
-    format: (v) => `${Math.round(v)}%`,
+    value: (b) => b.metrics.meanRadius,
+    axisMax: 20,
+    tickStep: 5,
+    reference: null,
+    caption: 'Mean radius of the group, averaged across each workout. Lower is tighter.',
+    label: 'Group mean radius in millimetres, one point per workout, split by shooting position',
+    format: (v) => `${Math.round(v)} mm`,
   },
 }
 
@@ -109,7 +108,10 @@ function linearTrend(points: { t: number; v: number }[]): { at: (t: number) => n
 
 const W = 640
 const H = 220
-const PAD = { top: 14, right: 14, bottom: 26, left: 38 }
+// left is wide enough for the widest tick label ("100%", "100 mm" on a very
+// loose group) plus the gap before the plot area — narrower clipped it off
+// the left edge.
+const PAD = { top: 14, right: 14, bottom: 26, left: 52 }
 
 const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
@@ -226,7 +228,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                   strokeDasharray={v === spec.reference ? '4 3' : undefined} />
                 <text x={PAD.left - 6} y={sy(v)} textAnchor="end" dominantBaseline="central"
                   fontSize={11} fill="var(--text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {v}
+                  {spec.format(v)}
                 </text>
               </g>
             ))}
