@@ -398,7 +398,7 @@ export interface Settings {
   handedness: 'right' | 'left'
   /** Experimental: find shots with plain image processing instead of
    *  sending the crop to Claude — free and instant, but rougher, and a
-   *  merged cluster is flagged rather than split for you. Off by default;
+   *  merged cluster is flagged rather than split for you. On by default;
    *  the ring itself is always found this way regardless of this setting. */
   localHoleDetection: boolean
 }
@@ -440,5 +440,5 @@ export const DEFAULT_SETTINGS: Settings = {
   // Kept in step with the chosen face, and editable for an odd target.
   aimingMarkMm: 112.4,
   handedness: 'right',
-  localHoleDetection: false,
+  localHoleDetection: true,
 }
