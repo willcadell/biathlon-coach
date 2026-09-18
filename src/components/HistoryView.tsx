@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib/types'
-import { faceById } from '../lib/types'
+import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
 import { ResultsView } from './ResultsView'
@@ -190,7 +190,10 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
     return (
       <>
         <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
-        <h1 style={{ marginTop: 10 }}>{openWorkout.name || 'Workout'}</h1>
+        <h1 style={{ marginTop: 10 }}>
+          {openWorkout.name || 'Workout'}
+          {openWorkout.raceType && <span className="pill">{RACE_TYPE_LABEL[openWorkout.raceType]}</span>}
+        </h1>
         <p className="lede">
           {fmt(openWorkout.startedAt)} · {WIND_LABEL[openWorkout.wind]}
           {openWorkout.wind !== 'none' && ` from ${openWorkout.windDirection} o'clock`}
@@ -237,10 +240,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           ) : (
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <div className="grow">
-                <div className="title">
-                  {hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span>
-                  {e.isRace && <span className="pill">Race</span>}
-                </div>
+                <div className="title">{hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
                 <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <MiniTargets hits={hitsOf(e)} />
                   {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}
@@ -331,6 +331,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             <div className="grow">
               <div className="title">
                 {w.name || fmt(w.startedAt)}
+                {w.raceType && <span className="pill">{RACE_TYPE_LABEL[w.raceType]}</span>}
                 {w.wind !== 'none' && <span className="pill">{w.wind} wind</span>}
               </div>
               <div className="meta">

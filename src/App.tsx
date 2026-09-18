@@ -241,7 +241,7 @@ function SignedInApp({
   }, [activeWorkout, bouts, metalBouts])
 
   async function startWorkout(wind: Wind, windDirection: WindDirection) {
-    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '', coachNotes: [] }
+    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '', coachNotes: [], raceType: null }
     await putWorkout(workout)
     setActiveWorkout(workout.id)
     refresh()

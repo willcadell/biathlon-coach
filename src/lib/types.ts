@@ -206,11 +206,6 @@ export interface MetalBout {
    *  together as one round-by-round set instead of loose entries. Null for
    *  a standalone metal bout. */
   comboId: string | null
-  /** True when this bout (or, for a combo, every round in it) was shot in
-   *  actual competition rather than training — the number that decides a
-   *  result, not a practice hit rate. Lets race performance be read apart
-   *  from training instead of blending into one average. */
-  isRace: boolean
 }
 
 /** Either kind of bout a workout can hold. */
@@ -244,6 +239,10 @@ export interface CoachNote {
   note: string
 }
 
+/** The four IBU race formats — each shot in a fixed prone/standing order,
+ *  distinguishing a race workout from training beyond just a flag. */
+export type RaceType = 'sprint' | 'individual' | 'mass-start' | 'pursuit'
+
 /**
  * A training session: one or more precision bouts and metal bouts, shot
  * under one set of conditions. Wind is entered once here rather than per
@@ -267,6 +266,10 @@ export interface Workout {
   /** Feedback left by a coach who coaches this athlete, oldest first. Empty
    *  for an athlete with no linked coach, or a workout no coach has seen. */
   coachNotes: CoachNote[]
+  /** Set when the whole workout was a race rather than training — the format
+   *  raced, not just a yes/no, since a sprint and an individual read very
+   *  differently. Null for an ordinary training session. */
+  raceType: RaceType | null
 }
 
 export interface Ellipse {
@@ -416,6 +419,13 @@ export const PRECISION_SHOTS = 10
 export const HIT_ZONE_MM: Record<Position, number> = {
   prone: 45,
   standing: 115,
+}
+
+export const RACE_TYPE_LABEL: Record<RaceType, string> = {
+  sprint: 'Sprint',
+  individual: 'Individual',
+  'mass-start': 'Mass start',
+  pursuit: 'Pursuit',
 }
 
 /** How to score a bout that was saved before faces were per-bout. */

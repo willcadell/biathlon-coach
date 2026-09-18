@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, Shot, Wind, WindDirection, Workout } from './types'
+import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout } from './types'
 import { PRECISION_SHOTS } from './types'
 
 const BUCKET = 'target-photos'
@@ -19,6 +19,7 @@ export interface WorkoutRow {
   wind: Wind
   wind_direction: WindDirection
   notes: string
+  race_type: RaceType | null
 }
 
 export interface ClickRow {
@@ -68,6 +69,7 @@ export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: Coach
     wind: row.wind,
     windDirection: row.wind_direction,
     notes: row.notes,
+    raceType: row.race_type,
     clickLog: clicks
       .filter((c) => c.workout_id === row.id)
       .map(toClick)
@@ -89,6 +91,7 @@ export async function putWorkout(workout: Workout): Promise<void> {
     wind: workout.wind,
     wind_direction: workout.windDirection,
     notes: workout.notes,
+    race_type: workout.raceType,
   })
   if (error) throw error
 
@@ -298,7 +301,6 @@ export interface MetalRow {
   hit_echo: boolean
   heart_rate: number
   combo_id: string | null
-  is_race: boolean
 }
 
 export function toMetalBout(row: MetalRow): MetalBout {
@@ -317,7 +319,6 @@ export function toMetalBout(row: MetalRow): MetalBout {
     },
     heartRate: row.heart_rate,
     comboId: row.combo_id,
-    isRace: row.is_race,
   }
 }
 
@@ -336,7 +337,6 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     hit_echo: bout.hits.echo,
     heart_rate: bout.heartRate,
     combo_id: bout.comboId,
-    is_race: bout.isRace,
   })
   if (error) throw error
 }

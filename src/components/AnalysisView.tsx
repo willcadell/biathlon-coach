@@ -58,8 +58,9 @@ export function AnalysisView({
 
   const prone = bouts.filter((b) => b.position === 'prone')
   const standing = bouts.filter((b) => b.position === 'standing')
+  const raceWorkoutIds = new Set(workouts.filter((w) => w.raceType).map((w) => w.id))
   const filteredMetal = metalBouts.filter((b) =>
-    metalFilter === 'all' ? true : metalFilter === 'race' ? b.isRace : !b.isRace,
+    metalFilter === 'all' ? true : metalFilter === 'race' ? raceWorkoutIds.has(b.workoutId) : !raceWorkoutIds.has(b.workoutId),
   )
   const metalProne = filteredMetal.filter((b) => b.position === 'prone')
   const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
@@ -224,7 +225,7 @@ export function AnalysisView({
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
         <h3 style={{ margin: 0 }}>Metal</h3>
-        {metalBouts.some((b) => b.isRace) && (
+        {raceWorkoutIds.size > 0 && (
           <div className="seg" style={{ flex: 'none', width: 168 }}>
             {(['all', 'training', 'race'] as const).map((f) => (
               <button

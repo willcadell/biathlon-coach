@@ -198,7 +198,7 @@ ok('no early-signs false positive on a thin, clean sample', !f.some((x) => x.id 
 // --- Wind sensitivity: same shooter, tight both times, but pushed sideways
 // only in the bouts shot in strong wind.
 const mkWorkout = (id: string, wind: Workout['wind']): Workout => ({
-  id, startedAt: new Date().toISOString(), name: '', wind, windDirection: '3', clickLog: [], notes: '', coachNotes: [],
+  id, startedAt: new Date().toISOString(), name: '', wind, windDirection: '3', clickLog: [], notes: '', coachNotes: [], raceType: null,
 })
 const calmBouts = [0, 1].map((i) => bout('prone', [{x:2,y:1},{x:1,y:-1},{x:3,y:0},{x:1,y:1},{x:2,y:-1}], false, i+1, `w-calm-${i}`))
 const windyBouts = [0, 1].map((i) => bout('prone', [{x:16,y:1},{x:14,y:-1},{x:15,y:0},{x:14,y:1},{x:16,y:-1}], false, i+1, `w-windy-${i}`))
@@ -266,7 +266,7 @@ ok('crop width-fraction scales a length by the crop width only',
 // --- Metal bouts: no photo, no shape — a hit rate per position, and per target.
 const metal = (position: Position, missed: MetalTarget[]): MetalBout => ({
   kind: 'metal', id: crypto.randomUUID(), workoutId: 'w',
-  shotAt: new Date().toISOString(), position, heartRate: 0, comboId: null, isRace: false,
+  shotAt: new Date().toISOString(), position, heartRate: 0, comboId: null,
   hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>,
 })
 const metalSet = [metal('prone', []), metal('prone', ['alpha']), metal('standing', ['alpha', 'beta'])]
