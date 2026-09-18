@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout } from '../lib/types'
+import type { Bout, MetalBout, Workout } from '../lib/types'
+import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  becomeCoach, coachesForClub, createClub, findClubByCoachCode, getCoach, getCoachJoinCode, joinClubAsCoach,
-  myCoachedClubs, rosterBouts, rosterForClub, rosterMetalBouts,
+  addCoachNote, becomeCoach, coachesForClub, createClub, findClubByCoachCode, getCoach, getCoachJoinCode,
+  joinClubAsCoach, myCoachedClubs, rosterBouts, rosterForClub, rosterMetalBouts, rosterWorkouts,
   type Club, type ClubMatch, type CoCoach, type Coach, type RosterAthlete,
 } from '../lib/coaching'
+import { AnalysisView } from './AnalysisView'
+import { errorMessage } from '../lib/errors'
 
 interface Props {
   session: Session
@@ -34,11 +37,15 @@ function metalPct(bouts: MetalBout[]): string {
 function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   async function submit() {
     setSaving(true)
+    setError('')
     try {
       onDone(await becomeCoach(name.trim()))
+    } catch (e) {
+      setError(errorMessage(e, 'Could not set up your coach profile. Check your connection and try again.'))
     } finally {
       setSaving(false)
     }
@@ -57,6 +64,7 @@ function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
       </div>
+      {error && <div className="notice error">{error}</div>}
       <button className="primary" onClick={() => void submit()} disabled={saving || name.trim().length === 0}>
         {saving ? 'Setting up…' : 'Set up as a coach'}
       </button>
@@ -67,12 +75,16 @@ function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
 function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   async function submit() {
     setSaving(true)
+    setError('')
     try {
       onCreated(await createClub(name.trim()))
       setName('')
+    } catch (e) {
+      setError(errorMessage(e, 'Could not create that club. Check your connection and try again.'))
     } finally {
       setSaving(false)
     }
@@ -84,6 +96,7 @@ function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
         <span>Club name</span>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
+      {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
       <button className="secondary" style={{ marginTop: 10 }} onClick={() => void submit()} disabled={saving || name.trim().length === 0}>
         {saving ? 'Creating…' : '+ Create a club'}
       </button>
@@ -163,12 +176,66 @@ function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
   )
 }
 
+/**
+ * One roster athlete's own data, reusing the exact views the athlete sees of
+ * themselves — History and Analysis — fed by what the roster query already
+ * fetched rather than the coach's own bouts. Read-only throughout except for
+ * coach notes, the one write a coach can make on data that isn't theirs.
+ *
+ * Diagnostics run against DEFAULT_SETTINGS rather than the coach's own — the
+ * coach's rifle's click value has nothing to do with this athlete's sight,
+ * and there is nowhere to read the athlete's own settings from (they live on
+ * their device, never synced).
+ */
+function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
+  const [bouts, setBouts] = useState<Bout[]>([])
+  const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState('')
+
+  const refresh = () => {
+    void Promise.all([
+      rosterBouts([athlete.athleteId]),
+      rosterMetalBouts([athlete.athleteId]),
+      rosterWorkouts([athlete.athleteId]),
+    ]).then(([b, m, w]) => {
+      setBouts(b)
+      setMetalBouts(m)
+      setWorkouts(w)
+      setLoaded(true)
+    }).catch((e) => setError(errorMessage(e, 'Could not load this athlete’s training. Check your connection and try again.')))
+  }
+
+  useEffect(() => {
+    setLoaded(false)
+    setError('')
+    refresh()
+  }, [athlete.athleteId])
+
+  if (error) return <div className="notice error">{error}</div>
+  if (!loaded) return <p className="meta">Loading…</p>
+
+  return (
+    <AnalysisView
+      bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
+      onChanged={refresh}
+      readOnly
+      onAddCoachNote={async (workoutId, note) => {
+        await addCoachNote(workoutId, note)
+        refresh()
+      }}
+    />
+  )
+}
+
 function ClubRoster({ club }: { club: Club }) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
   const [coaches, setCoaches] = useState<CoCoach[]>([])
   const [coachCode, setCoachCode] = useState<string | null>(null)
+  const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -181,14 +248,31 @@ function ClubRoster({ club }: { club: Club }) {
       if (cancelled) return
       setBouts(b)
       setMetalBouts(m)
-    })
-    void coachesForClub(club.id).then((c) => { if (!cancelled) setCoaches(c) })
-    if (club.isAdmin) void getCoachJoinCode(club.id).then((code) => { if (!cancelled) setCoachCode(code) })
+    }).catch((e) => console.error('Could not load this club’s roster', e))
+    void coachesForClub(club.id)
+      .then((c) => { if (!cancelled) setCoaches(c) })
+      .catch((e) => console.error('Could not load co-coaches', e))
+    if (club.isAdmin) {
+      void getCoachJoinCode(club.id)
+        .then((code) => { if (!cancelled) setCoachCode(code) })
+        .catch((e) => console.error('Could not load the coach invite code', e))
+    }
     return () => { cancelled = true }
   }, [club.id, club.isAdmin])
 
   const targets = targetStats(metalBouts)
   const metal = metalStats(metalBouts)
+
+  const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
+  if (openAthlete) {
+    return (
+      <>
+        <button className="link" onClick={() => setOpenAthleteId(null)}>← Roster</button>
+        <h1 style={{ marginTop: 10 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
+        <AthleteDetail athlete={openAthlete} />
+      </>
+    )
+  }
 
   return (
     <>
@@ -228,11 +312,12 @@ function ClubRoster({ club }: { club: Club }) {
       {athletes && athletes.length > 0 && (
         <>
           {athletes.map((a) => (
-            <div key={a.athleteId} className="boutrow" style={{ cursor: 'default' }}>
+            <button key={a.athleteId} className="boutrow" onClick={() => setOpenAthleteId(a.athleteId)}>
               <div className="grow">
                 <div className="title">{a.displayName || 'Unnamed athlete'}</div>
               </div>
-            </div>
+              <span className="meta" aria-hidden="true">›</span>
+            </button>
           ))}
 
           <h3 style={{ marginTop: 16 }}>Whole roster</h3>
@@ -288,23 +373,38 @@ export function CoachView({ session, onIdentityChanged }: Props) {
   const [coach, setCoach] = useState<Coach | null | undefined>(undefined)
   const [clubs, setClubs] = useState<Club[]>([])
   const [openClubId, setOpenClubId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState('')
 
-  const refreshClubs = () => void myCoachedClubs().then(setClubs)
+  const refreshClubs = () =>
+    void myCoachedClubs()
+      .then(setClubs)
+      .catch((e) => setLoadError(errorMessage(e, 'Could not load your clubs. Check your connection and try again.')))
 
   useEffect(() => {
-    void getCoach(session.user.id).then((c) => {
-      setCoach(c)
-      if (c) refreshClubs()
-    })
+    setLoadError('')
+    void getCoach(session.user.id)
+      .then((c) => {
+        setCoach(c)
+        if (c) refreshClubs()
+      })
+      .catch((e) => setLoadError(errorMessage(e, 'Could not load your coach profile. Check your connection and try again.')))
   }, [session.user.id])
 
+  if (loadError) {
+    return (
+      <>
+        <h1>Coach</h1>
+        <div className="notice error">{loadError}</div>
+      </>
+    )
+  }
   if (coach === undefined) return null
   if (coach === null) {
     return (
       <SetUpCoach
         onDone={(c) => {
           setCoach(c)
-          void myCoachedClubs().then(setClubs)
+          refreshClubs()
           onIdentityChanged()
         }}
       />

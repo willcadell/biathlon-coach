@@ -47,7 +47,7 @@ export function ChooseRoleView({ session, variant, onChosen }: Props) {
           <p className="meta">
             {variant === 'create'
               ? "You can always set up the other later — an athlete can become a coach too, and a coach can log their own training."
-              : 'You have both an athlete and a coach profile. Pick one for this session — switch anytime from Settings.'}
+              : 'You have both an athlete and a coach profile. Pick one for this session — switch anytime from Profile.'}
           </p>
           <div className="row" style={{ marginTop: 16 }}>
             <button

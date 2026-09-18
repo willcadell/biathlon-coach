@@ -226,6 +226,19 @@ export interface ClickAdjustment {
   note: string
 }
 
+/** Feedback a coach left on an athlete's workout — the one thing a coach can
+ *  write on data that is otherwise read-only to them. Shared across every
+ *  coach linked to the athlete, not just the one who wrote it. */
+export interface CoachNote {
+  id: string
+  coachId: string
+  /** Captured at write time, since the athlete reading this has no way to
+   *  look a coach's name up themselves. */
+  coachName: string
+  createdAt: string
+  note: string
+}
+
 /**
  * A training session: one or more precision bouts and metal bouts, shot
  * under one set of conditions. Wind is entered once here rather than per
@@ -246,6 +259,9 @@ export interface Workout {
   /** Free notes about the session as a whole — how it felt, what changed,
    *  anything worth remembering that isn't tied to one specific bout. */
   notes: string
+  /** Feedback left by a coach who coaches this athlete, oldest first. Empty
+   *  for an athlete with no linked coach, or a workout no coach has seen. */
+  coachNotes: CoachNote[]
 }
 
 export interface Ellipse {

@@ -26,15 +26,74 @@ function clickSummary(clickLog: ClickAdjustment[]): string {
   return clipsPart ? `${moves.join(' ')} · ${clipsPart}` : moves.join(' ')
 }
 
+/** Feedback a coach left on a workout, plus the form to add another — the
+ *  one write a read-only coach view is allowed. Hidden entirely when there
+ *  is nothing to show and no one who can add anything. */
+function CoachNotesCard({
+  workout,
+  onAdd,
+}: {
+  workout: Workout
+  onAdd?: (workoutId: string, note: string) => Promise<void>
+}) {
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  if (workout.coachNotes.length === 0 && !onAdd) return null
+
+  async function submit() {
+    if (!onAdd || !note.trim()) return
+    setSaving(true)
+    try {
+      await onAdd(workout.id, note.trim())
+      setNote('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3>Coach notes</h3>
+      {workout.coachNotes.length === 0 && <p className="meta" style={{ marginTop: 0 }}>Nothing left yet.</p>}
+      {workout.coachNotes.map((n) => (
+        <div key={n.id} style={{ marginBottom: 10 }}>
+          <p style={{ margin: 0 }}>{n.note}</p>
+          <p className="meta" style={{ margin: 0 }}>{n.coachName} · {fmt(n.createdAt)}</p>
+        </div>
+      ))}
+      {onAdd && (
+        <div style={{ marginTop: workout.coachNotes.length > 0 ? 14 : 0 }}>
+          <label className="field" style={{ marginBottom: 8 }}>
+            <span>Add a note<small>Visible to the athlete and any other coach on their club.</small></span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <button className="secondary" onClick={() => void submit()} disabled={saving || !note.trim()}>
+            {saving ? 'Saving…' : 'Add note'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface Props {
   workouts: Workout[]
   bouts: Bout[]
   metalBouts: MetalBout[]
   settings: Settings
   onChanged: () => void
+  /** True when viewing someone else's history (a coach on their roster) —
+   *  hides every delete and bulk-select action, since nothing here can be
+   *  written by the viewer except a coach note. */
+  readOnly?: boolean
+  /** Present only for a coach viewing a linked athlete — lets them leave
+   *  feedback on a specific workout, the one write allowed in read-only
+   *  mode. Omitted entirely for an athlete looking at their own history. */
+  onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
 }
 
-export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }: Props) {
+export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote }: Props) {
   const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null)
   const [openBoutId, setOpenBoutId] = useState<string | null>(null)
   const [openBoutImage, setOpenBoutImage] = useState<string | null>(null)
@@ -104,18 +163,20 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
         <h1 style={{ marginTop: 10 }}>{openBout.position === 'prone' ? 'Prone' : 'Standing'}</h1>
         <p className="lede">{fmt(openBout.shotAt)}</p>
         <ResultsView bout={openBout} settings={settings} workout={boutWorkout} imageUrl={openBoutImage} />
-        <button
-          className="secondary danger"
-          style={{ marginTop: 16 }}
-          onClick={async () => {
-            if (!confirm('Delete this bout and its photo? This cannot be undone.')) return
-            await deleteBout(openBout.id)
-            setOpenBoutId(null)
-            onChanged()
-          }}
-        >
-          Delete this bout
-        </button>
+        {!readOnly && (
+          <button
+            className="secondary danger"
+            style={{ marginTop: 16 }}
+            onClick={async () => {
+              if (!confirm('Delete this bout and its photo? This cannot be undone.')) return
+              await deleteBout(openBout.id)
+              setOpenBoutId(null)
+              onChanged()
+            }}
+          >
+            Delete this bout
+          </button>
+        )}
       </>
     )
   }
@@ -159,6 +220,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
           </div>
         )}
 
+        <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
+
         <h2>Entries</h2>
         {entries.length === 0 && <p className="meta">Nothing was added to this workout.</p>}
         {entries.map((e) =>
@@ -180,32 +243,36 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
                   {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}
                 </div>
               </div>
-              <button
-                className="link"
-                onClick={async () => {
-                  if (!confirm('Delete this metal bout?')) return
-                  await deleteMetalBout(e.id)
-                  onChanged()
-                }}
-              >
-                Remove
-              </button>
+              {!readOnly && (
+                <button
+                  className="link"
+                  onClick={async () => {
+                    if (!confirm('Delete this metal bout?')) return
+                    await deleteMetalBout(e.id)
+                    onChanged()
+                  }}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ),
         )}
 
-        <button
-          className="secondary danger"
-          style={{ marginTop: 16 }}
-          onClick={async () => {
-            if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
-            await deleteWorkout(openWorkout.id)
-            setOpenWorkoutId(null)
-            onChanged()
-          }}
-        >
-          Delete this workout
-        </button>
+        {!readOnly && (
+          <button
+            className="secondary danger"
+            style={{ marginTop: 16 }}
+            onClick={async () => {
+              if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
+              await deleteWorkout(openWorkout.id)
+              setOpenWorkoutId(null)
+              onChanged()
+            }}
+          >
+            Delete this workout
+          </button>
+        )}
       </>
     )
   }
@@ -237,9 +304,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged }
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '24px 0 8px' }}>
         <h2 style={{ margin: 0 }}>Workouts</h2>
-        <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-          {selecting ? 'Cancel' : 'Select'}
-        </button>
+        {!readOnly && (
+          <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+            {selecting ? 'Cancel' : 'Select'}
+          </button>
+        )}
       </div>
       {workouts.map((w) => {
         const ownBouts = bouts.filter((b) => b.workoutId === w.id)

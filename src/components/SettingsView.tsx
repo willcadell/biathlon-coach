@@ -11,14 +11,9 @@ interface Props {
   onChange: (s: Settings) => void
   boutCount: number
   onDataChanged: () => void
-  /** Which identity this session is acting as. */
-  mode: 'athlete' | 'coach'
-  /** Present only when the signed-in user has both an athlete and a coach
-   *  identity — there's nothing to switch to otherwise. */
-  onSwitchRole?: () => void
 }
 
-export function SettingsView({ settings, onChange, boutCount, onDataChanged, mode, onSwitchRole }: Props) {
+export function SettingsView({ settings, onChange, boutCount, onDataChanged }: Props) {
   const [check, setCheck] = useState<KeyCheck | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -50,20 +45,6 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, mod
   return (
     <>
       <h1>Settings</h1>
-
-      {onSwitchRole && (
-        <>
-          <h2>Session</h2>
-          <div className="card">
-            <p style={{ marginTop: 0 }}>
-              Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
-            </p>
-            <button className="secondary" onClick={onSwitchRole}>
-              Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
-            </button>
-          </div>
-        </>
-      )}
 
       <h2>Your target</h2>
       <div className="card">

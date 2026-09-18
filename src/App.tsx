@@ -11,7 +11,6 @@ import { getCoach } from './lib/coaching'
 import { SignInView } from './components/SignInView'
 import { ChooseRoleView } from './components/ChooseRoleView'
 import { WorkoutView } from './components/WorkoutView'
-import { HistoryView } from './components/HistoryView'
 import { AnalysisView } from './components/AnalysisView'
 import { ProfileView } from './components/ProfileView'
 import { CoachView } from './components/CoachView'
@@ -36,7 +35,7 @@ function saveActiveWorkoutId(id: string | null): void {
   }
 }
 
-type Tab = 'shoot' | 'history' | 'analysis' | 'profile' | 'coach' | 'settings'
+type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'settings'
 type Role = 'athlete' | 'coach'
 
 const MODE_KEY_PREFIX = 'biathlon-coach:mode:'
@@ -75,16 +74,6 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
     ),
   },
   {
-    id: 'history',
-    label: 'History',
-    requiresMode: 'athlete',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-        <path d="M4 18V9M9.5 18V5M15 18v-6M20.5 18v-9" />
-      </svg>
-    ),
-  },
-  {
     id: 'analysis',
     label: 'Analysis',
     requiresMode: 'athlete',
@@ -107,6 +96,7 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
   {
     id: 'coach',
     label: 'Coach',
+    requiresMode: 'coach',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="8.5" r="2.6" />
@@ -214,9 +204,12 @@ function SignedInApp({
   const [settings, setSettings] = useState<Settings>(loadSettings)
 
   const refresh = useCallback(() => {
-    void allWorkouts().then(setWorkouts)
-    void allBouts().then(setStored)
-    void allMetalBouts().then(setMetalBouts)
+    // Logged rather than silently dropped — a rejection here used to vanish
+    // entirely, leaving stale state with no clue why (e.g. a table a new
+    // build queries before its migration has actually been pushed).
+    void allWorkouts().then(setWorkouts).catch((e) => console.error('Could not load workouts', e))
+    void allBouts().then(setStored).catch((e) => console.error('Could not load bouts', e))
+    void allMetalBouts().then(setMetalBouts).catch((e) => console.error('Could not load metal bouts', e))
   }, [])
   useEffect(refresh, [refresh])
 
@@ -248,7 +241,7 @@ function SignedInApp({
   }, [activeWorkout, bouts, metalBouts])
 
   async function startWorkout(wind: Wind, windDirection: WindDirection) {
-    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '' }
+    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '', coachNotes: [] }
     await putWorkout(workout)
     setActiveWorkout(workout.id)
     refresh()
@@ -275,15 +268,25 @@ function SignedInApp({
             settings={settings}
             workout={activeWorkout}
             entries={activeEntries}
-            onStart={(wind, windDirection) => void startWorkout(wind, windDirection)}
+            onStart={(wind, windDirection) => startWorkout(wind, windDirection)}
             onFinish={() => setActiveWorkout(null)}
             onWorkoutChanged={updateWorkout}
             onDataChanged={refresh}
           />
         )}
-        {tab === 'history' && <HistoryView workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={refresh} />}
-        {tab === 'analysis' && <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} />}
-        {tab === 'profile' && <ProfileView session={session} hasAthlete={identities.athlete} onIdentityChanged={onIdentityChanged} />}
+        {tab === 'analysis' && (
+          <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} />
+        )}
+        {tab === 'profile' && (
+          <ProfileView
+            session={session}
+            hasAthlete={identities.athlete}
+            hasCoach={identities.coach}
+            onIdentityChanged={onIdentityChanged}
+            mode={mode}
+            onSwitchRole={onSwitchRole}
+          />
+        )}
         {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
         {tab === 'settings' && (
           <SettingsView
@@ -291,8 +294,6 @@ function SignedInApp({
             onChange={updateSettings}
             boutCount={bouts.length}
             onDataChanged={refresh}
-            mode={mode}
-            onSwitchRole={onSwitchRole}
           />
         )}
       </main>

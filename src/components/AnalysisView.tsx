@@ -4,6 +4,7 @@ import { DISCS_PER_METAL_BOUT, hitsOf, missCount, targetStats } from '../lib/met
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
+import { HistoryView } from './HistoryView'
 
 /** Bouts older than this stop counting toward the coaching read below — the
  *  breakdown and trends above it stay all-time, since a distribution is only
@@ -33,11 +34,22 @@ export function AnalysisView({
   metalBouts,
   settings,
   workouts,
+  onChanged,
+  readOnly,
+  onAddCoachNote,
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
   settings: Settings
   workouts: Workout[]
+  onChanged: () => void
+  /** True when viewing someone else's data (a coach on their roster) — the
+   *  History rolled up below hides every delete action, same as HistoryView
+   *  itself does. */
+  readOnly?: boolean
+  /** Present only for a coach viewing a linked athlete — forwarded straight
+   *  through to the nested History section. */
+  onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
 }) {
   const [openDrill, setOpenDrill] = useState<string | null>(null)
 
@@ -71,6 +83,15 @@ export function AnalysisView({
             trends once you have a few — and a coaching read once you have three or four.
           </p>
         </div>
+        <details style={{ marginTop: 20 }}>
+          <summary>History</summary>
+          <div style={{ marginTop: 12 }}>
+            <HistoryView
+              workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
+              readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+            />
+          </div>
+        </details>
       </>
     )
   }
@@ -229,6 +250,18 @@ export function AnalysisView({
           which question to ask one.
         </p>
       )}
+
+      <details style={{ marginTop: 24 }}>
+        <summary>
+          History ({workouts.length} workout{workouts.length === 1 ? '' : 's'})
+        </summary>
+        <div style={{ marginTop: 12 }}>
+          <HistoryView
+            workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
+            readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+          />
+        </div>
+      </details>
     </>
   )
 }

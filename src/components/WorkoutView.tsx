@@ -3,6 +3,7 @@ import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, Settings,
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
+import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
 import { CaptureView } from './CaptureView'
 import { MiniTargets } from './MiniTargets'
@@ -242,7 +243,7 @@ function MetalForm({
       await putMetalBout(bout)
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save this bout. Check your connection and try again.')
+      setError(errorMessage(e, 'Could not save this bout. Check your connection and try again.'))
       setSaving(false)
     }
   }
@@ -439,7 +440,7 @@ interface Props {
   workout: Workout | null
   /** This workout's own entries, oldest first. */
   entries: WorkoutEntry[]
-  onStart: (wind: Wind, windDirection: WindDirection) => void
+  onStart: (wind: Wind, windDirection: WindDirection) => Promise<void>
   onFinish: () => void
   onWorkoutChanged: (workout: Workout) => void
   onDataChanged: () => void
@@ -454,12 +455,26 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
 
   const comboRounds = activeComboId
     ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
     : 0
 
   const precisionBouts = entries.filter((e): e is Bout => e.kind === 'precision')
+
+  async function handleStart() {
+    setStarting(true)
+    setStartError('')
+    try {
+      await onStart('none', '12')
+    } catch (e) {
+      setStartError(errorMessage(e, 'Could not start the workout. Check your connection and try again.'))
+    } finally {
+      setStarting(false)
+    }
+  }
 
   if (!workout) {
     return (
@@ -469,7 +484,10 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
           Add as many precision bouts and metal bouts as you shoot in one session. Wind and
           conditions are entered in the workout itself, once it's started.
         </p>
-        <button className="primary" onClick={() => onStart('none', '12')}>Start workout</button>
+        {startError && <div className="notice error">{startError}</div>}
+        <button className="primary" onClick={() => void handleStart()} disabled={starting}>
+          {starting ? 'Starting…' : 'Start workout'}
+        </button>
       </>
     )
   }

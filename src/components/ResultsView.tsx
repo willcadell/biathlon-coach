@@ -116,7 +116,7 @@ export function ResultsView({
         more bouts like it you log, in Training.
       </p>
 
-      {zeroCost > 0 ? (
+      {zeroCost > 0 && zeroConfirmedByShape ? null : zeroCost > 0 ? (
         <div className="card">
           <h3>Your zero is costing {zeroCost} point{zeroCost === 1 ? '' : 's'}</h3>
           <p style={{ marginBottom: 0 }}>

@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
-import { toBout, toMetalBout, type BoutRow, type MetalRow } from './db'
-import type { Bout, MetalBout } from './types'
+import { toBout, toMetalBout, toWorkout, type BoutRow, type ClickRow, type CoachNoteRow, type MetalRow, type WorkoutRow } from './db'
+import type { Bout, CoachNote, MetalBout, Workout } from './types'
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser()
@@ -215,4 +215,48 @@ export async function rosterMetalBouts(athleteIds: string[]): Promise<MetalBout[
   const { data, error } = await supabase.from('metal_bouts').select('*').in('athlete_id', athleteIds)
   if (error) throw error
   return (data as MetalRow[] ?? []).map(toMetalBout)
+}
+
+/** Every workout across a roster the caller coaches, with its click log and
+ *  any coach notes already left on it — the same shape History and Analysis
+ *  already know how to read, so a roster athlete's data drops straight into
+ *  either view unchanged. */
+export async function rosterWorkouts(athleteIds: string[]): Promise<Workout[]> {
+  if (athleteIds.length === 0) return []
+  const { data: rows, error } = await supabase.from('workouts').select('*').in('athlete_id', athleteIds)
+  if (error) throw error
+  const workoutIds = (rows ?? []).map((r) => r.id as string)
+  if (workoutIds.length === 0) return []
+
+  const [{ data: clicks, error: clickErr }, { data: notes, error: notesErr }] = await Promise.all([
+    supabase.from('click_adjustments').select('*').in('workout_id', workoutIds),
+    supabase.from('workout_coach_notes').select('*').in('workout_id', workoutIds),
+  ])
+  if (clickErr) throw clickErr
+  if (notesErr) throw notesErr
+  return (rows as WorkoutRow[]).map((r) => toWorkout(r, (clicks as ClickRow[]) ?? [], (notes as CoachNoteRow[]) ?? []))
+}
+
+/** Leaves feedback on an athlete's workout — the one write a coach can make
+ *  on data that is otherwise read-only to them. The database re-checks
+ *  is_coach_of itself, so this can't be aimed at a workout outside the
+ *  caller's roster by constructing the call directly. */
+export async function addCoachNote(workoutId: string, note: string): Promise<CoachNote> {
+  const coachId = await currentUserId()
+  const coach = await getCoach(coachId)
+  if (!coach) throw new Error('Only a coach can leave a coach note')
+  const { data, error } = await supabase
+    .from('workout_coach_notes')
+    .insert({ workout_id: workoutId, coach_id: coachId, coach_name: coach.displayName, note })
+    .select('*')
+    .single()
+  if (error) throw error
+  return { id: data.id, coachId: data.coach_id, coachName: data.coach_name, createdAt: data.created_at, note: data.note }
+}
+
+/** A coach can only remove their own note — see the "coach deletes own
+ *  notes" policy, which checks coach_id itself. */
+export async function deleteCoachNote(id: string): Promise<void> {
+  const { error } = await supabase.from('workout_coach_notes').delete().eq('id', id)
+  if (error) throw error
 }

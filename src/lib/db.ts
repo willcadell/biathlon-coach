@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, ClickAdjustment, MetalBout, Position, Shot, Wind, WindDirection, Workout } from './types'
+import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, Shot, Wind, WindDirection, Workout } from './types'
 import { PRECISION_SHOTS } from './types'
 
 const BUCKET = 'target-photos'
@@ -12,7 +12,7 @@ async function currentAthleteId(): Promise<string> {
 
 // --- Workouts ---
 
-interface WorkoutRow {
+export interface WorkoutRow {
   id: string
   started_at: string
   name: string
@@ -21,7 +21,7 @@ interface WorkoutRow {
   notes: string
 }
 
-interface ClickRow {
+export interface ClickRow {
   id: string
   workout_id: string
   logged_at: string
@@ -30,6 +30,15 @@ interface ClickRow {
   horizontal: number
   horizontal_dir: 'left' | 'right'
   clips: number
+  note: string
+}
+
+export interface CoachNoteRow {
+  id: string
+  workout_id: string
+  coach_id: string
+  coach_name: string
+  created_at: string
   note: string
 }
 
@@ -47,7 +56,11 @@ function toClick(row: ClickRow): ClickAdjustment {
   }
 }
 
-function toWorkout(row: WorkoutRow, clicks: ClickRow[]): Workout {
+function toCoachNote(row: CoachNoteRow): CoachNote {
+  return { id: row.id, coachId: row.coach_id, coachName: row.coach_name, createdAt: row.created_at, note: row.note }
+}
+
+export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: CoachNoteRow[] = []): Workout {
   return {
     id: row.id,
     startedAt: row.started_at,
@@ -59,6 +72,10 @@ function toWorkout(row: WorkoutRow, clicks: ClickRow[]): Workout {
       .filter((c) => c.workout_id === row.id)
       .map(toClick)
       .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt)),
+    coachNotes: coachNotes
+      .filter((n) => n.workout_id === row.id)
+      .map(toCoachNote)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   }
 }
 
@@ -98,13 +115,15 @@ export async function putWorkout(workout: Workout): Promise<void> {
 }
 
 export async function allWorkouts(): Promise<Workout[]> {
-  const [{ data: rows, error }, { data: clicks, error: clickErr }] = await Promise.all([
+  const [{ data: rows, error }, { data: clicks, error: clickErr }, { data: notes, error: notesErr }] = await Promise.all([
     supabase.from('workouts').select('*').order('started_at', { ascending: false }),
     supabase.from('click_adjustments').select('*'),
+    supabase.from('workout_coach_notes').select('*'),
   ])
   if (error) throw error
   if (clickErr) throw clickErr
-  return (rows ?? []).map((r) => toWorkout(r, clicks ?? []))
+  if (notesErr) throw notesErr
+  return (rows ?? []).map((r) => toWorkout(r, clicks ?? [], notes ?? []))
 }
 
 /** Delete a workout and everything shot under it: its precision bouts, their

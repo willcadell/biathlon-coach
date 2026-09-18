@@ -5,6 +5,7 @@ import { bullsToShots, computeMetrics, mmPerUnitFor } from '../lib/geometry'
 import { detectShots, VisionError, COST_PER_IMAGE } from '../lib/vision'
 import { aspectOf, forStorage, forThumb, locateBlackInBlob } from '../lib/imaging'
 import { putBout, updateBoutShots } from '../lib/db'
+import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
 import { MarkupView } from './MarkupView'
 import { ResultsView } from './ResultsView'
@@ -146,7 +147,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       setStage('done')
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save this bout. Check your connection and try again.')
+      setError(errorMessage(e, 'Could not save this bout. Check your connection and try again.'))
     } finally {
       setSaving(false)
     }

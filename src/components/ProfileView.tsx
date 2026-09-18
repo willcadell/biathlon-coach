@@ -1,17 +1,143 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { ensureAthleteRow, getAthlete, signOut, updateDisplayName } from '../lib/auth'
-import { findClubByJoinCode, joinClubAsAthlete, leaveClub, myMemberships, type ClubMatch, type Membership } from '../lib/coaching'
+import {
+  becomeCoach, findClubByJoinCode, joinClubAsAthlete, leaveClub, myCoachedClubs, myMemberships,
+  type Club, type ClubMatch, type Membership,
+} from '../lib/coaching'
+import { errorMessage } from '../lib/errors'
 
 interface Props {
   session: Session
   hasAthlete: boolean
+  /** Whether a coach identity already exists — an athlete without one gets
+   *  a way to set one up here, since the Coach tab itself is hidden until
+   *  they're actually acting as a coach. */
+  hasCoach: boolean
   /** Refreshes the app's identity gate — called after setting up an athlete
-   *  profile here, so the Shoot/History/Training tabs unlock immediately. */
+   *  or coach profile here, so the tabs and session choice reflect it
+   *  immediately. */
   onIdentityChanged: () => void
+  /** Which identity this session is acting as. */
+  mode: 'athlete' | 'coach'
+  /** Present only when the signed-in user has both an athlete and a coach
+   *  identity — there's nothing to switch to otherwise. */
+  onSwitchRole?: () => void
 }
 
-export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
+/** Shown only to an athlete without a coach identity yet — the Coach tab is
+ *  hidden until mode actually switches to coach, so this is the only way in
+ *  for someone starting from athlete-only. */
+function BecomeCoachCard({ onDone }: { onDone: () => void }) {
+  const [name, setName] = useState('')
+  const [settingUp, setSettingUp] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit() {
+    setSettingUp(true)
+    setError('')
+    try {
+      await becomeCoach(name.trim())
+      onDone()
+    } catch (e) {
+      setError(errorMessage(e, 'Could not set up your coach profile. Check your connection and try again.'))
+    } finally {
+      setSettingUp(false)
+    }
+  }
+
+  return (
+    <>
+      <h2>Coaching</h2>
+      <div className="card">
+        <p style={{ marginTop: 0 }}>
+          Set up a coaching identity too if you also want to create a club and see a roster's
+          training — it doesn't replace your athlete profile, it sits alongside it.
+        </p>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Your name<small>Shown to athletes on any club you create.</small></span>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
+        <button
+          className="secondary" style={{ marginTop: 10 }}
+          onClick={() => void submit()} disabled={settingUp || name.trim().length === 0}
+        >
+          {settingUp ? 'Setting up…' : 'Become a coach'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+/** Shown whenever a coach identity exists — this is the only place besides
+ *  the Coach tab itself that lists them, so switching to athlete mode (which
+ *  hides that tab entirely) doesn't also hide the fact that these clubs
+ *  exist. */
+function CoachedClubsCard() {
+  const [clubs, setClubs] = useState<Club[] | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void myCoachedClubs()
+      .then(setClubs)
+      .catch((e) => setError(errorMessage(e, 'Could not load the clubs you coach. Check your connection and try again.')))
+  }, [])
+
+  if (error) {
+    return (
+      <>
+        <h2>Clubs you coach</h2>
+        <div className="notice error">{error}</div>
+      </>
+    )
+  }
+  if (clubs === null) return null
+
+  return (
+    <>
+      <h2>Clubs you coach</h2>
+      <div className="card">
+        {clubs.length === 0 ? (
+          <p className="meta" style={{ marginTop: 0 }}>
+            Not coaching any clubs yet — create or join one from the Coach tab.
+          </p>
+        ) : (
+          clubs.map((c) => (
+            <div key={c.id} className="row" style={{ alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ flex: 1 }}>
+                {c.name}
+                {c.isAdmin && <span className="pill" style={{ marginLeft: 6 }}>Admin</span>}
+              </span>
+              <span className="meta">Join code {c.joinCode}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  )
+}
+
+/** Shown only for someone with both identities — switching is the one
+ *  reason a session-mode control needs to exist at all. */
+function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwitchRole?: () => void }) {
+  if (!onSwitchRole) return null
+  return (
+    <>
+      <h2>Session</h2>
+      <div className="card">
+        <p style={{ marginTop: 0 }}>
+          Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
+        </p>
+        <button className="secondary" onClick={onSwitchRole}>
+          Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole }: Props) {
   const [name, setName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -19,20 +145,28 @@ export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
   const [settingUp, setSettingUp] = useState(false)
 
   const [memberships, setMemberships] = useState<Membership[]>([])
+  const [membershipsError, setMembershipsError] = useState('')
   const [code, setCode] = useState('')
   const [match, setMatch] = useState<ClubMatch | null>(null)
   const [joinError, setJoinError] = useState('')
   const [checking, setChecking] = useState(false)
   const [joining, setJoining] = useState(false)
 
-  const refreshMemberships = () => void myMemberships().then(setMemberships)
+  const refreshMemberships = () => {
+    setMembershipsError('')
+    void myMemberships()
+      .then(setMemberships)
+      .catch((e) => setMembershipsError(errorMessage(e, 'Could not load your clubs. Check your connection and try again.')))
+  }
 
   useEffect(() => {
     if (!hasAthlete) return
-    void getAthlete(session.user.id).then((a) => {
-      setName(a?.displayName ?? '')
-      setLoaded(true)
-    })
+    void getAthlete(session.user.id)
+      .then((a) => {
+        setName(a?.displayName ?? '')
+        setLoaded(true)
+      })
+      .catch((e) => console.error('Could not load athlete profile', e))
     refreshMemberships()
   }, [session.user.id, hasAthlete])
 
@@ -91,6 +225,9 @@ export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
     return (
       <>
         <h1>Profile</h1>
+        <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
+        {hasCoach && <CoachedClubsCard />}
+
         <h2>Athlete details</h2>
         <div className="card">
           <p style={{ marginTop: 0 }}>
@@ -116,6 +253,8 @@ export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
   return (
     <>
       <h1>Profile</h1>
+      <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
+      {hasCoach && <CoachedClubsCard />}
 
       <h2>Athlete details</h2>
       <div className="card">
@@ -146,7 +285,8 @@ export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
 
       <h2>Your clubs</h2>
       <div className="card">
-        {memberships.length === 0 ? (
+        {membershipsError && <div className="notice error" style={{ marginTop: 0 }}>{membershipsError}</div>}
+        {!membershipsError && memberships.length === 0 ? (
           <p className="meta" style={{ marginTop: 0 }}>Not in a club yet.</p>
         ) : (
           memberships.map((m) => (
@@ -202,6 +342,8 @@ export function ProfileView({ session, hasAthlete, onIdentityChanged }: Props) {
           </button>
         )}
       </div>
+
+      {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
       <h2>Account</h2>
       <div className="card">
