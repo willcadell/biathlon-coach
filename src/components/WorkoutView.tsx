@@ -211,7 +211,7 @@ function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; on
 }
 
 function MetalForm({
-  workoutId, initial, comboId, onSaved, onCancel,
+  workoutId, initial, comboId, defaultIsRace, onSaved, onCancel,
 }: {
   workoutId: string
   /** Present when editing an existing metal bout rather than adding a new one. */
@@ -219,12 +219,16 @@ function MetalForm({
   /** The active combo to attach a NEW bout to, if any. Ignored when editing —
    *  an existing bout keeps whatever combo it was already part of. */
   comboId?: string | null
+  /** Whether the other rounds already in this combo are flagged as a race —
+   *  a new round defaults to matching them, so one set doesn't end up mixed. */
+  defaultIsRace?: boolean
   onSaved: () => void
   onCancel: () => void
 }) {
   const [position, setPosition] = useState<Position>(initial?.position ?? 'prone')
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
+  const [isRace, setIsRace] = useState(initial?.isRace ?? defaultIsRace ?? false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -236,7 +240,7 @@ function MetalForm({
       id: initial?.id ?? uuid(),
       workoutId,
       shotAt: initial?.shotAt ?? new Date().toISOString(),
-      position, hits, heartRate,
+      position, hits, heartRate, isRace,
       comboId: initial ? initial.comboId : (comboId ?? null),
     }
     try {
@@ -267,13 +271,17 @@ function MetalForm({
           <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
           <TargetDial hits={hits} onChange={setHits} />
         </label>
-        <label className="field" style={{ marginBottom: 0 }}>
+        <label className="field">
           <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
           <input
             type="number" inputMode="numeric" placeholder="—" min={0} max={230}
             value={heartRate || ''}
             onChange={(e) => setHeartRate(Number(e.target.value) || 0)}
           />
+        </label>
+        <label className="check" style={{ marginBottom: 0 }}>
+          <input type="checkbox" checked={isRace} onChange={(e) => setIsRace(e.target.checked)} />
+          This was a race, not training
         </label>
       </div>
       {error && <div className="notice error">{error}</div>}
@@ -320,6 +328,7 @@ function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => 
       <div className="grow">
         <div className="title">
           {hitCount(hits)}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{bout.position}</span>
+          {bout.isRace && <span className="pill">Race</span>}
         </div>
         <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <MiniTargets hits={hits} />
@@ -352,10 +361,12 @@ function ComboRow({
 }) {
   const shots = rounds.length * DISCS_PER_METAL_BOUT
   const misses = rounds.reduce((n, b) => n + missCount(hitsOf(b)), 0)
+  const isRace = rounds.some((r) => r.isRace)
   return (
     <div className="card">
       <div className="title" style={{ marginBottom: 8 }}>
         Combo · {rounds.length} round{rounds.length === 1 ? '' : 's'} · {shots - misses}/{shots} hits
+        {isRace && <span className="pill">Race</span>}
       </div>
       {rounds.map((r, i) => (
         <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
@@ -458,9 +469,11 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
 
-  const comboRounds = activeComboId
-    ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
-    : 0
+  const activeComboRounds = activeComboId
+    ? entries.filter((e): e is MetalBout => e.kind === 'metal' && e.comboId === activeComboId)
+    : []
+  const comboRounds = activeComboRounds.length
+  const activeComboIsRace = activeComboRounds[0]?.isRace ?? false
 
   const precisionBouts = entries.filter((e): e is Bout => e.kind === 'precision')
 
@@ -509,6 +522,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
         workoutId={workout.id}
         initial={editingMetal ?? undefined}
         comboId={activeComboId}
+        defaultIsRace={activeComboIsRace}
         onSaved={() => { onDataChanged(); setEditingMetal(null); setMode('entries') }}
         onCancel={() => { setEditingMetal(null); setMode('entries') }}
       />

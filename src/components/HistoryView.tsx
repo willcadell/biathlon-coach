@@ -237,7 +237,10 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           ) : (
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <div className="grow">
-                <div className="title">{hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
+                <div className="title">
+                  {hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span>
+                  {e.isRace && <span className="pill">Race</span>}
+                </div>
                 <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <MiniTargets hits={hitsOf(e)} />
                   {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}

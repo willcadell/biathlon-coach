@@ -298,6 +298,7 @@ export interface MetalRow {
   hit_echo: boolean
   heart_rate: number
   combo_id: string | null
+  is_race: boolean
 }
 
 export function toMetalBout(row: MetalRow): MetalBout {
@@ -316,6 +317,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
     },
     heartRate: row.heart_rate,
     comboId: row.combo_id,
+    isRace: row.is_race,
   }
 }
 
@@ -334,6 +336,7 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     hit_echo: bout.hits.echo,
     heart_rate: bout.heartRate,
     combo_id: bout.comboId,
+    is_race: bout.isRace,
   })
   if (error) throw error
 }

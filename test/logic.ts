@@ -266,7 +266,7 @@ ok('crop width-fraction scales a length by the crop width only',
 // --- Metal bouts: no photo, no shape — a hit rate per position, and per target.
 const metal = (position: Position, missed: MetalTarget[]): MetalBout => ({
   kind: 'metal', id: crypto.randomUUID(), workoutId: 'w',
-  shotAt: new Date().toISOString(), position, heartRate: 0, comboId: null,
+  shotAt: new Date().toISOString(), position, heartRate: 0, comboId: null, isRace: false,
   hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>,
 })
 const metalSet = [metal('prone', []), metal('prone', ['alpha']), metal('standing', ['alpha', 'beta'])]

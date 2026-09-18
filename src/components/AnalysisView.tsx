@@ -54,11 +54,15 @@ export function AnalysisView({
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
+  const [metalFilter, setMetalFilter] = useState<'all' | 'training' | 'race'>('all')
 
   const prone = bouts.filter((b) => b.position === 'prone')
   const standing = bouts.filter((b) => b.position === 'standing')
-  const metalProne = metalBouts.filter((b) => b.position === 'prone')
-  const metalStanding = metalBouts.filter((b) => b.position === 'standing')
+  const filteredMetal = metalBouts.filter((b) =>
+    metalFilter === 'all' ? true : metalFilter === 'race' ? b.isRace : !b.isRace,
+  )
+  const metalProne = filteredMetal.filter((b) => b.position === 'prone')
+  const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
 
   const recent = useMemo(() => {
     const cutoff = Date.now() - WINDOW_DAYS * 86400_000
@@ -218,7 +222,23 @@ export function AnalysisView({
         <TrendChart bouts={bouts} workouts={workouts} metric="group" />
       </div>
 
-      <h3 style={{ marginTop: 24 }}>Metal</h3>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
+        <h3 style={{ margin: 0 }}>Metal</h3>
+        {metalBouts.some((b) => b.isRace) && (
+          <div className="seg" style={{ flex: 'none', width: 168 }}>
+            {(['all', 'training', 'race'] as const).map((f) => (
+              <button
+                key={f}
+                aria-pressed={metalFilter === f}
+                onClick={() => setMetalFilter(f)}
+                style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+              >
+                {f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="stats">
         <div className="stat">
           <div className="k">Prone</div>

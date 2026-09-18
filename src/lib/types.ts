@@ -206,6 +206,11 @@ export interface MetalBout {
    *  together as one round-by-round set instead of loose entries. Null for
    *  a standalone metal bout. */
   comboId: string | null
+  /** True when this bout (or, for a combo, every round in it) was shot in
+   *  actual competition rather than training — the number that decides a
+   *  result, not a practice hit rate. Lets race performance be read apart
+   *  from training instead of blending into one average. */
+  isRace: boolean
 }
 
 /** Either kind of bout a workout can hold. */
