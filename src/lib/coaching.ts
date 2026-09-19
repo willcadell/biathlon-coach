@@ -120,15 +120,24 @@ export interface Program {
   id: string
   clubId: string
   name: string
+  /** An athlete join code, scoped to this program — see
+   *  join_program_as_athlete. Only ever read by a coach who can already see
+   *  this row (this table has no separate admin-only code the way a club's
+   *  coach invite code does). */
+  joinCode: string
 }
 
 /** Every program under a club — see the "members read their programs"
  *  policy for who actually gets rows back (a coach scoped to one program
  *  only sees that one; oversight of the whole club sees them all). */
 export async function programsForClub(clubId: string): Promise<Program[]> {
-  const { data, error } = await supabase.from('programs').select('id, club_id, name').eq('club_id', clubId).order('name')
+  const { data, error } = await supabase
+    .from('programs')
+    .select('id, club_id, name, join_code')
+    .eq('club_id', clubId)
+    .order('name')
   if (error) throw error
-  return (data ?? []).map((p) => ({ id: p.id, clubId: p.club_id, name: p.name }))
+  return (data ?? []).map((p) => ({ id: p.id, clubId: p.club_id, name: p.name, joinCode: p.join_code }))
 }
 
 /** Any coach assigned to the club can add one — not admin-only, unlike
@@ -137,10 +146,10 @@ export async function createProgram(clubId: string, name: string): Promise<Progr
   const { data, error } = await supabase
     .from('programs')
     .insert({ club_id: clubId, name: name.trim() })
-    .select('id, club_id, name')
+    .select('id, club_id, name, join_code')
     .single()
   if (error) throw error
-  return { id: data.id, clubId: data.club_id, name: data.name }
+  return { id: data.id, clubId: data.club_id, name: data.name, joinCode: data.join_code }
 }
 
 /** Only the admin coach of this club gets a code back — see
@@ -179,6 +188,33 @@ export async function findClubByCoachCode(code: string): Promise<ClubMatch | nul
 export async function joinClubAsAthlete(code: string): Promise<void> {
   const { error } = await supabase.rpc('join_club_as_athlete', { p_code: code.trim().toUpperCase() })
   if (error) throw error
+}
+
+export interface ProgramMatch {
+  id: string
+  name: string
+  clubId: string
+  clubName: string
+}
+
+/** Same idea as findClubByJoinCode, one level down — resolves a program's
+ *  own code without requiring the caller already belong to it. */
+export async function findProgramByJoinCode(code: string): Promise<ProgramMatch | null> {
+  const { data, error } = await supabase.rpc('find_program_by_join_code', { p_code: code.trim().toUpperCase() })
+  if (error) throw error
+  const row = data?.[0]
+  return row ? { id: row.id, name: row.name, clubId: row.club_id, clubName: row.club_name } : null
+}
+
+/** Joins the program's club too, if the athlete isn't a member yet — see
+ *  join_program_as_athlete, which folds both into one step and moves an
+ *  existing membership into the program rather than duplicating it. */
+export async function joinProgramAsAthlete(code: string): Promise<ProgramMatch> {
+  const { data, error } = await supabase.rpc('join_program_as_athlete', { p_code: code.trim().toUpperCase() })
+  if (error) throw error
+  const row = data?.[0]
+  if (!row) throw new Error('Could not join that program')
+  return { id: row.id, name: row.name, clubId: row.club_id, clubName: row.club_name }
 }
 
 /** Never grants admin — an invited coach can see and manage the roster but

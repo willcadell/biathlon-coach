@@ -162,8 +162,11 @@ function ProgramsCard({ club }: { club: Club }) {
         {programs && programs.length > 0 && (
           <div style={{ marginBottom: 12 }}>
             {programs.map((p) => (
-              <div key={p.id} className="row" style={{ marginBottom: 6 }}>
+              <div key={p.id} className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ flex: 1 }}>{p.name}</span>
+                <span className="meta">
+                  Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{p.joinCode}</strong>
+                </span>
               </div>
             ))}
           </div>

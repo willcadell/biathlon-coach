@@ -2,13 +2,19 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { ensureAthleteRow, getAthlete, signOut, updateDisplayName } from '../lib/auth'
 import {
-  becomeCoach, findClubByJoinCode, getCoach, joinClubAsAthlete, leaveClub, myCoachedClubs, myMemberships,
-  updateCoachDisplayName,
-  type Club, type ClubMatch, type Membership,
+  becomeCoach, findClubByJoinCode, findProgramByJoinCode, getCoach, joinClubAsAthlete, joinProgramAsAthlete,
+  leaveClub, myCoachedClubs, myMemberships, updateCoachDisplayName,
+  type Club, type Membership,
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
+
+/** A code an athlete enters could be either kind — the input doesn't ask
+ *  them to know which, it just tries a club code, then a program code. */
+type JoinMatch =
+  | { kind: 'club'; id: string; name: string }
+  | { kind: 'program'; id: string; name: string; clubName: string }
 
 interface Props {
   session: Session
@@ -161,7 +167,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [membershipsError, setMembershipsError] = useState('')
   const [code, setCode] = useState('')
-  const [match, setMatch] = useState<ClubMatch | null>(null)
+  const [match, setMatch] = useState<JoinMatch | null>(null)
   const [joinError, setJoinError] = useState('')
   const [checking, setChecking] = useState(false)
   const [joining, setJoining] = useState(false)
@@ -220,9 +226,17 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     if (!code.trim()) return
     setChecking(true)
     try {
-      const found = await findClubByJoinCode(code)
-      if (found) setMatch(found)
-      else setJoinError("That code doesn't match a club. Check it and try again.")
+      const club = await findClubByJoinCode(code)
+      if (club) {
+        setMatch({ kind: 'club', id: club.id, name: club.name })
+        return
+      }
+      const program = await findProgramByJoinCode(code)
+      if (program) {
+        setMatch({ kind: 'program', id: program.id, name: program.name, clubName: program.clubName })
+        return
+      }
+      setJoinError("That code doesn't match a club or program. Check it and try again.")
     } catch {
       setJoinError('Could not check that code. Check your connection and try again.')
     } finally {
@@ -234,7 +248,8 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     if (!match) return
     setJoining(true)
     try {
-      await joinClubAsAthlete(code)
+      if (match.kind === 'club') await joinClubAsAthlete(code)
+      else await joinProgramAsAthlete(code)
       setMatch(null)
       setCode('')
       refreshMemberships()
@@ -371,7 +386,10 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0 }}>
               <span>
                 Join with a code
-                <small>Get this from your coach — joining lets them see your training in that club.</small>
+                <small>
+                  Get this from your coach — a program code (for a specific squad) joins its club too;
+                  a plain club code joins with no program yet.
+                </small>
               </span>
               <input
                 type="text"
@@ -388,7 +406,11 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             {joinError && <div className="notice error">{joinError}</div>}
             {match ? (
               <>
-                <p className="meta">Join <strong>{match.name}</strong>?</p>
+                <p className="meta">
+                  {match.kind === 'club'
+                    ? <>Join <strong>{match.name}</strong>?</>
+                    : <>Join <strong>{match.name}</strong> in <strong>{match.clubName}</strong>?</>}
+                </p>
                 <div className="row">
                   <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
                     Cancel
@@ -400,7 +422,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               </>
             ) : (
               <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
-                {checking ? 'Checking…' : 'Find club'}
+                {checking ? 'Checking…' : 'Find club or program'}
               </button>
             )}
           </div>
