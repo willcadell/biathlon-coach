@@ -8,6 +8,9 @@ const API_MAX_EDGE = 1568
 /** Longest edge kept on disk, so a season of targets does not fill the phone. */
 const STORE_MAX_EDGE = 1400
 const THUMB_EDGE = 320
+/** Longest edge for a club logo — branding, not evidence, so a modest size
+ *  keeps every club's roster screen light regardless of what got uploaded. */
+const LOGO_EDGE = 480
 /** Longest edge for the deterministic black-locator: no benefit to full
  *  resolution since it works from raw pixel thresholds, not fine detail. */
 const LOCATE_MAX_EDGE = 640
@@ -50,6 +53,7 @@ export async function aspectOf(file: Blob): Promise<number> {
   return aspect > 0 ? aspect : 1
 }
 export const forThumb = (file: Blob) => draw(file, THUMB_EDGE, 0.7, true)
+export const forLogo = (file: Blob) => draw(file, LOGO_EDGE, 0.85, true)
 
 async function toBase64(blob: Blob): Promise<string> {
   const buf = new Uint8Array(await blob.arrayBuffer())

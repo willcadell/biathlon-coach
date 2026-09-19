@@ -6,6 +6,7 @@ import {
   type Club, type ClubMatch, type Membership,
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
+import { ClubLogo } from './ClubLogo'
 
 interface Props {
   session: Session
@@ -104,7 +105,8 @@ function CoachedClubsCard() {
           </p>
         ) : (
           clubs.map((c) => (
-            <div key={c.id} className="row" style={{ alignItems: 'center', marginBottom: 8 }}>
+            <div key={c.id} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
+              <ClubLogo logoPath={c.logoPath} size={32} />
               <span style={{ flex: 1 }}>
                 {c.name}
                 {c.isAdmin && <span className="pill" style={{ marginLeft: 6 }}>Admin</span>}
@@ -290,7 +292,8 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           <p className="meta" style={{ marginTop: 0 }}>Not in a club yet.</p>
         ) : (
           memberships.map((m) => (
-            <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8 }}>
+            <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
+              <ClubLogo logoPath={m.logoPath} size={32} />
               <span style={{ flex: 1 }}>{m.clubName}</span>
               <button
                 className="link"

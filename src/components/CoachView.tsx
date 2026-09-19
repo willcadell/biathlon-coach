@@ -4,11 +4,14 @@ import type { Bout, MetalBout, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  addCoachNote, becomeCoach, coachesForClub, createClub, findClubByCoachCode, getCoach, getCoachJoinCode,
-  joinClubAsCoach, myCoachedClubs, rosterBouts, rosterForClub, rosterMetalBouts, rosterWorkouts,
+  addCoachNote, becomeCoach, coachesForClub, createClub, findClubByCoachCode, getCoach,
+  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, rosterBouts, rosterForClub, rosterMetalBouts,
+  rosterWorkouts, uploadClubLogo,
   type Club, type ClubMatch, type CoCoach, type Coach, type RosterAthlete,
 } from '../lib/coaching'
+import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
+import { ClubLogo } from './ClubLogo'
 import { errorMessage } from '../lib/errors'
 
 interface Props {
@@ -32,6 +35,47 @@ function metalPct(bouts: MetalBout[]): string {
   if (!shots) return '—'
   const misses = bouts.reduce((n, b) => n + missCount(hitsOf(b)), 0)
   return `${Math.round(((shots - misses) / shots) * 100)}%`
+}
+
+/** The club's own branding — shown to everyone on the club, uploadable only
+ *  by its admin coach. Resized client-side before it ever reaches storage. */
+function ClubLogoCard({ club, onChanged }: { club: Club; onChanged: (logoPath: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function onFile(file: File) {
+    setUploading(true)
+    setError('')
+    try {
+      const logo = await forLogo(file)
+      const path = await uploadClubLogo(club.id, logo)
+      onChanged(path)
+    } catch (e) {
+      setError(errorMessage(e, 'Could not upload this logo. Check your connection and try again.'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <ClubLogo logoPath={club.logoPath} size={56} />
+      <div style={{ flex: 1 }}>
+        {club.isAdmin ? (
+          <label className="filelabel" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: 13 }}>
+            {uploading ? 'Uploading…' : club.logoPath ? 'Change logo' : 'Add a logo'}
+            <input
+              type="file" accept="image/*" disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
+            />
+          </label>
+        ) : (
+          <p className="meta" style={{ margin: 0 }}>Only the club's admin coach can change this.</p>
+        )}
+        {error && <div className="notice error" style={{ marginTop: 8 }}>{error}</div>}
+      </div>
+    </div>
+  )
 }
 
 function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
@@ -229,7 +273,7 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
   )
 }
 
-function ClubRoster({ club }: { club: Club }) {
+function ClubRoster({ club, onLogoChanged }: { club: Club; onLogoChanged: (logoPath: string) => void }) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
@@ -276,6 +320,8 @@ function ClubRoster({ club }: { club: Club }) {
 
   return (
     <>
+      <ClubLogoCard club={club} onChanged={onLogoChanged} />
+
       <div className="card">
         <p style={{ margin: 0 }}>
           Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{club.joinCode}</strong>
@@ -417,7 +463,12 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       <>
         <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
         <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
-        <ClubRoster club={openClub} />
+        <ClubRoster
+          club={openClub}
+          onLogoChanged={(logoPath) =>
+            setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, logoPath } : c)))
+          }
+        />
       </>
     )
   }
@@ -431,6 +482,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       {clubs.length === 0 && <p className="meta">Nothing yet — create a club below to get a join code.</p>}
       {clubs.map((c) => (
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
+          <ClubLogo logoPath={c.logoPath} size={40} />
           <div className="grow">
             <div className="title">{c.name}</div>
             <div className="meta">Join code {c.joinCode}</div>

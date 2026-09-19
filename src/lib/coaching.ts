@@ -38,6 +38,29 @@ export interface Club {
   /** Whether the caller is this club's admin coach — only they can see the
    *  separate coach invite code (fetch it with getCoachJoinCode). */
   isAdmin: boolean
+  /** Storage path in the public club-logos bucket, or null if the club
+   *  hasn't set one. Turn into a displayable URL with clubLogoUrl. */
+  logoPath: string | null
+}
+
+/** club-logos is a public bucket, so this is a plain URL, not a signed one
+ *  that needs refreshing — a logo isn't private the way a target photo is. */
+export function clubLogoUrl(logoPath: string): string {
+  return supabase.storage.from('club-logos').getPublicUrl(logoPath).data.publicUrl
+}
+
+/** Uploads a club's logo (already resized client-side — see forLogo in
+ *  imaging.ts) and points the club row at it. Admin-only: enforced by the
+ *  storage and clubs RLS policies, not just this function. */
+export async function uploadClubLogo(clubId: string, image: Blob): Promise<string> {
+  const path = `${clubId}/logo.jpg`
+  const { error: upErr } = await supabase.storage
+    .from('club-logos')
+    .upload(path, image, { contentType: 'image/jpeg', upsert: true })
+  if (upErr) throw upErr
+  const { error } = await supabase.from('clubs').update({ logo_path: path }).eq('id', clubId)
+  if (error) throw error
+  return path
 }
 
 /** Creates a club and assigns its creator as the club's admin coach, both
@@ -48,7 +71,7 @@ export async function createClub(name: string): Promise<Club> {
   if (error) throw error
   const row = data?.[0]
   if (!row) throw new Error('Could not create club')
-  return { id: row.id, name: row.name, joinCode: row.join_code, isAdmin: true }
+  return { id: row.id, name: row.name, joinCode: row.join_code, isAdmin: true, logoPath: null }
 }
 
 /** Every club the current user coaches, admin or not. */
@@ -66,13 +89,14 @@ export async function myCoachedClubs(): Promise<Club[]> {
 
   // Deliberately not selecting coach_join_code here — every coach on a club
   // can read this row, and that code is admin-only. See get_coach_join_code.
-  const { data, error } = await supabase.from('clubs').select('id, name, join_code').in('id', clubIds)
+  const { data, error } = await supabase.from('clubs').select('id, name, join_code, logo_path').in('id', clubIds)
   if (error) throw error
   return (data ?? []).map((c) => ({
     id: c.id,
     name: c.name,
     joinCode: c.join_code,
     isAdmin: adminByClub.get(c.id) ?? false,
+    logoPath: c.logo_path,
   }))
 }
 
@@ -124,6 +148,7 @@ export async function joinClubAsCoach(code: string): Promise<void> {
 export interface Membership {
   clubId: string
   clubName: string
+  logoPath: string | null
 }
 
 export async function myMemberships(): Promise<Membership[]> {
@@ -136,9 +161,9 @@ export async function myMemberships(): Promise<Membership[]> {
   const clubIds = [...new Set((memberships ?? []).map((m) => m.club_id as string))]
   if (clubIds.length === 0) return []
 
-  const { data, error } = await supabase.from('clubs').select('id, name').in('id', clubIds)
+  const { data, error } = await supabase.from('clubs').select('id, name, logo_path').in('id', clubIds)
   if (error) throw error
-  return (data ?? []).map((c) => ({ clubId: c.id, clubName: c.name }))
+  return (data ?? []).map((c) => ({ clubId: c.id, clubName: c.name, logoPath: c.logo_path }))
 }
 
 export async function leaveClub(clubId: string): Promise<void> {
