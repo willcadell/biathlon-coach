@@ -260,7 +260,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <>
         <h1>Profile</h1>
         <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
-        {hasCoach && <CoachedClubsCard />}
+        {mode === 'coach' && <CoachedClubsCard />}
 
         <h2>Coach details</h2>
         <div className="card">
@@ -315,7 +315,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     <>
       <h1>Profile</h1>
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
-      {hasCoach && <CoachedClubsCard />}
+      {mode === 'coach' && <CoachedClubsCard />}
 
       {mode === 'athlete' && (
         <>
