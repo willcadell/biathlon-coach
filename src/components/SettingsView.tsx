@@ -154,26 +154,30 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
             Anthropic API key
             <small>Optional. Without it you mark shots by hand and everything else still works.</small>
           </span>
-          <input
-            type="password" placeholder="sk-ant-…" autoComplete="off" spellCheck={false}
-            value={settings.apiKey}
-            onChange={(e) => {
-              setCheck(null)
-              // Strip every space and line break, not just the ends. Copying a
-              // key out of a terminal or a wrapped file brings them along.
-              set('apiKey', e.target.value.replace(/\s+/g, ''))
-            }}
-          />
+          <div className="row">
+            <input
+              type="password" style={{ flex: 1 }} placeholder="sk-ant-…" autoComplete="off" spellCheck={false}
+              value={settings.apiKey}
+              onChange={(e) => {
+                setCheck(null)
+                // Strip every space and line break, not just the ends. Copying a
+                // key out of a terminal or a wrapped file brings them along.
+                set('apiKey', e.target.value.replace(/\s+/g, ''))
+              }}
+            />
+            <button
+              className="secondary" style={{ flex: 'none', width: 'auto' }}
+              onClick={runKeyTest} disabled={checking || !settings.apiKey}
+            >
+              {checking ? 'Testing…' : 'Test'}
+            </button>
+          </div>
           {settings.apiKey && (
             <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted)' }}>
               {settings.apiKey.length} characters, ending {settings.apiKey.slice(-4)}
             </small>
           )}
         </label>
-
-        <button className="secondary" onClick={runKeyTest} disabled={checking || !settings.apiKey}>
-          {checking ? 'Testing…' : 'Test this key'}
-        </button>
 
         {check && (
           <div className={`notice ${check.ok ? '' : 'error'}`} style={{ marginTop: 10 }}>

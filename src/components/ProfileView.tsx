@@ -425,7 +425,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               ))
             )}
 
-            <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0 }}>
+            <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0, marginBottom: 0 }}>
               <span>
                 Join with a code
                 <small>
@@ -433,22 +433,28 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                   a plain club code joins with no program yet.
                 </small>
               </span>
-              <input
-                type="text"
-                placeholder="e.g. 7K4RXP"
-                autoCapitalize="characters"
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value)
-                  setMatch(null)
-                  setJoinError('')
-                }}
-              />
+              <div className="row">
+                <input
+                  type="text"
+                  style={{ flex: 1 }}
+                  placeholder="e.g. 7K4RXP"
+                  autoCapitalize="characters"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value)
+                    setMatch(null)
+                    setJoinError('')
+                  }}
+                />
+                <button
+                  className="secondary" style={{ flex: 'none', width: 'auto' }}
+                  onClick={() => void checkCode()} disabled={checking || !code.trim()}
+                >
+                  {checking ? 'Checking…' : 'Find'}
+                </button>
+              </div>
             </label>
-            {joinError && <div className="notice error">{joinError}</div>}
-            <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
-              {checking ? 'Checking…' : 'Find club or program'}
-            </button>
+            {joinError && <div className="notice error" style={{ marginTop: 10 }}>{joinError}</div>}
           </div>
 
           {match && (

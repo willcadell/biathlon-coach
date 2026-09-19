@@ -102,17 +102,19 @@ function ClubEditCard({ club, onChanged }: { club: Club; onChanged: (patch: Part
 
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Club name</span>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="row">
+          <input type="text" style={{ flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} />
+          <button
+            className="secondary"
+            style={{ flex: 'none', width: 'auto' }}
+            disabled={savingName || !name.trim() || name.trim() === club.name}
+            onClick={() => void saveName()}
+          >
+            {savingName ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </label>
       {nameError && <div className="notice error" style={{ marginTop: 10 }}>{nameError}</div>}
-      <button
-        className="secondary"
-        style={{ marginTop: 10 }}
-        disabled={savingName || !name.trim() || name.trim() === club.name}
-        onClick={() => void saveName()}
-      >
-        {savingName ? 'Saving…' : 'Save name'}
-      </button>
     </div>
   )
 }
@@ -173,12 +175,20 @@ function ProgramsCard({ club }: { club: Club }) {
         )}
         <label className="field" style={{ marginBottom: 0 }}>
           <span>Program name</span>
-          <input type="text" placeholder="e.g. U18 or Elite" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="row">
+            <input
+              type="text" style={{ flex: 1 }} placeholder="e.g. U18 or Elite" value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <button
+              className="secondary" style={{ flex: 'none', width: 'auto' }}
+              disabled={creating || !name.trim()} onClick={() => void add()}
+            >
+              {creating ? 'Adding…' : 'Add'}
+            </button>
+          </div>
         </label>
         {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
-        <button className="secondary" style={{ marginTop: 10 }} disabled={creating || !name.trim()} onClick={() => void add()}>
-          {creating ? 'Adding…' : '+ Add a program'}
-        </button>
       </div>
     </>
   )
@@ -247,12 +257,17 @@ export function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
     <div className="card">
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Club name</span>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="row">
+          <input type="text" style={{ flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} />
+          <button
+            className="secondary" style={{ flex: 'none', width: 'auto' }}
+            onClick={() => void submit()} disabled={saving || name.trim().length === 0}
+          >
+            {saving ? 'Creating…' : 'Create'}
+          </button>
+        </div>
       </label>
       {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
-      <button className="secondary" style={{ marginTop: 10 }} onClick={() => void submit()} disabled={saving || name.trim().length === 0}>
-        {saving ? 'Creating…' : '+ Create a club'}
-      </button>
     </div>
   )
 }
@@ -301,16 +316,25 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
     <div className="card">
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Coach invite code<small>From a club's admin coach — different from the code athletes use.</small></span>
-        <input
-          type="text"
-          placeholder="e.g. 7K4RXP"
-          autoCapitalize="characters"
-          value={code}
-          onChange={(e) => { setCode(e.target.value); setMatch(null); setError('') }}
-        />
+        <div className="row">
+          <input
+            type="text"
+            style={{ flex: 1 }}
+            placeholder="e.g. 7K4RXP"
+            autoCapitalize="characters"
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setMatch(null); setError('') }}
+          />
+          <button
+            className="secondary" style={{ flex: 'none', width: 'auto' }}
+            onClick={() => void checkCode()} disabled={checking || !code.trim()}
+          >
+            {checking ? 'Checking…' : 'Find'}
+          </button>
+        </div>
       </label>
       {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
-      {match ? (
+      {match && (
         <>
           <p className="meta">Join <strong>{match.name}</strong> as a coach?</p>
           <div className="row">
@@ -322,10 +346,6 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
             </button>
           </div>
         </>
-      ) : (
-        <button className="secondary" style={{ marginTop: 10 }} onClick={() => void checkCode()} disabled={checking || !code.trim()}>
-          {checking ? 'Checking…' : 'Join with a code'}
-        </button>
       )}
     </div>
   )
