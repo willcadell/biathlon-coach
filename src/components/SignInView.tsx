@@ -22,14 +22,24 @@ function CoachIcon() {
   )
 }
 
-function Feature({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Feature({
+  icon, title, cta, children,
+}: {
+  icon: React.ReactNode
+  title: string
+  cta: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
-    <div className="card" style={{ marginTop: 12, display: 'flex', gap: 14, textAlign: 'left' }}>
-      <div style={{ flex: 'none', color: 'var(--series-1)' }}>{icon}</div>
-      <div>
-        <h3 style={{ margin: '0 0 4px' }}>{title}</h3>
-        <p className="meta" style={{ margin: 0 }}>{children}</p>
+    <div className="card" style={{ marginTop: 12, textAlign: 'left' }}>
+      <div style={{ display: 'flex', gap: 14 }}>
+        <div style={{ flex: 'none', color: 'var(--series-1)' }}>{icon}</div>
+        <div>
+          <h3 style={{ margin: '0 0 4px' }}>{title}</h3>
+          <p className="meta" style={{ margin: 0 }}>{children}</p>
+        </div>
       </div>
+      <div style={{ marginTop: 14 }}>{cta}</div>
     </div>
   )
 }
@@ -70,37 +80,38 @@ export function SignInView() {
         </div>
 
         <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
-          <Feature icon={<TargetIcon />} title="Log every bout">
+          <Feature
+            icon={<TargetIcon />}
+            title="Log every bout"
+            cta={
+              <button className="secondary" style={{ width: '100%' }} onClick={() => void start('athlete')} disabled={pending !== null}>
+                {pending === 'athlete' ? 'Opening Google…' : 'Sign in as an athlete'}
+              </button>
+            }
+          >
             Score a target photo automatically, log metal hits round by round, and see where your
             groups drift and which targets you miss — a coaching read built from your own data, not a
             generic tip.
           </Feature>
-          <Feature icon={<CoachIcon />} title="Coach a whole club">
+          <Feature
+            icon={<CoachIcon />}
+            title="Coach a whole club"
+            cta={
+              <button className="primary" style={{ width: '100%' }} onClick={() => void start('coach')} disabled={pending !== null}>
+                {pending === 'coach' ? 'Opening Google…' : 'Sign in as a coach'}
+              </button>
+            }
+          >
             Create a club, hand out a join code, and see every athlete's training without digging
             through spreadsheets — leave notes right on their workouts, and switch between coaching
             and your own training in one profile.
           </Feature>
 
-          <div className="card" style={{ marginTop: 12, textAlign: 'center' }}>
-            <p className="meta" style={{ marginTop: 0 }}>Sign in with Google to get started.</p>
-            <div className="row">
-              <button className="secondary" style={{ flex: 1 }} onClick={() => void start('athlete')} disabled={pending !== null}>
-                {pending === 'athlete' ? 'Opening Google…' : 'Sign in as an athlete'}
-              </button>
-              <button className="primary" style={{ flex: 1 }} onClick={() => void start('coach')} disabled={pending !== null}>
-                {pending === 'coach' ? 'Opening Google…' : 'Sign in as a coach'}
-              </button>
-            </div>
-            <p className="meta" style={{ marginTop: 10, marginBottom: 0 }}>
-              You can always add the other later — an athlete can become a coach too, and a coach can
-              log their own training.
-            </p>
-            {error && (
-              <div className="notice error" style={{ marginTop: 12, textAlign: 'left' }}>
-                {error}
-              </div>
-            )}
-          </div>
+          <p className="meta" style={{ marginTop: 14, textAlign: 'center' }}>
+            You can always add the other later — an athlete can become a coach too, and a coach can
+            log their own training.
+          </p>
+          {error && <div className="notice error" style={{ marginTop: 12 }}>{error}</div>}
         </div>
       </main>
     </div>
