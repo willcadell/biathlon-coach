@@ -9,6 +9,7 @@ import { uuid } from '../lib/id'
 import { shareTargetImage } from '../lib/share'
 import { CaptureView } from './CaptureView'
 import { MiniTargets } from './MiniTargets'
+import { ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
   '12': '12 · headwind',
@@ -128,7 +129,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
                 {c.clips > 0 && ` · ${c.clips} clip${c.clips === 1 ? '' : 's'} to confirm`}
                 {c.note && <span className="meta"> — {c.note}</span>}
               </span>
-              <button className="link" onClick={() => remove(c.id)}>Remove</button>
+              <button className="link danger" aria-label="Remove" onClick={() => remove(c.id)}><TrashIcon /></button>
             </div>
           ))}
         </div>
@@ -316,15 +317,6 @@ function MetalForm({
   )
 }
 
-function ShareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-      <path d="M12 15V4M12 4l-4 4M12 4l4 4" />
-      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
-    </svg>
-  )
-}
-
 function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Workout; onDeleted: () => void }) {
   const [sharing, setSharing] = useState(false)
   const [shareError, setShareError] = useState('')
@@ -360,14 +352,15 @@ function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Worko
           <ShareIcon />
         </button>
         <button
-          className="link"
+          className="link danger"
+          aria-label="Remove"
           onClick={async () => {
             if (!confirm('Delete this precision bout and its photo? This cannot be undone.')) return
             await deleteBout(bout.id)
             onDeleted()
           }}
         >
-          Remove
+          <TrashIcon />
         </button>
       </div>
     </div>
@@ -390,14 +383,15 @@ function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => 
       <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
         <button className="link" onClick={onEdit}>Edit</button>
         <button
-          className="link"
+          className="link danger"
+          aria-label="Remove"
           onClick={async () => {
             if (!confirm('Delete this metal bout?')) return
             await deleteMetalBout(bout.id)
             onDeleted()
           }}
         >
-          Remove
+          <TrashIcon />
         </button>
       </div>
     </div>
@@ -428,14 +422,15 @@ function ComboRow({
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
             <button className="link" onClick={() => onEditRound(r)}>Edit</button>
             <button
-              className="link"
+              className="link danger"
+              aria-label="Remove"
               onClick={async () => {
                 if (!confirm('Delete this round?')) return
                 await deleteMetalBout(r.id)
                 onDeleted()
               }}
             >
-              Remove
+              <TrashIcon />
             </button>
           </div>
         </div>

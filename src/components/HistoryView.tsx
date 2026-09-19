@@ -5,6 +5,7 @@ import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
+import { TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -248,14 +249,15 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               </div>
               {!readOnly && (
                 <button
-                  className="link"
+                  className="link danger"
+                  aria-label="Remove"
                   onClick={async () => {
                     if (!confirm('Delete this metal bout?')) return
                     await deleteMetalBout(e.id)
                     onChanged()
                   }}
                 >
-                  Remove
+                  <TrashIcon />
                 </button>
               )}
             </div>
