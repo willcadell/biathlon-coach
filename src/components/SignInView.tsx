@@ -84,7 +84,7 @@ export function SignInView() {
             icon={<TargetIcon />}
             title="Log every bout"
             cta={
-              <button className="secondary" style={{ width: '100%' }} onClick={() => void start('athlete')} disabled={pending !== null}>
+              <button className="primary" style={{ width: '100%' }} onClick={() => void start('athlete')} disabled={pending !== null}>
                 {pending === 'athlete' ? 'Opening Google…' : 'Sign in as an athlete'}
               </button>
             }
