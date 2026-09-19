@@ -4,10 +4,10 @@ import type { Bout, MetalBout, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  addCoachNote, becomeCoach, coachesForClub, createClub, findClubByCoachCode, getCoach,
-  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, rosterBouts, rosterForClub, rosterMetalBouts,
-  rosterWorkouts, uploadClubLogo,
-  type Club, type ClubMatch, type CoCoach, type Coach, type RosterAthlete,
+  addCoachNote, becomeCoach, coachesForClub, createClub, createProgram, findClubByCoachCode, getCoach,
+  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, renameClub, rosterBouts,
+  rosterForClub, rosterMetalBouts, rosterWorkouts, uploadClubLogo,
+  type Club, type ClubMatch, type CoCoach, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
@@ -37,44 +37,151 @@ function metalPct(bouts: MetalBout[]): string {
   return `${Math.round(((shots - misses) / shots) * 100)}%`
 }
 
-/** The club's own branding — shown to everyone on the club, uploadable only
- *  by its admin coach. Resized client-side before it ever reaches storage. */
-function ClubLogoCard({ club, onChanged }: { club: Club; onChanged: (logoPath: string) => void }) {
+/** The club's own name and branding — shown to everyone on the club,
+ *  editable only by its admin coach. A logo is resized client-side before
+ *  it ever reaches storage; a rename goes through rename_club so a
+ *  duplicate name fails with a clear reason instead of a raw DB error. */
+function ClubEditCard({ club, onChanged }: { club: Club; onChanged: (patch: Partial<Club>) => void }) {
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
+  const [logoError, setLogoError] = useState('')
+  const [name, setName] = useState(club.name)
+  const [savingName, setSavingName] = useState(false)
+  const [nameError, setNameError] = useState('')
 
   async function onFile(file: File) {
     setUploading(true)
-    setError('')
+    setLogoError('')
     try {
       const logo = await forLogo(file)
       const path = await uploadClubLogo(club.id, logo)
-      onChanged(path)
+      onChanged({ logoPath: path })
     } catch (e) {
-      setError(errorMessage(e, 'Could not upload this logo. Check your connection and try again.'))
+      setLogoError(errorMessage(e, 'Could not upload this logo. Check your connection and try again.'))
     } finally {
       setUploading(false)
     }
   }
 
-  return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <ClubLogo logoPath={club.logoPath} size={56} />
-      <div style={{ flex: 1 }}>
-        {club.isAdmin ? (
-          <label className="filelabel" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: 13 }}>
-            {uploading ? 'Uploading…' : club.logoPath ? 'Change logo' : 'Add a logo'}
-            <input
-              type="file" accept="image/*" disabled={uploading}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
-            />
-          </label>
-        ) : (
-          <p className="meta" style={{ margin: 0 }}>Only the club's admin coach can change this.</p>
-        )}
-        {error && <div className="notice error" style={{ marginTop: 8 }}>{error}</div>}
+  async function saveName() {
+    const trimmed = name.trim()
+    if (!trimmed || trimmed === club.name) return
+    setSavingName(true)
+    setNameError('')
+    try {
+      await renameClub(club.id, trimmed)
+      onChanged({ name: trimmed })
+    } catch (e) {
+      setNameError(errorMessage(e, 'Could not rename this club. Check your connection and try again.'))
+    } finally {
+      setSavingName(false)
+    }
+  }
+
+  if (!club.isAdmin) {
+    return (
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <ClubLogo logoPath={club.logoPath} size={56} />
+        <p className="meta" style={{ margin: 0 }}>Only the club's admin coach can edit its name or logo.</p>
       </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+        <ClubLogo logoPath={club.logoPath} size={56} />
+        <label className="filelabel" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: 13 }}>
+          {uploading ? 'Uploading…' : club.logoPath ? 'Change logo' : 'Add a logo'}
+          <input
+            type="file" accept="image/*" disabled={uploading}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
+          />
+        </label>
+      </div>
+      {logoError && <div className="notice error" style={{ marginBottom: 14 }}>{logoError}</div>}
+
+      <label className="field" style={{ marginBottom: 0 }}>
+        <span>Club name</span>
+        <div className="row">
+          <input type="text" style={{ flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} />
+          <button
+            className="secondary"
+            style={{ flex: 'none' }}
+            disabled={savingName || !name.trim() || name.trim() === club.name}
+            onClick={() => void saveName()}
+          >
+            {savingName ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </label>
+      {nameError && <div className="notice error" style={{ marginTop: 8 }}>{nameError}</div>}
     </div>
+  )
+}
+
+/** A club's own sub-groups — a squad within it, not the whole roster. Any
+ *  coach assigned to the club can add one, not just its admin. */
+function ProgramsCard({ club }: { club: Club }) {
+  const [programs, setPrograms] = useState<Program[] | null>(null)
+  const [name, setName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    void programsForClub(club.id)
+      .then((p) => { if (!cancelled) setPrograms(p) })
+      .catch((e) => console.error('Could not load this club’s programs', e))
+    return () => { cancelled = true }
+  }, [club.id])
+
+  async function add() {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setCreating(true)
+    setError('')
+    try {
+      const program = await createProgram(club.id, trimmed)
+      setPrograms((prev) => [...(prev ?? []), program].sort((a, b) => a.name.localeCompare(b.name)))
+      setName('')
+    } catch (e) {
+      setError(errorMessage(e, 'Could not create this program. Check your connection and try again.'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <>
+      <h2>Programs</h2>
+      <div className="card">
+        {programs === null && <p className="meta" style={{ marginTop: 0 }}>Loading…</p>}
+        {programs?.length === 0 && (
+          <p className="meta" style={{ marginTop: 0 }}>
+            No programs yet — a squad within this club, like "U18" or "Elite".
+          </p>
+        )}
+        {programs && programs.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            {programs.map((p) => (
+              <div key={p.id} className="row" style={{ marginBottom: 6 }}>
+                <span style={{ flex: 1 }}>{p.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="row">
+          <input
+            type="text" style={{ flex: 1 }} placeholder="Program name" value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button className="secondary" style={{ flex: 'none' }} disabled={creating || !name.trim()} onClick={() => void add()}>
+            {creating ? 'Adding…' : 'Add'}
+          </button>
+        </div>
+        {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
+      </div>
+    </>
   )
 }
 
@@ -273,7 +380,7 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
   )
 }
 
-function ClubRoster({ club, onLogoChanged }: { club: Club; onLogoChanged: (logoPath: string) => void }) {
+function ClubRoster({ club, onChanged }: { club: Club; onChanged: (patch: Partial<Club>) => void }) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
@@ -320,7 +427,8 @@ function ClubRoster({ club, onLogoChanged }: { club: Club; onLogoChanged: (logoP
 
   return (
     <>
-      <ClubLogoCard club={club} onChanged={onLogoChanged} />
+      <ClubEditCard club={club} onChanged={onChanged} />
+      <ProgramsCard club={club} />
 
       <div className="card">
         <p style={{ margin: 0 }}>
@@ -465,8 +573,8 @@ export function CoachView({ session, onIdentityChanged }: Props) {
         <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
         <ClubRoster
           club={openClub}
-          onLogoChanged={(logoPath) =>
-            setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, logoPath } : c)))
+          onChanged={(patch) =>
+            setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, ...patch } : c)))
           }
         />
       </>

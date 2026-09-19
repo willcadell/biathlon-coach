@@ -109,6 +109,7 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
   {
     id: 'settings',
     label: 'Settings',
+    requiresMode: 'athlete',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
         <circle cx="12" cy="12" r="3" />

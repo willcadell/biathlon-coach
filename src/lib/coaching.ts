@@ -100,6 +100,41 @@ export async function myCoachedClubs(): Promise<Club[]> {
   }))
 }
 
+/** Admin-only, like creating a club — see rename_club in the migration,
+ *  which checks is_admin itself and re-applies the same friendly
+ *  uniqueness check create_club does. */
+export async function renameClub(clubId: string, name: string): Promise<void> {
+  const { error } = await supabase.rpc('rename_club', { p_club_id: clubId, p_name: name.trim() })
+  if (error) throw error
+}
+
+export interface Program {
+  id: string
+  clubId: string
+  name: string
+}
+
+/** Every program under a club — see the "members read their programs"
+ *  policy for who actually gets rows back (a coach scoped to one program
+ *  only sees that one; oversight of the whole club sees them all). */
+export async function programsForClub(clubId: string): Promise<Program[]> {
+  const { data, error } = await supabase.from('programs').select('id, club_id, name').eq('club_id', clubId).order('name')
+  if (error) throw error
+  return (data ?? []).map((p) => ({ id: p.id, clubId: p.club_id, name: p.name }))
+}
+
+/** Any coach assigned to the club can add one — not admin-only, unlike
+ *  renaming the club itself. */
+export async function createProgram(clubId: string, name: string): Promise<Program> {
+  const { data, error } = await supabase
+    .from('programs')
+    .insert({ club_id: clubId, name: name.trim() })
+    .select('id, club_id, name')
+    .single()
+  if (error) throw error
+  return { id: data.id, clubId: data.club_id, name: data.name }
+}
+
 /** Only the admin coach of this club gets a code back — see
  *  get_coach_join_code in the migration, which checks is_admin itself
  *  rather than trusting the caller's own idea of their role. */
