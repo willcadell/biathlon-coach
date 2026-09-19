@@ -384,50 +384,31 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
   )
 }
 
-function ClubRosterSection({ club }: { club: Club }) {
-  const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
-  const [bouts, setBouts] = useState<Bout[]>([])
-  const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
-  const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
+/** Athletes not yet assigned to a program group under this key, so a club
+ *  that hasn't adopted programs still gets one (unlabelled) group. */
+const NO_PROGRAM_KEY = 'none'
 
-  useEffect(() => {
-    let cancelled = false
-    setAthletes(null)
-    void rosterForClub(club.id).then(async (roster) => {
-      if (cancelled) return
-      setAthletes(roster)
-      const ids = roster.map((a) => a.athleteId)
-      const [b, m] = await Promise.all([rosterBouts(ids), rosterMetalBouts(ids)])
-      if (cancelled) return
-      setBouts(b)
-      setMetalBouts(m)
-    }).catch((e) => console.error('Could not load this club’s roster', e))
-    return () => { cancelled = true }
-  }, [club.id])
+interface RosterGroupData {
+  key: string
+  label: string
+  athletes: RosterAthlete[]
+  bouts: Bout[]
+  metalBouts: MetalBout[]
+}
 
-  const targets = targetStats(metalBouts)
-  const metal = metalStats(metalBouts)
-
-  const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
-  if (openAthlete) {
-    return (
-      <>
-        <button className="link" onClick={() => setOpenAthleteId(null)}>← Roster</button>
-        <h1 style={{ marginTop: 10 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
-        <AthleteDetail athlete={openAthlete} />
-      </>
-    )
-  }
+function RosterGroup({ group, onOpenAthlete }: { group: RosterGroupData; onOpenAthlete: (id: string) => void }) {
+  const targets = targetStats(group.metalBouts)
+  const metal = metalStats(group.metalBouts)
 
   return (
     <>
-      <h2>Roster</h2>
-      {athletes === null && <p className="meta">Loading…</p>}
-      {athletes?.length === 0 && <p className="meta">Nobody's joined with this club's code yet.</p>}
-      {athletes && athletes.length > 0 && (
+      {group.label && <h3 style={{ marginTop: 20 }}>{group.label}</h3>}
+      {group.athletes.length === 0 ? (
+        <p className="meta">No athletes here yet.</p>
+      ) : (
         <>
-          {athletes.map((a) => (
-            <button key={a.athleteId} className="boutrow" onClick={() => setOpenAthleteId(a.athleteId)}>
+          {group.athletes.map((a) => (
+            <button key={a.athleteId} className="boutrow" onClick={() => onOpenAthlete(a.athleteId)}>
               <div className="grow">
                 <div className="title">{a.displayName || 'Unnamed athlete'}</div>
               </div>
@@ -435,38 +416,34 @@ function ClubRosterSection({ club }: { club: Club }) {
             </button>
           ))}
 
-          <h3 style={{ marginTop: 16 }}>Whole roster</h3>
-          <div className="stats">
+          <div className="stats" style={{ marginTop: 10 }}>
             <div className="stat">
               <div className="k">Precision</div>
-              <div className="v">{precisionPct(bouts)}</div>
-              <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
+              <div className="v">{precisionPct(group.bouts)}</div>
+              <div className="n">{group.bouts.length} bout{group.bouts.length === 1 ? '' : 's'}</div>
             </div>
             <div className="stat">
               <div className="k">Metal</div>
-              <div className="v">{metalPct(metalBouts)}</div>
-              <div className="n">{metalBouts.length} bout{metalBouts.length === 1 ? '' : 's'}</div>
+              <div className="v">{metalPct(group.metalBouts)}</div>
+              <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
             </div>
           </div>
 
           {metal.length > 0 && (
-            <>
-              <h3 style={{ marginTop: 16 }}>By position</h3>
-              <div className="stats">
-                {metal.map((s) => (
-                  <div className="stat" key={s.position}>
-                    <div className="k">{s.position}</div>
-                    <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
-                    <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}</div>
-                  </div>
-                ))}
-              </div>
-            </>
+            <div className="stats" style={{ marginTop: 8 }}>
+              {metal.map((s) => (
+                <div className="stat" key={s.position}>
+                  <div className="k">{s.position}</div>
+                  <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
+                  <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}</div>
+                </div>
+              ))}
+            </div>
           )}
 
           {targets.length > 0 && (
             <>
-              <h3 style={{ marginTop: 16 }}>Which targets get missed, across the roster</h3>
+              <p className="meta" style={{ marginTop: 8, marginBottom: 4 }}>Which targets get missed</p>
               <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
                 {targets.map((t) => (
                   <div className="stat" key={t.target}>
@@ -480,6 +457,114 @@ function ClubRosterSection({ club }: { club: Club }) {
           )}
         </>
       )}
+    </>
+  )
+}
+
+function ClubRosterSection({ club }: { club: Club }) {
+  const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [groupData, setGroupData] = useState<Map<string, { bouts: Bout[]; metalBouts: MetalBout[] }>>(new Map())
+  const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setAthletes(null)
+    Promise.all([rosterForClub(club.id), programsForClub(club.id)])
+      .then(async ([roster, progs]) => {
+        if (cancelled) return
+        setAthletes(roster)
+        setPrograms(progs)
+
+        const idsByKey = new Map<string, string[]>()
+        for (const a of roster) {
+          const key = a.programId ?? NO_PROGRAM_KEY
+          idsByKey.set(key, [...(idsByKey.get(key) ?? []), a.athleteId])
+        }
+
+        const entries = await Promise.all(
+          [...idsByKey.entries()].map(async ([key, ids]) => {
+            const [b, m] = await Promise.all([rosterBouts(ids), rosterMetalBouts(ids)])
+            return [key, { bouts: b, metalBouts: m }] as const
+          }),
+        )
+        if (cancelled) return
+        setGroupData(new Map(entries))
+      })
+      .catch((e) => console.error('Could not load this club’s roster', e))
+    return () => { cancelled = true }
+  }, [club.id])
+
+  const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
+  if (openAthlete) {
+    return (
+      <>
+        <button className="link" onClick={() => setOpenAthleteId(null)}>← Roster</button>
+        <h1 style={{ marginTop: 10 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
+        <AthleteDetail athlete={openAthlete} />
+      </>
+    )
+  }
+
+  if (athletes === null) {
+    return (
+      <>
+        <h2>Roster</h2>
+        <p className="meta">Loading…</p>
+      </>
+    )
+  }
+  if (athletes.length === 0) {
+    return (
+      <>
+        <h2>Roster</h2>
+        <p className="meta">Nobody's joined with this club's code yet.</p>
+      </>
+    )
+  }
+
+  const byProgram = new Map<string, RosterAthlete[]>()
+  for (const a of athletes) {
+    const key = a.programId ?? NO_PROGRAM_KEY
+    byProgram.set(key, [...(byProgram.get(key) ?? []), a])
+  }
+  const emptyData = { bouts: [] as Bout[], metalBouts: [] as MetalBout[] }
+
+  // No programs at this club at all yet — one flat, unlabelled group, same
+  // as the roster looked before programs existed.
+  if (programs.length === 0) {
+    return (
+      <>
+        <h2>Roster</h2>
+        <RosterGroup
+          group={{ key: NO_PROGRAM_KEY, label: '', athletes, ...(groupData.get(NO_PROGRAM_KEY) ?? emptyData) }}
+          onOpenAthlete={setOpenAthleteId}
+        />
+      </>
+    )
+  }
+
+  const groups: RosterGroupData[] = [
+    ...programs.map((p) => ({
+      key: p.id,
+      label: p.name,
+      athletes: byProgram.get(p.id) ?? [],
+      ...(groupData.get(p.id) ?? emptyData),
+    })),
+    ...(byProgram.has(NO_PROGRAM_KEY)
+      ? [{
+          key: NO_PROGRAM_KEY,
+          label: 'No program yet',
+          athletes: byProgram.get(NO_PROGRAM_KEY) ?? [],
+          ...(groupData.get(NO_PROGRAM_KEY) ?? emptyData),
+        }]
+      : []),
+  ]
+
+  return (
+    <>
+      <h2>Roster</h2>
+      {groups.map((g) => <RosterGroup key={g.key} group={g} onOpenAthlete={setOpenAthleteId} />)}
     </>
   )
 }

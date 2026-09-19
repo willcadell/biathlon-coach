@@ -281,20 +281,28 @@ export async function leaveClub(clubId: string): Promise<void> {
 export interface RosterAthlete {
   athleteId: string
   displayName: string
+  /** Null when not yet assigned to a program in this club. */
+  programId: string | null
 }
 
 export async function rosterForClub(clubId: string): Promise<RosterAthlete[]> {
   const { data: memberships, error: mErr } = await supabase
     .from('athlete_memberships')
-    .select('athlete_id')
+    .select('athlete_id, program_id')
     .eq('club_id', clubId)
   if (mErr) throw mErr
-  const athleteIds = [...new Set((memberships ?? []).map((m) => m.athlete_id as string))]
-  if (athleteIds.length === 0) return []
+  if (!memberships || memberships.length === 0) return []
+
+  const programByAthlete = new Map(memberships.map((m) => [m.athlete_id as string, m.program_id as string | null]))
+  const athleteIds = [...programByAthlete.keys()]
 
   const { data, error } = await supabase.from('athletes').select('id, display_name').in('id', athleteIds)
   if (error) throw error
-  return (data ?? []).map((a) => ({ athleteId: a.id, displayName: a.display_name }))
+  return (data ?? []).map((a) => ({
+    athleteId: a.id,
+    displayName: a.display_name,
+    programId: programByAthlete.get(a.id) ?? null,
+  }))
 }
 
 export interface CoCoach {
