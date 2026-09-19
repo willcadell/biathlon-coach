@@ -90,7 +90,7 @@ function ClubEditCard({ club, onChanged }: { club: Club; onChanged: (patch: Part
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
         <ClubLogo logoPath={club.logoPath} size={56} />
-        <label className="filelabel" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: 13 }}>
+        <label className="filelabel" style={{ display: 'inline-flex', width: 'auto', padding: '6px 12px', fontSize: 13 }}>
           {uploading ? 'Uploading…' : club.logoPath ? 'Change logo' : 'Add a logo'}
           <input
             type="file" accept="image/*" disabled={uploading}
@@ -102,19 +102,17 @@ function ClubEditCard({ club, onChanged }: { club: Club; onChanged: (patch: Part
 
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Club name</span>
-        <div className="row">
-          <input type="text" style={{ flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} />
-          <button
-            className="secondary"
-            style={{ flex: 'none' }}
-            disabled={savingName || !name.trim() || name.trim() === club.name}
-            onClick={() => void saveName()}
-          >
-            {savingName ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
-      {nameError && <div className="notice error" style={{ marginTop: 8 }}>{nameError}</div>}
+      {nameError && <div className="notice error" style={{ marginTop: 10 }}>{nameError}</div>}
+      <button
+        className="secondary"
+        style={{ marginTop: 10 }}
+        disabled={savingName || !name.trim() || name.trim() === club.name}
+        onClick={() => void saveName()}
+      >
+        {savingName ? 'Saving…' : 'Save name'}
+      </button>
     </div>
   )
 }
@@ -170,16 +168,14 @@ function ProgramsCard({ club }: { club: Club }) {
             ))}
           </div>
         )}
-        <div className="row">
-          <input
-            type="text" style={{ flex: 1 }} placeholder="Program name" value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <button className="secondary" style={{ flex: 'none' }} disabled={creating || !name.trim()} onClick={() => void add()}>
-            {creating ? 'Adding…' : 'Add'}
-          </button>
-        </div>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Program name</span>
+          <input type="text" placeholder="e.g. U18 or Elite" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
         {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
+        <button className="secondary" style={{ marginTop: 10 }} disabled={creating || !name.trim()} onClick={() => void add()}>
+          {creating ? 'Adding…' : '+ Add a program'}
+        </button>
       </div>
     </>
   )
