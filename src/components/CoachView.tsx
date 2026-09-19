@@ -376,12 +376,10 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
   )
 }
 
-function ClubRoster({ club, onChanged }: { club: Club; onChanged: (patch: Partial<Club>) => void }) {
+function ClubRosterSection({ club }: { club: Club }) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
-  const [coaches, setCoaches] = useState<CoCoach[]>([])
-  const [coachCode, setCoachCode] = useState<string | null>(null)
   const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -396,16 +394,8 @@ function ClubRoster({ club, onChanged }: { club: Club; onChanged: (patch: Partia
       setBouts(b)
       setMetalBouts(m)
     }).catch((e) => console.error('Could not load this club’s roster', e))
-    void coachesForClub(club.id)
-      .then((c) => { if (!cancelled) setCoaches(c) })
-      .catch((e) => console.error('Could not load co-coaches', e))
-    if (club.isAdmin) {
-      void getCoachJoinCode(club.id)
-        .then((code) => { if (!cancelled) setCoachCode(code) })
-        .catch((e) => console.error('Could not load the coach invite code', e))
-    }
     return () => { cancelled = true }
-  }, [club.id, club.isAdmin])
+  }, [club.id])
 
   const targets = targetStats(metalBouts)
   const metal = metalStats(metalBouts)
@@ -423,38 +413,7 @@ function ClubRoster({ club, onChanged }: { club: Club; onChanged: (patch: Partia
 
   return (
     <>
-      <ClubEditCard club={club} onChanged={onChanged} />
       <ProgramsCard club={club} />
-
-      <div className="card">
-        <p style={{ margin: 0 }}>
-          Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{club.joinCode}</strong>
-        </p>
-        <p className="meta" style={{ marginBottom: 0 }}>Give this to an athlete — they enter it in their own Profile to join.</p>
-      </div>
-
-      <h2>Coaches</h2>
-      <div className="card">
-        {coaches.map((c) => (
-          <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ flex: 1 }}>{c.displayName || 'Unnamed coach'}</span>
-            {c.isAdmin && <span className="pill">Admin</span>}
-          </div>
-        ))}
-        {club.isAdmin && (
-          <>
-            <p className="meta" style={{ marginTop: coaches.length > 0 ? 14 : 0, marginBottom: 4 }}>
-              Only you, as admin, can see this — share it to invite another coach to this club.
-            </p>
-            <p style={{ margin: 0 }}>
-              Coach invite code{' '}
-              <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>
-                {coachCode ?? '…'}
-              </strong>
-            </p>
-          </>
-        )}
-      </div>
 
       <h2>Roster</h2>
       {athletes === null && <p className="meta">Loading…</p>}
@@ -519,10 +478,14 @@ function ClubRoster({ club, onChanged }: { club: Club; onChanged: (patch: Partia
   )
 }
 
-export function CoachView({ session, onIdentityChanged }: Props) {
+/** Shared by the Coach and Club tabs — both start from the same coach
+ *  identity and club list, they just show different things once a club is
+ *  open. Each tab calls this independently rather than sharing state across
+ *  tabs, so switching tabs re-fetches rather than carrying a stale list —
+ *  consistent with every other tab in this app being remounted on switch. */
+function useCoachAndClubs(session: Session) {
   const [coach, setCoach] = useState<Coach | null | undefined>(undefined)
   const [clubs, setClubs] = useState<Club[]>([])
-  const [openClubId, setOpenClubId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState('')
 
   const refreshClubs = () =>
@@ -539,6 +502,13 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       })
       .catch((e) => setLoadError(errorMessage(e, 'Could not load your coach profile. Check your connection and try again.')))
   }, [session.user.id])
+
+  return { coach, setCoach, clubs, setClubs, loadError, refreshClubs }
+}
+
+export function CoachView({ session, onIdentityChanged }: Props) {
+  const { coach, setCoach, clubs, setClubs, loadError, refreshClubs } = useCoachAndClubs(session)
+  const [openClubId, setOpenClubId] = useState<string | null>(null)
 
   if (loadError) {
     return (
@@ -567,12 +537,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       <>
         <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
         <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
-        <ClubRoster
-          club={openClub}
-          onChanged={(patch) =>
-            setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, ...patch } : c)))
-          }
-        />
+        <ClubRosterSection club={openClub} />
       </>
     )
   }
@@ -600,6 +565,128 @@ export function CoachView({ session, onIdentityChanged }: Props) {
 
       <h2 style={{ marginTop: 16 }}>Join an existing club</h2>
       <JoinClubAsCoach onJoined={refreshClubs} />
+    </>
+  )
+}
+
+/** The admin-editable side of a club: its name and logo, and both invite
+ *  codes — separate from ClubRosterSection so the Coach tab (clubs and
+ *  roster) and the Club tab (identity and sharing) can each show only what
+ *  they're about. */
+function ClubAdminSection({ club, onChanged }: { club: Club; onChanged: (patch: Partial<Club>) => void }) {
+  const [coaches, setCoaches] = useState<CoCoach[]>([])
+  const [coachCode, setCoachCode] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void coachesForClub(club.id)
+      .then((c) => { if (!cancelled) setCoaches(c) })
+      .catch((e) => console.error('Could not load co-coaches', e))
+    if (club.isAdmin) {
+      void getCoachJoinCode(club.id)
+        .then((code) => { if (!cancelled) setCoachCode(code) })
+        .catch((e) => console.error('Could not load the coach invite code', e))
+    }
+    return () => { cancelled = true }
+  }, [club.id, club.isAdmin])
+
+  return (
+    <>
+      <ClubEditCard club={club} onChanged={onChanged} />
+
+      <div className="card">
+        <p style={{ margin: 0 }}>
+          Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{club.joinCode}</strong>
+        </p>
+        <p className="meta" style={{ marginBottom: 0 }}>Give this to an athlete — they enter it in their own Profile to join.</p>
+      </div>
+
+      <h2>Coaches</h2>
+      <div className="card">
+        {coaches.map((c) => (
+          <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ flex: 1 }}>{c.displayName || 'Unnamed coach'}</span>
+            {c.isAdmin && <span className="pill">Admin</span>}
+          </div>
+        ))}
+        {club.isAdmin && (
+          <>
+            <p className="meta" style={{ marginTop: coaches.length > 0 ? 14 : 0, marginBottom: 4 }}>
+              Only you, as admin, can see this — share it to invite another coach to this club.
+            </p>
+            <p style={{ margin: 0 }}>
+              Coach invite code{' '}
+              <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>
+                {coachCode ?? '…'}
+              </strong>
+            </p>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** The Club tab: a club's own identity and sharing, as opposed to the Coach
+ *  tab's clubs-and-roster view. Fetches its own coach/club list rather than
+ *  sharing state with CoachView, same reasoning as useCoachAndClubs above. */
+export function ClubSettingsView({ session }: { session: Session }) {
+  const { coach, clubs, setClubs, loadError } = useCoachAndClubs(session)
+  const [openClubId, setOpenClubId] = useState<string | null>(null)
+
+  if (loadError) {
+    return (
+      <>
+        <h1>Club</h1>
+        <div className="notice error">{loadError}</div>
+      </>
+    )
+  }
+  if (coach === undefined) return null
+  if (coach === null) {
+    return (
+      <>
+        <h1>Club</h1>
+        <p className="lede">Set up a coaching identity in the Coach tab first.</p>
+      </>
+    )
+  }
+
+  const openClub = clubs.find((c) => c.id === openClubId)
+  if (openClub) {
+    return (
+      <>
+        <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
+        <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
+        <ClubAdminSection
+          club={openClub}
+          onChanged={(patch) =>
+            setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, ...patch } : c)))
+          }
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <h1>Club</h1>
+      {clubs.length === 0 ? (
+        <p className="lede">No clubs yet — create or join one from the Coach tab first.</p>
+      ) : (
+        <>
+          <p className="lede">Pick a club to edit its name, logo, and invite codes.</p>
+          {clubs.map((c) => (
+            <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
+              <ClubLogo logoPath={c.logoPath} size={40} />
+              <div className="grow">
+                <div className="title">{c.name}</div>
+              </div>
+              <span className="meta" aria-hidden="true">›</span>
+            </button>
+          ))}
+        </>
+      )}
     </>
   )
 }

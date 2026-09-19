@@ -13,7 +13,7 @@ import { ChooseRoleView } from './components/ChooseRoleView'
 import { WorkoutView } from './components/WorkoutView'
 import { AnalysisView } from './components/AnalysisView'
 import { ProfileView } from './components/ProfileView'
-import { CoachView } from './components/CoachView'
+import { CoachView, ClubSettingsView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
 
 const ACTIVE_WORKOUT_KEY = 'biathlon-coach:active-workout'
@@ -35,7 +35,7 @@ function saveActiveWorkoutId(id: string | null): void {
   }
 }
 
-type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'settings'
+type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'club' | 'settings'
 type Role = 'athlete' | 'coach'
 
 const MODE_KEY_PREFIX = 'biathlon-coach:mode:'
@@ -96,6 +96,19 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
   {
     id: 'coach',
     label: 'Coach',
+    requiresMode: 'coach',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="7" y="8" width="12" height="8" rx="4" />
+        <circle cx="13" cy="12" r="1.3" />
+        <path d="M7 10.5C5 10.8 4 12 4 13.5" />
+        <circle cx="4" cy="15.5" r="1.6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'club',
+    label: 'Club',
     requiresMode: 'coach',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -305,6 +318,7 @@ function SignedInApp({
           />
         )}
         {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
+        {tab === 'club' && <ClubSettingsView session={session} />}
         {tab === 'settings' && (
           <SettingsView
             settings={settings}
