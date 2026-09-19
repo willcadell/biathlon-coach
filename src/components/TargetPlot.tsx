@@ -121,15 +121,14 @@ export function TargetPlot({ shots, position, metrics, face, bulletDiameterMm, s
                 fill="none" stroke="var(--warning)" strokeWidth={hair * 2}
               />
             )}
-            {/* Firing order, not the ring value: the rings are drawn, so a
-                shot's score can be read off the picture, but the order it was
-                fired in cannot. */}
+            {/* The ring value, not firing order — worth more read straight
+                off the shot than which number it was fired in. */}
             <text
               x={px(s.mm.x)} y={py(s.mm.y)} fill="#fff"
               fontSize={Math.min(bulletRadius * 1.4, vb / 26)} fontWeight={700}
               textAnchor="middle" dominantBaseline="central"
             >
-              {s.order}
+              {ring ? ring.value : s.order}
             </text>
           </g>
         )

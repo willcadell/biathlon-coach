@@ -101,6 +101,7 @@ function drawTargetDiagram(ctx: CanvasRenderingContext2D, bout: Bout, cx: number
   ctx.stroke()
 
   shots.forEach((s, i) => {
+    const ring = metrics.rings[i]
     const isFlier = metrics.flierIndex === i
     const x = px(s.mm.x)
     const y = py(s.mm.y)
@@ -116,7 +117,7 @@ function drawTargetDiagram(ctx: CanvasRenderingContext2D, bout: Bout, cx: number
     ctx.font = `700 ${Math.max(14, r * 0.95)}px -apple-system, sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(String(s.order), x, y + 1)
+    ctx.fillText(String(ring ? ring.value : s.order), x, y + 1)
   })
 }
 
