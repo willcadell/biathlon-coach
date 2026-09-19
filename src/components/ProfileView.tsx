@@ -310,29 +310,33 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
         <h2>Coach details</h2>
         <div className="card">
-          <label className="field">
+          <label className="field" style={{ marginBottom: 0 }}>
             <span>
               Name
               <small>Shown to athletes and other coaches on any club you're part of.</small>
             </span>
-            <input
-              type="text"
-              value={coachName}
-              disabled={!coachLoaded}
-              onChange={(e) => {
-                setCoachName(e.target.value)
-                setCoachSaved(false)
-              }}
-            />
+            <div className="row">
+              <input
+                type="text"
+                style={{ flex: 1 }}
+                value={coachName}
+                disabled={!coachLoaded}
+                onChange={(e) => {
+                  setCoachName(e.target.value)
+                  setCoachSaved(false)
+                }}
+              />
+              <button
+                className="secondary"
+                style={{ flex: 'none', width: 'auto' }}
+                onClick={() => void saveCoachName()}
+                disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
+              >
+                {coachSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
           </label>
-          <button
-            className="secondary"
-            onClick={() => void saveCoachName()}
-            disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
-          >
-            {coachSaving ? 'Saving…' : 'Save'}
-          </button>
-          {coachSaved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+          {coachSaved && <span className="meta">Saved.</span>}
         </div>
 
         <h2>Athlete details</h2>
@@ -365,29 +369,33 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Athlete details</h2>
           <div className="card">
-            <label className="field">
+            <label className="field" style={{ marginBottom: 0 }}>
               <span>
                 Name
                 <small>Shown to a coach who adds you to their club or program.</small>
               </span>
-              <input
-                type="text"
-                value={name}
-                disabled={!loaded}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  setSaved(false)
-                }}
-              />
+              <div className="row">
+                <input
+                  type="text"
+                  style={{ flex: 1 }}
+                  value={name}
+                  disabled={!loaded}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setSaved(false)
+                  }}
+                />
+                <button
+                  className="secondary"
+                  style={{ flex: 'none', width: 'auto' }}
+                  onClick={() => void save()}
+                  disabled={!loaded || saving || name.trim().length === 0}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
             </label>
-            <button
-              className="secondary"
-              onClick={() => void save()}
-              disabled={!loaded || saving || name.trim().length === 0}
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            {saved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+            {saved && <span className="meta">Saved.</span>}
           </div>
 
           <h2>Your clubs</h2>
@@ -474,29 +482,33 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Coach details</h2>
           <div className="card">
-            <label className="field">
+            <label className="field" style={{ marginBottom: 0 }}>
               <span>
                 Name
                 <small>Shown to athletes and other coaches on any club you're part of.</small>
               </span>
-              <input
-                type="text"
-                value={coachName}
-                disabled={!coachLoaded}
-                onChange={(e) => {
-                  setCoachName(e.target.value)
-                  setCoachSaved(false)
-                }}
-              />
+              <div className="row">
+                <input
+                  type="text"
+                  style={{ flex: 1 }}
+                  value={coachName}
+                  disabled={!coachLoaded}
+                  onChange={(e) => {
+                    setCoachName(e.target.value)
+                    setCoachSaved(false)
+                  }}
+                />
+                <button
+                  className="secondary"
+                  style={{ flex: 'none', width: 'auto' }}
+                  onClick={() => void saveCoachName()}
+                  disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
+                >
+                  {coachSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
             </label>
-            <button
-              className="secondary"
-              onClick={() => void saveCoachName()}
-              disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
-            >
-              {coachSaving ? 'Saving…' : 'Save'}
-            </button>
-            {coachSaved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+            {coachSaved && <span className="meta">Saved.</span>}
           </div>
 
           <CoachedClubsCard />
