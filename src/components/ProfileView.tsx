@@ -314,8 +314,6 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   return (
     <>
       <h1>Profile</h1>
-      <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
-      {mode === 'coach' && <CoachedClubsCard />}
 
       {mode === 'athlete' && (
         <>
@@ -344,6 +342,67 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               {saving ? 'Saving…' : 'Save'}
             </button>
             {saved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+          </div>
+
+          <h2>Your clubs</h2>
+          <div className="card">
+            {membershipsError && <div className="notice error" style={{ marginTop: 0 }}>{membershipsError}</div>}
+            {!membershipsError && memberships.length === 0 ? (
+              <p className="meta" style={{ marginTop: 0 }}>Not in a club yet.</p>
+            ) : (
+              memberships.map((m) => (
+                <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
+                  <ClubLogo logoPath={m.logoPath} size={32} />
+                  <span style={{ flex: 1 }}>{m.clubName}</span>
+                  <button
+                    className="link"
+                    onClick={async () => {
+                      if (!confirm(`Leave ${m.clubName}? Your coach there will no longer see your training.`)) return
+                      await leaveClub(m.clubId)
+                      refreshMemberships()
+                    }}
+                  >
+                    Leave
+                  </button>
+                </div>
+              ))
+            )}
+
+            <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0 }}>
+              <span>
+                Join with a code
+                <small>Get this from your coach — joining lets them see your training in that club.</small>
+              </span>
+              <input
+                type="text"
+                placeholder="e.g. 7K4RXP"
+                autoCapitalize="characters"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value)
+                  setMatch(null)
+                  setJoinError('')
+                }}
+              />
+            </label>
+            {joinError && <div className="notice error">{joinError}</div>}
+            {match ? (
+              <>
+                <p className="meta">Join <strong>{match.name}</strong>?</p>
+                <div className="row">
+                  <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
+                    Cancel
+                  </button>
+                  <button className="primary" onClick={() => void confirmJoin()} disabled={joining}>
+                    {joining ? 'Joining…' : 'Join'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
+                {checking ? 'Checking…' : 'Find club'}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -376,70 +435,12 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             </button>
             {coachSaved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
           </div>
+
+          <CoachedClubsCard />
         </>
       )}
 
-      <h2>Your clubs</h2>
-      <div className="card">
-        {membershipsError && <div className="notice error" style={{ marginTop: 0 }}>{membershipsError}</div>}
-        {!membershipsError && memberships.length === 0 ? (
-          <p className="meta" style={{ marginTop: 0 }}>Not in a club yet.</p>
-        ) : (
-          memberships.map((m) => (
-            <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
-              <ClubLogo logoPath={m.logoPath} size={32} />
-              <span style={{ flex: 1 }}>{m.clubName}</span>
-              <button
-                className="link"
-                onClick={async () => {
-                  if (!confirm(`Leave ${m.clubName}? Your coach there will no longer see your training.`)) return
-                  await leaveClub(m.clubId)
-                  refreshMemberships()
-                }}
-              >
-                Leave
-              </button>
-            </div>
-          ))
-        )}
-
-        <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0 }}>
-          <span>
-            Join with a code
-            <small>Get this from your coach — joining lets them see your training in that club.</small>
-          </span>
-          <input
-            type="text"
-            placeholder="e.g. 7K4RXP"
-            autoCapitalize="characters"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value)
-              setMatch(null)
-              setJoinError('')
-            }}
-          />
-        </label>
-        {joinError && <div className="notice error">{joinError}</div>}
-        {match ? (
-          <>
-            <p className="meta">Join <strong>{match.name}</strong>?</p>
-            <div className="row">
-              <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
-                Cancel
-              </button>
-              <button className="primary" onClick={() => void confirmJoin()} disabled={joining}>
-                {joining ? 'Joining…' : 'Join'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
-            {checking ? 'Checking…' : 'Find club'}
-          </button>
-        )}
-      </div>
-
+      <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
       <h2>Account</h2>
