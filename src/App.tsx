@@ -99,10 +99,10 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
     requiresMode: 'coach',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 10v4l3 1V9l-3 1Z" />
         <rect x="7" y="8" width="12" height="8" rx="4" />
-        <circle cx="13" cy="12" r="1.3" />
-        <path d="M7 10.5C5 10.8 4 12 4 13.5" />
-        <circle cx="4" cy="15.5" r="1.6" />
+        <circle cx="14.5" cy="12" r="1.4" />
+        <path d="M17 8.5V6.5a1.5 1.5 0 1 1 1.5 1.5" />
       </svg>
     ),
   },
