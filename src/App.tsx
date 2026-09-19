@@ -6,8 +6,8 @@ import { allBouts, allMetalBouts, allWorkouts, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
 import { uuid } from './lib/id'
 import { loadSettings, saveSettings } from './lib/settings'
-import { onAuthChange, getAthlete } from './lib/auth'
-import { getCoach } from './lib/coaching'
+import { onAuthChange, getAthlete, ensureAthleteRow, consumeRoleIntent, displayNameFromSession } from './lib/auth'
+import { getCoach, becomeCoach } from './lib/coaching'
 import { SignInView } from './components/SignInView'
 import { ChooseRoleView } from './components/ChooseRoleView'
 import { WorkoutView } from './components/WorkoutView'
@@ -141,10 +141,26 @@ function IdentityGate({ session }: { session: Session }) {
   const [mode, setMode] = useState<Role | null>(null)
 
   const refreshIdentities = useCallback(() => {
-    void Promise.all([getAthlete(session.user.id), getCoach(session.user.id)]).then(([athlete, coach]) => {
-      const next = { athlete: athlete !== null, coach: coach !== null }
+    void Promise.all([getAthlete(session.user.id), getCoach(session.user.id)]).then(async ([athlete, coach]) => {
+      let next = { athlete: athlete !== null, coach: coach !== null }
+
+      // Set on the sign-in screen's "sign in as a coach/athlete" buttons —
+      // acted on once, right after a fresh Google redirect, so it replaces
+      // the "how are you using this" question instead of asking it again.
+      const intent = consumeRoleIntent()
+      if (intent && !next[intent]) {
+        if (intent === 'athlete') await ensureAthleteRow(session)
+        else await becomeCoach(displayNameFromSession(session))
+        next = { ...next, [intent]: true }
+      }
+
       setIdentities(next)
-      setMode(next.athlete && next.coach ? loadMode(session.user.id) : null)
+      if (intent) {
+        saveMode(session.user.id, intent)
+        setMode(intent)
+      } else {
+        setMode(next.athlete && next.coach ? loadMode(session.user.id) : null)
+      }
     })
   }, [session.user.id])
   useEffect(refreshIdentities, [refreshIdentities])

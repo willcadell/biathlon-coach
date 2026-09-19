@@ -23,6 +23,31 @@ export function signOut() {
   return supabase.auth.signOut()
 }
 
+const ROLE_INTENT_KEY = 'biathlon-coach:role-intent'
+
+/** Captured on the sign-in screen before the redirect to Google, so the
+ *  identity gate can act on "sign in as a coach/athlete" once the session
+ *  comes back, instead of asking the same question again right after. */
+export function setRoleIntent(role: 'athlete' | 'coach'): void {
+  try {
+    sessionStorage.setItem(ROLE_INTENT_KEY, role)
+  } catch {
+    // Not fatal — the identity gate just asks normally if this didn't stick.
+  }
+}
+
+/** Reads and clears the intent in one step, so a later, unrelated identity
+ *  refresh elsewhere in the app never re-applies a stale choice. */
+export function consumeRoleIntent(): 'athlete' | 'coach' | null {
+  try {
+    const v = sessionStorage.getItem(ROLE_INTENT_KEY)
+    sessionStorage.removeItem(ROLE_INTENT_KEY)
+    return v === 'athlete' || v === 'coach' ? v : null
+  } catch {
+    return null
+  }
+}
+
 /** Google SSO has no separate sign-up step, so this is the closest thing to
  *  one: the name a fresh identity starts with, before the athlete or coach
  *  ever gets a chance to change it themselves. */

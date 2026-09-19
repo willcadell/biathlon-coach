@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { signInWithGoogle } from '../lib/auth'
+import { setRoleIntent, signInWithGoogle } from '../lib/auth'
+
+type Role = 'athlete' | 'coach'
 
 function TargetIcon() {
   return (
@@ -33,16 +35,17 @@ function Feature({ icon, title, children }: { icon: React.ReactNode; title: stri
 }
 
 export function SignInView() {
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<Role | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function start() {
-    setPending(true)
+  async function start(role: Role) {
+    setPending(role)
     setError(null)
+    setRoleIntent(role)
     const { error } = await signInWithGoogle()
     if (error) {
       setError(error.message)
-      setPending(false)
+      setPending(null)
     }
     // On success the page navigates away to Google, so no need to clear pending.
   }
@@ -79,9 +82,19 @@ export function SignInView() {
           </Feature>
 
           <div className="card" style={{ marginTop: 12, textAlign: 'center' }}>
-            <button className="primary" onClick={() => void start()} disabled={pending} style={{ width: '100%' }}>
-              {pending ? 'Opening Google…' : 'Sign in with Google'}
-            </button>
+            <p className="meta" style={{ marginTop: 0 }}>Sign in with Google to get started.</p>
+            <div className="row">
+              <button className="secondary" style={{ flex: 1 }} onClick={() => void start('athlete')} disabled={pending !== null}>
+                {pending === 'athlete' ? 'Opening Google…' : 'Sign in as an athlete'}
+              </button>
+              <button className="primary" style={{ flex: 1 }} onClick={() => void start('coach')} disabled={pending !== null}>
+                {pending === 'coach' ? 'Opening Google…' : 'Sign in as a coach'}
+              </button>
+            </div>
+            <p className="meta" style={{ marginTop: 10, marginBottom: 0 }}>
+              You can always add the other later — an athlete can become a coach too, and a coach can
+              log their own training.
+            </p>
             {error && (
               <div className="notice error" style={{ marginTop: 12, textAlign: 'left' }}>
                 {error}
