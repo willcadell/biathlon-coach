@@ -75,8 +75,10 @@ export function SignInView() {
           </svg>
           <h1 style={{ margin: '0 0 6px' }}>545, Coach!</h1>
           <p className="lede" style={{ margin: '0 auto' }}>
-            What every athlete wants to say. 
-            What every coach wants to hear. 
+            What every athlete wants to say.
+            <br />
+            What every coach wants to hear.
+            <br />
             Precision and metal shooting analysis for biathletes and the coaches who train them.
           </p>
         </div>
