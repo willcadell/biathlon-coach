@@ -84,6 +84,26 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
 }
 .card.tight { padding: 10px 12px; }
 
+/* --- Modal ------------------------------------------------------------ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 60;
+}
+.modal-card {
+  background: var(--surface-1);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
 /* --- Bottom tab bar ------------------------------------------------- */
 .tabs {
   position: fixed;

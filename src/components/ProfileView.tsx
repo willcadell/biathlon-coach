@@ -438,28 +438,35 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               />
             </label>
             {joinError && <div className="notice error">{joinError}</div>}
-            {match ? (
-              <>
+            <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
+              {checking ? 'Checking…' : 'Find club or program'}
+            </button>
+          </div>
+
+          {match && (
+            <div className="modal-overlay" role="dialog" aria-modal="true">
+              <div className="modal-card">
+                <h2 style={{ marginTop: 0 }}>Share your training?</h2>
                 <p className="meta">
+                  Joining{' '}
                   {match.kind === 'club'
-                    ? <>Join <strong>{match.name}</strong>?</>
-                    : <>Join <strong>{match.name}</strong> in <strong>{match.clubName}</strong>?</>}
+                    ? <><strong>{match.name}</strong></>
+                    : <><strong>{match.name}</strong> in <strong>{match.clubName}</strong></>}
+                  {' '}shares your workouts, scores, and target photos with its coach(es) going forward — they'll
+                  be able to see your training, and any coach's notes on it, for as long as you're a member.
                 </p>
-                <div className="row">
+                <p className="meta">If you're under 18, check with a parent or guardian before continuing.</p>
+                <div className="row" style={{ marginTop: 14 }}>
                   <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
                     Cancel
                   </button>
                   <button className="primary" onClick={() => void confirmJoin()} disabled={joining}>
-                    {joining ? 'Joining…' : 'Join'}
+                    {joining ? 'Joining…' : 'Yes, share and join'}
                   </button>
                 </div>
-              </>
-            ) : (
-              <button className="secondary" onClick={() => void checkCode()} disabled={checking || !code.trim()}>
-                {checking ? 'Checking…' : 'Find club or program'}
-              </button>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
