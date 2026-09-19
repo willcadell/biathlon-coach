@@ -418,8 +418,6 @@ function ClubRosterSection({ club }: { club: Club }) {
 
   return (
     <>
-      <ProgramsCard club={club} />
-
       <h2>Roster</h2>
       {athletes === null && <p className="meta">Loading…</p>}
       {athletes?.length === 0 && <p className="meta">Nobody's joined with this club's code yet.</p>}
@@ -622,6 +620,8 @@ function ClubAdminSection({ club, onChanged }: { club: Club; onChanged: (patch: 
           </>
         )}
       </div>
+
+      <ProgramsCard club={club} />
     </>
   )
 }
