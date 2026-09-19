@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
-import { RACE_TYPE_LABEL } from '../lib/types'
+import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
@@ -58,29 +58,68 @@ function WindFields({
   )
 }
 
-function RaceFields({ raceType, onChange }: { raceType: RaceType | null; onChange: (r: RaceType | null) => void }) {
+/** The format itself is chosen once, at the "Race" start button — this just
+ *  lets it be corrected, not turned on or off after the fact. */
+function RaceTypeFields({ raceType, onChange }: { raceType: RaceType; onChange: (r: RaceType) => void }) {
+  return (
+    <label className="field" style={{ marginBottom: 0 }}>
+      <span>Format</span>
+      <div className="seg" style={{ flexWrap: 'wrap' }}>
+        {(Object.keys(RACE_TYPE_LABEL) as RaceType[]).map((r) => (
+          <button key={r} aria-pressed={raceType === r} onClick={() => onChange(r)} style={{ minWidth: '45%' }}>
+            {RACE_TYPE_LABEL[r]}
+          </button>
+        ))}
+      </div>
+    </label>
+  )
+}
+
+/** The race's shooting stages, in the format's fixed order — replaces the
+ *  free-form "+ metal bout" flow for a race workout, since a race's stages
+ *  aren't something you add arbitrarily, they're fixed by what you picked. */
+function RaceStages({
+  raceType, metalBouts, onAddStage, onEditStage,
+}: {
+  raceType: RaceType
+  metalBouts: MetalBout[]
+  onAddStage: (position: Position, stageIndex: number) => void
+  onEditStage: (bout: MetalBout) => void
+}) {
+  const sorted = [...metalBouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
+  const stages = RACE_STAGES[raceType]
+
   return (
     <>
-      <label className="check" style={{ marginBottom: raceType ? 12 : 0 }}>
-        <input
-          type="checkbox"
-          checked={raceType !== null}
-          onChange={(e) => onChange(e.target.checked ? 'sprint' : null)}
-        />
-        This was a race, not training
-      </label>
-      {raceType && (
-        <label className="field" style={{ marginBottom: 0 }}>
-          <span>Format</span>
-          <div className="seg" style={{ flexWrap: 'wrap' }}>
-            {(Object.keys(RACE_TYPE_LABEL) as RaceType[]).map((r) => (
-              <button key={r} aria-pressed={raceType === r} onClick={() => onChange(r)} style={{ minWidth: '45%' }}>
-                {RACE_TYPE_LABEL[r]}
-              </button>
-            ))}
-          </div>
-        </label>
-      )}
+      <h2>Stages</h2>
+      {stages.map((position, i) => {
+        const bout = sorted[i]
+        const label = `Stage ${i + 1} — ${position === 'prone' ? 'Prone' : 'Standing'}`
+        if (!bout) {
+          return (
+            <button key={i} className="boutrow" onClick={() => onAddStage(position, i)}>
+              <div className="grow">
+                <div className="title">{label}</div>
+                <div className="meta">Not shot yet</div>
+              </div>
+              <span className="meta" aria-hidden="true">›</span>
+            </button>
+          )
+        }
+        const hits = hitsOf(bout)
+        return (
+          <button key={i} className="boutrow" onClick={() => onEditStage(bout)}>
+            <div className="grow">
+              <div className="title">{label} · {hitCount(hits)}/{DISCS_PER_METAL_BOUT} hits</div>
+              <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MiniTargets hits={hits} />
+                {bout.heartRate > 0 && `${bout.heartRate} bpm on entry`}
+              </div>
+            </div>
+            <span className="meta" aria-hidden="true">›</span>
+          </button>
+        )
+      })}
     </>
   )
 }
@@ -241,7 +280,7 @@ function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; on
 }
 
 function MetalForm({
-  workoutId, initial, comboId, onSaved, onCancel,
+  workoutId, initial, comboId, presetPosition, stageLabel, onSaved, onCancel,
 }: {
   workoutId: string
   /** Present when editing an existing metal bout rather than adding a new one. */
@@ -249,10 +288,14 @@ function MetalForm({
   /** The active combo to attach a NEW bout to, if any. Ignored when editing —
    *  an existing bout keeps whatever combo it was already part of. */
   comboId?: string | null
+  /** For a race stage, fixed by the format rather than chosen — the position
+   *  toggle is hidden in favour of stageLabel. Ignored when editing. */
+  presetPosition?: Position
+  stageLabel?: string
   onSaved: () => void
   onCancel: () => void
 }) {
-  const [position, setPosition] = useState<Position>(initial?.position ?? 'prone')
+  const [position, setPosition] = useState<Position>(initial?.position ?? presetPosition ?? 'prone')
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
   const [saving, setSaving] = useState(false)
@@ -280,19 +323,23 @@ function MetalForm({
 
   return (
     <>
-      <h1>{initial ? 'Edit metal bout' : comboId ? 'Combo round' : 'Metal bout'}</h1>
+      <h1>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? 'Combo round' : 'Metal bout')}</h1>
       <p className="lede">Five targets, prone or standing. Tap the ones that fell.</p>
       <div className="card">
-        <label className="field">
-          <span>Position</span>
-          <div className="seg">
-            {(['prone', 'standing'] as Position[]).map((p) => (
-              <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
-                {p === 'prone' ? 'Prone' : 'Standing'}
-              </button>
-            ))}
-          </div>
-        </label>
+        {!initial && presetPosition ? (
+          <p className="meta" style={{ marginTop: 0 }}>{presetPosition === 'prone' ? 'Prone' : 'Standing'}, set by the race format.</p>
+        ) : (
+          <label className="field">
+            <span>Position</span>
+            <div className="seg">
+              {(['prone', 'standing'] as Position[]).map((p) => (
+                <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
+                  {p === 'prone' ? 'Prone' : 'Standing'}
+                </button>
+              ))}
+            </div>
+          </label>
+        )}
         <label className="field">
           <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
           <TargetDial hits={hits} onChange={setHits} />
@@ -491,27 +538,31 @@ function WorkoutAnalysis({ bouts, workout, settings }: { bouts: Bout[]; workout:
 
 type Mode = 'entries' | 'addPrecision' | 'addMetal'
 
+type StartKind = 'range' | 'dryfire' | 'race'
+
 interface Props {
   settings: Settings
   workout: Workout | null
   /** This workout's own entries, oldest first. */
   entries: WorkoutEntry[]
-  onStart: (wind: Wind, windDirection: WindDirection) => Promise<void>
+  onStart: (kind: StartKind) => Promise<void>
   onFinish: () => void
   onWorkoutChanged: (workout: Workout) => void
   onDataChanged: () => void
 }
 
 /**
- * The Shoot tab: one workout at a time, built up out of any number of
- * precision bouts and metal bouts. Wind and the clicks actually dialed in are
- * logged once here, at the workout level, rather than retyped for every bout.
+ * The Shoot tab: one workout at a time. A range session is built up out of
+ * any number of precision bouts and metal bouts, with wind and the clicks
+ * actually dialed in logged once at the workout level; a dryfire session is
+ * just time spent and how it went, no range required.
  */
 export function WorkoutView({ settings, workout, entries, onStart, onFinish, onWorkoutChanged, onDataChanged }: Props) {
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
-  const [starting, setStarting] = useState(false)
+  const [pendingStage, setPendingStage] = useState<{ index: number; position: Position } | null>(null)
+  const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
 
   const comboRounds = activeComboId
@@ -519,31 +570,76 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
     : 0
 
   const precisionBouts = entries.filter((e): e is Bout => e.kind === 'precision')
+  const metalBouts = entries.filter((e): e is MetalBout => e.kind === 'metal')
 
-  async function handleStart() {
-    setStarting(true)
+  async function handleStart(kind: StartKind) {
+    setStarting(kind)
     setStartError('')
     try {
-      await onStart('none', '12')
+      await onStart(kind)
     } catch (e) {
-      setStartError(errorMessage(e, 'Could not start the workout. Check your connection and try again.'))
+      setStartError(errorMessage(e, 'Could not start the session. Check your connection and try again.'))
     } finally {
-      setStarting(false)
+      setStarting(null)
     }
   }
 
   if (!workout) {
     return (
       <>
-        <h1>Start a workout</h1>
+        <h1>Start a session</h1>
         <p className="lede">
-          Add as many precision bouts and metal bouts as you shoot in one session. Wind and
-          conditions are entered in the workout itself, once it's started.
+          A range session holds any number of precision and metal bouts, with wind and clicks
+          logged once for the whole session. A dry-fire session just tracks time and notes.
         </p>
         {startError && <div className="notice error">{startError}</div>}
-        <button className="primary" onClick={() => void handleStart()} disabled={starting}>
-          {starting ? 'Starting…' : 'Start workout'}
-        </button>
+        <div className="row">
+          <button className="secondary" onClick={() => void handleStart('range')} disabled={starting !== null}>
+            {starting === 'range' ? 'Starting…' : 'Range'}
+          </button>
+          <button className="secondary" onClick={() => void handleStart('dryfire')} disabled={starting !== null}>
+            {starting === 'dryfire' ? 'Starting…' : 'Dryfire'}
+          </button>
+          <button className="secondary" onClick={() => void handleStart('race')} disabled={starting !== null}>
+            {starting === 'race' ? 'Starting…' : 'Race'}
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  if (workout.workoutType === 'dryfire') {
+    return (
+      <>
+        <h1>{workout.name || 'Dry-fire session'}</h1>
+        <p className="lede">Started {fmt(workout.startedAt)}.</p>
+
+        <label className="field">
+          <span>Name<small>Optional — shown instead of the date in History.</small></span>
+          <input
+            type="text" placeholder={fmt(workout.startedAt)}
+            value={workout.name ?? ''}
+            onChange={(e) => onWorkoutChanged({ ...workout, name: e.target.value })}
+          />
+        </label>
+
+        <label className="field">
+          <span>Minutes</span>
+          <input
+            type="number" inputMode="numeric" min={0}
+            value={workout.dryfireMinutes || ''}
+            onChange={(e) => onWorkoutChanged({ ...workout, dryfireMinutes: Number(e.target.value) || 0 })}
+          />
+        </label>
+
+        <h2>Notes</h2>
+        <textarea
+          value={workout.notes ?? ''}
+          placeholder="How it went, what to try next time…"
+          onChange={(e) => onWorkoutChanged({ ...workout, notes: e.target.value })}
+        />
+
+        <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish session</button>
       </>
     )
   }
@@ -565,8 +661,10 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
         workoutId={workout.id}
         initial={editingMetal ?? undefined}
         comboId={activeComboId}
-        onSaved={() => { onDataChanged(); setEditingMetal(null); setMode('entries') }}
-        onCancel={() => { setEditingMetal(null); setMode('entries') }}
+        presetPosition={pendingStage?.position}
+        stageLabel={pendingStage ? `Stage ${pendingStage.index + 1} — ${pendingStage.position === 'prone' ? 'Prone' : 'Standing'}` : undefined}
+        onSaved={() => { onDataChanged(); setEditingMetal(null); setPendingStage(null); setMode('entries') }}
+        onCancel={() => { setEditingMetal(null); setPendingStage(null); setMode('entries') }}
       />
     )
   }
@@ -585,12 +683,14 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
         />
       </label>
 
-      <div className="card">
-        <RaceFields
-          raceType={workout.raceType}
-          onChange={(r) => onWorkoutChanged({ ...workout, raceType: r })}
-        />
-      </div>
+      {workout.raceType && (
+        <div className="card">
+          <RaceTypeFields
+            raceType={workout.raceType}
+            onChange={(r) => onWorkoutChanged({ ...workout, raceType: r })}
+          />
+        </div>
+      )}
 
       <h2>Conditions</h2>
       <div className="card">
@@ -606,52 +706,63 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
 
       <WorkoutAnalysis bouts={precisionBouts} workout={workout} settings={settings} />
 
-      <h2>This workout</h2>
-      {entries.length === 0 && <p className="meta">Nothing added yet.</p>}
-      {groupEntries(entries).map((item) =>
-        'rounds' in item ? (
-          <ComboRow
-            key={item.comboId}
-            rounds={item.rounds}
-            onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
-            onDeleted={onDataChanged}
-          />
-        ) : item.kind === 'precision' ? (
-          <PrecisionRow key={item.id} bout={item} workout={workout} onDeleted={onDataChanged} />
-        ) : (
-          <MetalRow
-            key={item.id}
-            bout={item}
-            onEdit={() => { setEditingMetal(item); setMode('addMetal') }}
-            onDeleted={onDataChanged}
-          />
-        ),
-      )}
-
-      <div className="row" style={{ marginTop: 14 }}>
-        <button className="secondary" onClick={() => { setEditingMetal(null); setMode('addMetal') }}>+ Metal bout</button>
-        <button className="primary" onClick={() => setMode('addPrecision')}>+ Precision bout</button>
-      </div>
-
-      {activeComboId ? (
-        <div className="card" style={{ marginTop: 10 }}>
-          <div className="row" style={{ alignItems: 'center' }}>
-            <span style={{ flex: 1, fontSize: 14 }}>
-              Combo in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
-            </span>
-            <button className="link" onClick={() => setActiveComboId(null)}>End combo</button>
-          </div>
-          <p className="meta" style={{ marginTop: 4, marginBottom: 0 }}>
-            Every metal bout you add now joins this combo, until you end it.
-          </p>
-        </div>
+      {workout.raceType ? (
+        <RaceStages
+          raceType={workout.raceType}
+          metalBouts={metalBouts}
+          onAddStage={(position, index) => { setPendingStage({ index, position }); setMode('addMetal') }}
+          onEditStage={(bout) => { setEditingMetal(bout); setMode('addMetal') }}
+        />
       ) : (
-        <button
-          className="link" style={{ marginTop: 10 }}
-          onClick={() => setActiveComboId(uuid())}
-        >
-          + Start a combo (repeated ski-and-shoot rounds)
-        </button>
+        <>
+          <h2>This workout</h2>
+          {entries.length === 0 && <p className="meta">Nothing added yet.</p>}
+          {groupEntries(entries).map((item) =>
+            'rounds' in item ? (
+              <ComboRow
+                key={item.comboId}
+                rounds={item.rounds}
+                onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
+                onDeleted={onDataChanged}
+              />
+            ) : item.kind === 'precision' ? (
+              <PrecisionRow key={item.id} bout={item} workout={workout} onDeleted={onDataChanged} />
+            ) : (
+              <MetalRow
+                key={item.id}
+                bout={item}
+                onEdit={() => { setEditingMetal(item); setMode('addMetal') }}
+                onDeleted={onDataChanged}
+              />
+            ),
+          )}
+
+          <div className="row" style={{ marginTop: 14 }}>
+            <button className="secondary" onClick={() => { setEditingMetal(null); setMode('addMetal') }}>+ Metal bout</button>
+            <button className="primary" onClick={() => setMode('addPrecision')}>+ Precision bout</button>
+          </div>
+
+          {activeComboId ? (
+            <div className="card" style={{ marginTop: 10 }}>
+              <div className="row" style={{ alignItems: 'center' }}>
+                <span style={{ flex: 1, fontSize: 14 }}>
+                  Combo in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
+                </span>
+                <button className="link" onClick={() => setActiveComboId(null)}>End combo</button>
+              </div>
+              <p className="meta" style={{ marginTop: 4, marginBottom: 0 }}>
+                Every metal bout you add now joins this combo, until you end it.
+              </p>
+            </div>
+          ) : (
+            <button
+              className="link" style={{ marginTop: 10 }}
+              onClick={() => setActiveComboId(uuid())}
+            >
+              + Start a combo (repeated ski-and-shoot rounds)
+            </button>
+          )}
+        </>
       )}
 
       <h2>Notes</h2>
@@ -661,7 +772,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
         onChange={(e) => onWorkoutChanged({ ...workout, notes: e.target.value })}
       />
 
-      <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish workout</button>
+      <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish session</button>
     </>
   )
 }

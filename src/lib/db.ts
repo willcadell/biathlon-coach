@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout } from './types'
+import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
 
 const BUCKET = 'target-photos'
@@ -16,10 +16,12 @@ export interface WorkoutRow {
   id: string
   started_at: string
   name: string
+  workout_type: WorkoutType
   wind: Wind
   wind_direction: WindDirection
   notes: string
   race_type: RaceType | null
+  dryfire_minutes: number
 }
 
 export interface ClickRow {
@@ -66,10 +68,12 @@ export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: Coach
     id: row.id,
     startedAt: row.started_at,
     name: row.name,
+    workoutType: row.workout_type,
     wind: row.wind,
     windDirection: row.wind_direction,
     notes: row.notes,
     raceType: row.race_type,
+    dryfireMinutes: row.dryfire_minutes,
     clickLog: clicks
       .filter((c) => c.workout_id === row.id)
       .map(toClick)
@@ -88,10 +92,12 @@ export async function putWorkout(workout: Workout): Promise<void> {
     athlete_id: athleteId,
     started_at: workout.startedAt,
     name: workout.name,
+    workout_type: workout.workoutType,
     wind: workout.wind,
     wind_direction: workout.windDirection,
     notes: workout.notes,
     race_type: workout.raceType,
+    dryfire_minutes: workout.dryfireMinutes,
   })
   if (error) throw error
 

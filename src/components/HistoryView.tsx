@@ -188,6 +188,42 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
     const ownMetal = metalBouts.filter((m) => m.workoutId === openWorkout.id)
     const entries = [...ownBouts, ...ownMetal].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
 
+    if (openWorkout.workoutType === 'dryfire') {
+      return (
+        <>
+          <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
+          <h1 style={{ marginTop: 10 }}>
+            {openWorkout.name || 'Dry-fire session'}
+            <span className="pill">Dry-fire</span>
+          </h1>
+          <p className="lede">{fmt(openWorkout.startedAt)} · {openWorkout.dryfireMinutes} min</p>
+
+          {openWorkout.notes && (
+            <div className="card">
+              <h3>Notes</h3>
+              <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.notes}</p>
+            </div>
+          )}
+
+          <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
+
+          {!readOnly && (
+            <button
+              className="secondary danger" style={{ marginTop: 10 }}
+              onClick={async () => {
+                if (!confirm('Delete this dry-fire session?')) return
+                await deleteWorkout(openWorkout.id)
+                setOpenWorkoutId(null)
+                onChanged()
+              }}
+            >
+              Delete this session
+            </button>
+          )}
+        </>
+      )
+    }
+
     return (
       <>
         <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
@@ -333,12 +369,15 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             <div className="grow">
               <div className="title">
                 {w.name || fmt(w.startedAt)}
+                {w.workoutType === 'dryfire' && <span className="pill">Dry-fire</span>}
                 {w.raceType && <span className="pill">{RACE_TYPE_LABEL[w.raceType]}</span>}
                 {w.wind !== 'none' && <span className="pill">{w.wind} wind</span>}
               </div>
               <div className="meta">
                 {w.name && `${fmt(w.startedAt)} · `}
-                {ownBouts.length} precision · {ownMetal.length} metal
+                {w.workoutType === 'dryfire'
+                  ? `${w.dryfireMinutes} min`
+                  : <>{ownBouts.length} precision · {ownMetal.length} metal</>}
                 {mixedFaces && ownBouts.length > 0 && ` · ${faceById(ownBouts[0].targetFaceId).name}`}
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, Settings, Wind, WindDirection, Workout, WorkoutEntry } from './lib/types'
+import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
 import { scoringContext } from './lib/types'
 import { allBouts, allMetalBouts, allWorkouts, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
@@ -256,8 +256,20 @@ function SignedInApp({
     return mine.sort((a, b) => a.shotAt.localeCompare(b.shotAt))
   }, [activeWorkout, bouts, metalBouts])
 
-  async function startWorkout(wind: Wind, windDirection: WindDirection) {
-    const workout: Workout = { id: uuid(), startedAt: new Date().toISOString(), name: '', wind, windDirection, clickLog: [], notes: '', coachNotes: [], raceType: null }
+  async function startWorkout(kind: 'range' | 'dryfire' | 'race') {
+    const workout: Workout = {
+      id: uuid(),
+      startedAt: new Date().toISOString(),
+      name: '',
+      workoutType: kind === 'dryfire' ? 'dryfire' : 'range',
+      wind: 'none',
+      windDirection: '12',
+      clickLog: [],
+      notes: '',
+      coachNotes: [],
+      raceType: kind === 'race' ? 'sprint' : null,
+      dryfireMinutes: 0,
+    }
     await putWorkout(workout)
     setActiveWorkout(workout.id)
     refresh()
@@ -284,7 +296,7 @@ function SignedInApp({
             settings={settings}
             workout={activeWorkout}
             entries={activeEntries}
-            onStart={(wind, windDirection) => startWorkout(wind, windDirection)}
+            onStart={startWorkout}
             onFinish={() => setActiveWorkout(null)}
             onWorkoutChanged={updateWorkout}
             onDataChanged={refresh}

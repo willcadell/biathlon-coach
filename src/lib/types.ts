@@ -250,12 +250,18 @@ export type RaceType = 'sprint' | 'individual' | 'mass-start' | 'pursuit'
  * clicks dialed into the rifle along the way are logged here too, since a
  * zero correction is something you do between bouts, not a property of one.
  */
+/** A range session shoots (precision and/or metal bouts, wind, zero
+ *  clicks); a dryfire session is just time spent and how it went — no
+ *  target, no range required. */
+export type WorkoutType = 'range' | 'dryfire'
+
 export interface Workout {
   id: string
   /** ISO timestamp of the first bout, or when the workout was started. */
   startedAt: string
   /** Optional label — falls back to the date wherever it's shown when empty. */
   name: string
+  workoutType: WorkoutType
   wind: Wind
   /** Clock position the wind blew from. Only meaningful when wind is not 'none'. */
   windDirection: WindDirection
@@ -268,8 +274,11 @@ export interface Workout {
   coachNotes: CoachNote[]
   /** Set when the whole workout was a race rather than training — the format
    *  raced, not just a yes/no, since a sprint and an individual read very
-   *  differently. Null for an ordinary training session. */
+   *  differently. Null for an ordinary training session. Never set for a
+   *  dryfire session. */
   raceType: RaceType | null
+  /** Minutes spent, for a dryfire session. 0 and unused for a range session. */
+  dryfireMinutes: number
 }
 
 export interface Ellipse {
@@ -426,6 +435,17 @@ export const RACE_TYPE_LABEL: Record<RaceType, string> = {
   individual: 'Individual',
   'mass-start': 'Mass start',
   pursuit: 'Pursuit',
+}
+
+/** The shooting stages of each format, in order — a sprint is prone then
+ *  standing; individual, mass start and pursuit are all four stages, mass
+ *  start and pursuit sharing individual's order (prone, prone, standing,
+ *  standing) rather than alternating. */
+export const RACE_STAGES: Record<RaceType, Position[]> = {
+  sprint: ['prone', 'standing'],
+  individual: ['prone', 'standing', 'prone', 'standing'],
+  'mass-start': ['prone', 'prone', 'standing', 'standing'],
+  pursuit: ['prone', 'prone', 'standing', 'standing'],
 }
 
 /** How to score a bout that was saved before faces were per-bout. */
