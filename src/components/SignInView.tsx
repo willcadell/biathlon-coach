@@ -73,8 +73,10 @@ export function SignInView() {
             <circle cx="13.4" cy="12.6" r="1.3" fill="#d95926" />
             <circle cx="11" cy="14.3" r="1.3" fill="#d95926" />
           </svg>
-          <h1 style={{ margin: '0 0 6px' }}>545 Coaching</h1>
+          <h1 style={{ margin: '0 0 6px' }}>545, Coach!</h1>
           <p className="lede" style={{ margin: '0 auto' }}>
+            What every athlete wants to say. 
+            What every coach wants to hear. 
             Precision and metal shooting analysis for biathletes and the coaches who train them.
           </p>
         </div>
