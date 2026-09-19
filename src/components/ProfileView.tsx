@@ -32,6 +32,37 @@ interface Props {
   /** Present only when the signed-in user has both an athlete and a coach
    *  identity — there's nothing to switch to otherwise. */
   onSwitchRole?: () => void
+  /** Opens Settings — present only in athlete mode, since Settings is all
+   *  athlete calibration fields and the Settings tab itself is hidden while
+   *  coaching. */
+  onOpenSettings?: () => void
+}
+
+function CogIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="22" height="22">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10-1.4 1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ProfileHeader({ onOpenSettings }: { onOpenSettings?: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <h1 style={{ margin: 0 }}>Profile</h1>
+      {onOpenSettings && (
+        <button
+          className="link"
+          aria-label="Settings"
+          onClick={onOpenSettings}
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <CogIcon />
+        </button>
+      )}
+    </div>
+  )
 }
 
 /** Shown only to an athlete without a coach identity yet — the Coach tab is
@@ -152,7 +183,7 @@ function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwit
   )
 }
 
-export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole }: Props) {
+export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings }: Props) {
   const [name, setName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -273,7 +304,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   if (!hasAthlete) {
     return (
       <>
-        <h1>Profile</h1>
+        <ProfileHeader onOpenSettings={onOpenSettings} />
         <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
         {mode === 'coach' && <CoachedClubsCard />}
 
@@ -328,7 +359,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
   return (
     <>
-      <h1>Profile</h1>
+      <ProfileHeader onOpenSettings={onOpenSettings} />
 
       {mode === 'athlete' && (
         <>
@@ -368,7 +399,10 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               memberships.map((m) => (
                 <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
                   <ClubLogo logoPath={m.logoPath} size={32} />
-                  <span style={{ flex: 1 }}>{m.clubName}</span>
+                  <span style={{ flex: 1 }}>
+                    {m.clubName}
+                    {m.programName && <span className="pill" style={{ marginLeft: 6 }}>{m.programName}</span>}
+                  </span>
                   <button
                     className="link"
                     onClick={async () => {

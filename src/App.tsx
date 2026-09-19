@@ -64,6 +64,16 @@ function saveMode(userId: string, mode: Role | null): void {
 
 const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[] = [
   {
+    id: 'profile',
+    label: 'Profile',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+        <circle cx="12" cy="8.5" r="3.3" />
+        <path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" />
+      </svg>
+    ),
+  },
+  {
     id: 'shoot',
     label: '545 Coach',
     requiresMode: 'athlete',
@@ -80,16 +90,6 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 13.5 9 18l11-12" />
-      </svg>
-    ),
-  },
-  {
-    id: 'profile',
-    label: 'Profile',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-        <circle cx="12" cy="8.5" r="3.3" />
-        <path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" />
       </svg>
     ),
   },
@@ -116,17 +116,6 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
         <path d="M3.5 19c0.8-3.3 3-5 5.5-5s4.7 1.7 5.5 5" />
         <path d="M15.5 6.5a2.6 2.6 0 1 1 0 5.2" />
         <path d="M15.6 14c2.2 0.4 3.7 2 4.4 5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    requiresMode: 'athlete',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10-1.4 1.4" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -315,6 +304,7 @@ function SignedInApp({
             onIdentityChanged={onIdentityChanged}
             mode={mode}
             onSwitchRole={onSwitchRole}
+            onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
           />
         )}
         {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
@@ -325,6 +315,7 @@ function SignedInApp({
             onChange={updateSettings}
             boutCount={bouts.length}
             onDataChanged={refresh}
+            onBack={() => setTab('profile')}
           />
         )}
       </main>

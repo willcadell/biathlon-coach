@@ -228,21 +228,44 @@ export interface Membership {
   clubId: string
   clubName: string
   logoPath: string | null
+  /** Null when the athlete hasn't been assigned to a program in this club
+   *  yet — see athlete_memberships.program_id. */
+  programName: string | null
 }
 
 export async function myMemberships(): Promise<Membership[]> {
   const athleteId = await currentUserId()
   const { data: memberships, error: mErr } = await supabase
     .from('athlete_memberships')
-    .select('club_id')
+    .select('club_id, program_id')
     .eq('athlete_id', athleteId)
   if (mErr) throw mErr
-  const clubIds = [...new Set((memberships ?? []).map((m) => m.club_id as string))]
-  if (clubIds.length === 0) return []
+  if (!memberships || memberships.length === 0) return []
 
-  const { data, error } = await supabase.from('clubs').select('id, name, logo_path').in('id', clubIds)
-  if (error) throw error
-  return (data ?? []).map((c) => ({ clubId: c.id, clubName: c.name, logoPath: c.logo_path }))
+  const clubIds = [...new Set(memberships.map((m) => m.club_id as string))]
+  const programIds = [...new Set(memberships.map((m) => m.program_id as string | null).filter((id): id is string => id !== null))]
+
+  const [{ data: clubs, error: cErr }, { data: programs, error: pErr }] = await Promise.all([
+    supabase.from('clubs').select('id, name, logo_path').in('id', clubIds),
+    programIds.length > 0
+      ? supabase.from('programs').select('id, name').in('id', programIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+  ])
+  if (cErr) throw cErr
+  if (pErr) throw pErr
+
+  const clubById = new Map((clubs ?? []).map((c) => [c.id, c]))
+  const programNameById = new Map((programs ?? []).map((p) => [p.id, p.name]))
+
+  return memberships.map((m) => {
+    const club = clubById.get(m.club_id as string)
+    return {
+      clubId: m.club_id as string,
+      clubName: club?.name ?? '',
+      logoPath: club?.logo_path ?? null,
+      programName: m.program_id ? programNameById.get(m.program_id as string) ?? null : null,
+    }
+  })
 }
 
 export async function leaveClub(clubId: string): Promise<void> {

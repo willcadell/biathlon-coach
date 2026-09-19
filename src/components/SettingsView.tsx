@@ -11,9 +11,10 @@ interface Props {
   onChange: (s: Settings) => void
   boutCount: number
   onDataChanged: () => void
+  onBack: () => void
 }
 
-export function SettingsView({ settings, onChange, boutCount, onDataChanged }: Props) {
+export function SettingsView({ settings, onChange, boutCount, onDataChanged, onBack }: Props) {
   const [check, setCheck] = useState<KeyCheck | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -44,7 +45,8 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged }: P
 
   return (
     <>
-      <h1>Settings</h1>
+      <button className="link" onClick={onBack}>← Profile</button>
+      <h1 style={{ marginTop: 10 }}>Settings</h1>
 
       <h2>Your target</h2>
       <div className="card">
