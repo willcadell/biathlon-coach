@@ -29,6 +29,14 @@ export async function becomeCoach(displayName: string): Promise<Coach> {
   return { id: userId, displayName }
 }
 
+/** Renaming an existing coach identity — distinct from becomeCoach, which
+ *  reads as "set this identity up" even though the underlying upsert would
+ *  work either way. */
+export async function updateCoachDisplayName(coachId: string, displayName: string): Promise<void> {
+  const { error } = await supabase.from('coaches').update({ display_name: displayName }).eq('id', coachId)
+  if (error) throw error
+}
+
 export interface Club {
   id: string
   name: string

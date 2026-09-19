@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { ensureAthleteRow, getAthlete, signOut, updateDisplayName } from '../lib/auth'
 import {
-  becomeCoach, findClubByJoinCode, joinClubAsAthlete, leaveClub, myCoachedClubs, myMemberships,
+  becomeCoach, findClubByJoinCode, getCoach, joinClubAsAthlete, leaveClub, myCoachedClubs, myMemberships,
+  updateCoachDisplayName,
   type Club, type ClubMatch, type Membership,
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
@@ -152,6 +153,11 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   const [saved, setSaved] = useState(false)
   const [settingUp, setSettingUp] = useState(false)
 
+  const [coachName, setCoachName] = useState('')
+  const [coachLoaded, setCoachLoaded] = useState(false)
+  const [coachSaving, setCoachSaving] = useState(false)
+  const [coachSaved, setCoachSaved] = useState(false)
+
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [membershipsError, setMembershipsError] = useState('')
   const [code, setCode] = useState('')
@@ -177,6 +183,26 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       .catch((e) => console.error('Could not load athlete profile', e))
     refreshMemberships()
   }, [session.user.id, hasAthlete])
+
+  useEffect(() => {
+    if (!hasCoach) return
+    void getCoach(session.user.id)
+      .then((c) => {
+        setCoachName(c?.displayName ?? '')
+        setCoachLoaded(true)
+      })
+      .catch((e) => console.error('Could not load coach profile', e))
+  }, [session.user.id, hasCoach])
+
+  async function saveCoachName() {
+    setCoachSaving(true)
+    try {
+      await updateCoachDisplayName(session.user.id, coachName.trim())
+      setCoachSaved(true)
+    } finally {
+      setCoachSaving(false)
+    }
+  }
 
   async function setUpAthlete() {
     setSettingUp(true)
@@ -236,6 +262,33 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
         {hasCoach && <CoachedClubsCard />}
 
+        <h2>Coach details</h2>
+        <div className="card">
+          <label className="field">
+            <span>
+              Name
+              <small>Shown to athletes and other coaches on any club you're part of.</small>
+            </span>
+            <input
+              type="text"
+              value={coachName}
+              disabled={!coachLoaded}
+              onChange={(e) => {
+                setCoachName(e.target.value)
+                setCoachSaved(false)
+              }}
+            />
+          </label>
+          <button
+            className="secondary"
+            onClick={() => void saveCoachName()}
+            disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
+          >
+            {coachSaving ? 'Saving…' : 'Save'}
+          </button>
+          {coachSaved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+        </div>
+
         <h2>Athlete details</h2>
         <div className="card">
           <p style={{ marginTop: 0 }}>
@@ -264,32 +317,67 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
       {hasCoach && <CoachedClubsCard />}
 
-      <h2>Athlete details</h2>
-      <div className="card">
-        <label className="field">
-          <span>
-            Name
-            <small>Shown to a coach who adds you to their club or program.</small>
-          </span>
-          <input
-            type="text"
-            value={name}
-            disabled={!loaded}
-            onChange={(e) => {
-              setName(e.target.value)
-              setSaved(false)
-            }}
-          />
-        </label>
-        <button
-          className="secondary"
-          onClick={() => void save()}
-          disabled={!loaded || saving || name.trim().length === 0}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        {saved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
-      </div>
+      {mode === 'athlete' && (
+        <>
+          <h2>Athlete details</h2>
+          <div className="card">
+            <label className="field">
+              <span>
+                Name
+                <small>Shown to a coach who adds you to their club or program.</small>
+              </span>
+              <input
+                type="text"
+                value={name}
+                disabled={!loaded}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setSaved(false)
+                }}
+              />
+            </label>
+            <button
+              className="secondary"
+              onClick={() => void save()}
+              disabled={!loaded || saving || name.trim().length === 0}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            {saved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+          </div>
+        </>
+      )}
+
+      {mode === 'coach' && (
+        <>
+          <h2>Coach details</h2>
+          <div className="card">
+            <label className="field">
+              <span>
+                Name
+                <small>Shown to athletes and other coaches on any club you're part of.</small>
+              </span>
+              <input
+                type="text"
+                value={coachName}
+                disabled={!coachLoaded}
+                onChange={(e) => {
+                  setCoachName(e.target.value)
+                  setCoachSaved(false)
+                }}
+              />
+            </label>
+            <button
+              className="secondary"
+              onClick={() => void saveCoachName()}
+              disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
+            >
+              {coachSaving ? 'Saving…' : 'Save'}
+            </button>
+            {coachSaved && <span className="meta" style={{ marginLeft: 10 }}>Saved.</span>}
+          </div>
+        </>
+      )}
 
       <h2>Your clubs</h2>
       <div className="card">
