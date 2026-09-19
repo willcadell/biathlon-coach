@@ -7,6 +7,7 @@ import {
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
+import { CreateClub, JoinClubAsCoach } from './CoachView'
 
 interface Props {
   session: Session
@@ -79,11 +80,12 @@ function CoachedClubsCard() {
   const [clubs, setClubs] = useState<Club[] | null>(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const refreshClubs = () =>
     void myCoachedClubs()
       .then(setClubs)
       .catch((e) => setError(errorMessage(e, 'Could not load the clubs you coach. Check your connection and try again.')))
-  }, [])
+
+  useEffect(refreshClubs, [])
 
   if (error) {
     return (
@@ -100,9 +102,7 @@ function CoachedClubsCard() {
       <h2>Clubs you coach</h2>
       <div className="card">
         {clubs.length === 0 ? (
-          <p className="meta" style={{ marginTop: 0 }}>
-            Not coaching any clubs yet — create or join one from the Coach tab.
-          </p>
+          <p className="meta" style={{ marginTop: 0 }}>Not coaching any clubs yet.</p>
         ) : (
           clubs.map((c) => (
             <div key={c.id} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
@@ -116,6 +116,12 @@ function CoachedClubsCard() {
           ))
         )}
       </div>
+
+      <h3 style={{ marginTop: 16 }}>New club</h3>
+      <CreateClub onCreated={(c) => setClubs((prev) => [...(prev ?? []), c])} />
+
+      <h3 style={{ marginTop: 16 }}>Join an existing club</h3>
+      <JoinClubAsCoach onJoined={refreshClubs} />
     </>
   )
 }

@@ -219,7 +219,10 @@ function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
   )
 }
 
-function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
+/** Also used from Profile, right alongside the clubs a coach already has —
+ *  creating a club is a coach-identity action, not something tied to
+ *  drilling into a specific one, the way the rest of the Coach tab is. */
+export function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -251,7 +254,9 @@ function CreateClub({ onCreated }: { onCreated: (club: Club) => void }) {
   )
 }
 
-function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
+/** Also used from Profile, alongside CreateClub — see its own export
+ *  comment for why. */
+export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
   const [code, setCode] = useState('')
   const [match, setMatch] = useState<ClubMatch | null>(null)
   const [error, setError] = useState('')
@@ -507,7 +512,7 @@ function useCoachAndClubs(session: Session) {
 }
 
 export function CoachView({ session, onIdentityChanged }: Props) {
-  const { coach, setCoach, clubs, setClubs, loadError, refreshClubs } = useCoachAndClubs(session)
+  const { coach, setCoach, clubs, loadError, refreshClubs } = useCoachAndClubs(session)
   const [openClubId, setOpenClubId] = useState<string | null>(null)
 
   if (loadError) {
@@ -548,7 +553,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       <p className="lede">Coaching as {coach.displayName || session.user.email}.</p>
 
       <h2>Your clubs</h2>
-      {clubs.length === 0 && <p className="meta">Nothing yet — create a club below to get a join code.</p>}
+      {clubs.length === 0 && <p className="meta">Nothing yet — create or join one from your Profile.</p>}
       {clubs.map((c) => (
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
           <ClubLogo logoPath={c.logoPath} size={40} />
@@ -559,12 +564,6 @@ export function CoachView({ session, onIdentityChanged }: Props) {
           <span className="meta" aria-hidden="true">›</span>
         </button>
       ))}
-
-      <h2 style={{ marginTop: 16 }}>New club</h2>
-      <CreateClub onCreated={(c) => setClubs((prev) => [...prev, c])} />
-
-      <h2 style={{ marginTop: 16 }}>Join an existing club</h2>
-      <JoinClubAsCoach onJoined={refreshClubs} />
     </>
   )
 }
