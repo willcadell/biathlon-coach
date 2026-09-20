@@ -363,20 +363,30 @@ export function AnalysisView({
               <div className="n">{raceCount} race{raceCount === 1 ? '' : 's'}</div>
             </div>
           </div>
-          {raceMetalByType.size > 0 && (
-            <div className="stats" style={{ marginTop: 8, gridTemplateColumns: `repeat(${raceMetalByType.size}, 1fr)` }}>
-              {[...raceMetalByType.entries()].map(([type, bs]) => {
-                const n = raceCountByType.get(type) ?? 0
-                return (
-                  <div className="stat" key={type}>
-                    <div className="k">{RACE_TYPE_LABEL[type]}</div>
-                    <div className="v">{metalPct(bs)}</div>
-                    <div className="n">{n} race{n === 1 ? '' : 's'}</div>
+          {[...raceMetalByType.entries()].map(([type, bs]) => {
+            const n = raceCountByType.get(type) ?? 0
+            const prone = bs.filter((b) => b.position === 'prone')
+            const standing = bs.filter((b) => b.position === 'standing')
+            return (
+              <div key={type} style={{ marginTop: 12 }}>
+                <p className="meta" style={{ marginBottom: 4 }}>
+                  {RACE_TYPE_LABEL[type]} · {n} race{n === 1 ? '' : 's'}
+                </p>
+                <div className="stats">
+                  <div className="stat">
+                    <div className="k">Prone</div>
+                    <div className="v">{metalPct(prone)}</div>
+                    <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <div className="stat">
+                    <div className="k">Standing</div>
+                    <div className="v">{metalPct(standing)}</div>
+                    <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </>
       )}
 
