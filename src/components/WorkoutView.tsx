@@ -649,8 +649,8 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         />
 
         <div className="row" style={{ marginTop: 10 }}>
-          <button className="secondary danger" onClick={handleCancel}>Cancel session</button>
-          <button className="primary" onClick={onFinish}>Finish session</button>
+          <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
+          <button className="primary" style={{ flex: 2 }} onClick={onFinish}>Finish session</button>
         </div>
       </>
     )
@@ -785,8 +785,8 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
       />
 
       <div className="row" style={{ marginTop: 10 }}>
-        <button className="secondary danger" onClick={handleCancel}>Cancel session</button>
-        <button className="primary" onClick={onFinish}>Finish session</button>
+        <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
+        <button className="primary" style={{ flex: 2 }} onClick={onFinish}>Finish session</button>
       </div>
     </>
   )
