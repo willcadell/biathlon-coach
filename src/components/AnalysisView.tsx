@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { Bout, MetalBout, Settings, Workout } from '../lib/types'
+import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
+import { RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, missCount, targetStats } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
@@ -27,6 +28,22 @@ function metalPct(bouts: MetalBout[]): string {
   if (!shots) return '—'
   const misses = bouts.reduce((n, b) => n + missCount(hitsOf(b)), 0)
   return `${Math.round(((shots - misses) / shots) * 100)}%`
+}
+
+/** Minutes logged in dryfire workouts, in three rolling windows — the last
+ *  7 and 30 days, not calendar week/month, same rolling-window convention
+ *  the rest of this view uses (see WINDOW_DAYS above). */
+function dryfireMinutes(workouts: Workout[]): { week: number; month: number; total: number } {
+  const dryfire = workouts.filter((w) => w.workoutType === 'dryfire')
+  const now = Date.now()
+  const since = (days: number) => now - days * 86400_000
+  const sum = (cutoff: number) =>
+    dryfire.filter((w) => new Date(w.startedAt).getTime() >= cutoff).reduce((n, w) => n + w.dryfireMinutes, 0)
+  return {
+    week: sum(since(7)),
+    month: sum(since(30)),
+    total: dryfire.reduce((n, w) => n + w.dryfireMinutes, 0),
+  }
 }
 
 export function AnalysisView({
@@ -69,6 +86,23 @@ export function AnalysisView({
     const cutoff = Date.now() - WINDOW_DAYS * 86400_000
     return bouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff).slice(0, MAX_BOUTS)
   }, [bouts])
+
+  // Race metal bouts, grouped by the format they were raced under — a coach
+  // wants to know how a sprint compares to a pursuit, not just one blended
+  // number across every format ever raced.
+  const raceTypeByWorkoutId = new Map(workouts.filter((w) => w.raceType).map((w) => [w.id, w.raceType as RaceType]))
+  const raceMetal = metalBouts.filter((b) => raceTypeByWorkoutId.has(b.workoutId))
+  const raceMetalByType = new Map<RaceType, MetalBout[]>()
+  for (const b of raceMetal) {
+    const type = raceTypeByWorkoutId.get(b.workoutId)
+    if (!type) continue
+    raceMetalByType.set(type, [...(raceMetalByType.get(type) ?? []), b])
+  }
+  const raceCount = new Set(raceMetal.map((b) => b.workoutId)).size
+  const raceCountByType = new Map<RaceType, number>(
+    [...raceMetalByType.entries()].map(([type, bs]) => [type, new Set(bs.map((b) => b.workoutId)).size]),
+  )
+  const dryfire = dryfireMinutes(workouts)
 
   const findings = useMemo(() => analyse(recent, settings, workouts), [recent, settings, workouts])
   const plan = useMemo(() => recommend(findings), [findings])
@@ -315,6 +349,53 @@ export function AnalysisView({
                 <div className="n">{t.hits}/{t.bouts}</div>
               </div>
             ))}
+          </div>
+        </>
+      )}
+
+      {raceCount > 0 && (
+        <>
+          <h3 style={{ marginTop: 24 }}>Race performance</h3>
+          <div className="stats">
+            <div className="stat">
+              <div className="k">Overall</div>
+              <div className="v">{metalPct(raceMetal)}</div>
+              <div className="n">{raceCount} race{raceCount === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+          {raceMetalByType.size > 0 && (
+            <div className="stats" style={{ marginTop: 8, gridTemplateColumns: `repeat(${raceMetalByType.size}, 1fr)` }}>
+              {[...raceMetalByType.entries()].map(([type, bs]) => {
+                const n = raceCountByType.get(type) ?? 0
+                return (
+                  <div className="stat" key={type}>
+                    <div className="k">{RACE_TYPE_LABEL[type]}</div>
+                    <div className="v">{metalPct(bs)}</div>
+                    <div className="n">{n} race{n === 1 ? '' : 's'}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {dryfire.total > 0 && (
+        <>
+          <h3 style={{ marginTop: 24 }}>Dry-fire</h3>
+          <div className="stats three">
+            <div className="stat">
+              <div className="k">This week</div>
+              <div className="v">{dryfire.week}<small>min</small></div>
+            </div>
+            <div className="stat">
+              <div className="k">This month</div>
+              <div className="v">{dryfire.month}<small>min</small></div>
+            </div>
+            <div className="stat">
+              <div className="k">Total</div>
+              <div className="v">{dryfire.total}<small>min</small></div>
+            </div>
           </div>
         </>
       )}
