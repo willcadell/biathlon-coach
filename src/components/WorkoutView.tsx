@@ -547,6 +547,10 @@ interface Props {
   entries: WorkoutEntry[]
   onStart: (kind: StartKind) => Promise<void>
   onFinish: () => void
+  /** Deletes the workout entirely (and anything already logged in it) and
+   *  returns to "Start a session" — distinct from Finish, which just stops
+   *  adding to a workout that's kept as-is. */
+  onCancel: () => void
   onWorkoutChanged: (workout: Workout) => void
   onDataChanged: () => void
 }
@@ -557,7 +561,7 @@ interface Props {
  * actually dialed in logged once at the workout level; a dryfire session is
  * just time spent and how it went, no range required.
  */
-export function WorkoutView({ settings, workout, entries, onStart, onFinish, onWorkoutChanged, onDataChanged }: Props) {
+export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged }: Props) {
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
@@ -582,6 +586,11 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
     } finally {
       setStarting(null)
     }
+  }
+
+  function handleCancel() {
+    if (!confirm('Cancel this session? Everything logged in it — bouts, photos, notes — will be deleted. This cannot be undone.')) return
+    onCancel()
   }
 
   if (!workout) {
@@ -639,7 +648,10 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
           onChange={(e) => onWorkoutChanged({ ...workout, notes: e.target.value })}
         />
 
-        <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish session</button>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="secondary danger" onClick={handleCancel}>Cancel session</button>
+          <button className="primary" onClick={onFinish}>Finish session</button>
+        </div>
       </>
     )
   }
@@ -772,7 +784,10 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onW
         onChange={(e) => onWorkoutChanged({ ...workout, notes: e.target.value })}
       />
 
-      <button className="secondary" style={{ marginTop: 10 }} onClick={onFinish}>Finish session</button>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="secondary danger" onClick={handleCancel}>Cancel session</button>
+        <button className="primary" onClick={onFinish}>Finish session</button>
+      </div>
     </>
   )
 }

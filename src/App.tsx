@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
 import { scoringContext } from './lib/types'
-import { allBouts, allMetalBouts, allWorkouts, putWorkout } from './lib/db'
+import { allBouts, allMetalBouts, allWorkouts, deleteWorkout, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
 import { uuid } from './lib/id'
 import { loadSettings, saveSettings } from './lib/settings'
@@ -275,6 +275,13 @@ function SignedInApp({
     refresh()
   }
 
+  async function cancelWorkout() {
+    if (!activeWorkout) return
+    await deleteWorkout(activeWorkout.id)
+    setActiveWorkout(null)
+    refresh()
+  }
+
   /**
    * Update local state immediately, before the write even lands, and persist
    * in the background. Awaiting the write first (then re-fetching) left a gap
@@ -298,6 +305,7 @@ function SignedInApp({
             entries={activeEntries}
             onStart={startWorkout}
             onFinish={() => setActiveWorkout(null)}
+            onCancel={() => void cancelWorkout()}
             onWorkoutChanged={updateWorkout}
             onDataChanged={refresh}
           />
