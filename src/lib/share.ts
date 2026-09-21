@@ -1,9 +1,13 @@
+import QRCode from 'qrcode'
 import type { Bout, Position, Workout } from './types'
 import { HIT_ZONE_MM, faceById } from './types'
 import { ringRadii } from './scoring'
 
 const WIDTH = 1080
 const HEIGHT = 1350
+
+// Will move once there's a permanent domain — see shareTargetImage's own note.
+const APP_URL = 'https://545coach.netlify.app'
 
 // Fixed literal colors, independent of the viewer's own light/dark theme —
 // a shared image should look the same to everyone it's shared with, not
@@ -22,10 +26,27 @@ const COLORS = {
   ellipse: '#c96a3a',
   textPrimary: '#f4f4f2',
   textMuted: '#9a9ea8',
-  accent: '#6fa8dc',
 }
 
 const POSITION_LABEL: Record<Position, string> = { prone: 'Prone', standing: 'Standing' }
+
+/** A trading-card "grade" from the bout's score — the border, badge, and
+ *  score colour all key off this, and the tagline turns the raw number into
+ *  something worth posting instead of just a stat. Kept encouraging at the
+ *  low end, same spirit as diagnostics.ts staying conservative rather than
+ *  ever reading as a scolding. */
+interface Tier {
+  name: string
+  tagline: string
+  color: string
+}
+
+function tierFor(pct: number): Tier {
+  if (pct >= 90) return { name: 'ELITE', tagline: 'Outstanding session!', color: '#e0b64c' }
+  if (pct >= 75) return { name: 'SHARP', tagline: 'Great session!', color: '#8fb4d9' }
+  if (pct >= 55) return { name: 'SOLID', tagline: 'Solid work.', color: '#c98a58' }
+  return { name: 'LOGGED', tagline: 'Logged and learning.', color: '#9aa0a8' }
+}
 
 /** The bout's ring diagram — the same picture TargetPlot draws, redrawn in
  *  plain Canvas 2D so it can be flattened into one exportable image. */
@@ -139,15 +160,64 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   return cy
 }
 
-/** Renders a precision bout as a single, self-contained image sized for an
- *  Instagram feed post — the target, its score, and the workout it came
- *  from, flattened so it can be shared as one file. */
-export function buildTargetShareImage(bout: Bout, workout: Workout): Blob | Promise<Blob> {
+/** A tier-graded corner badge — the closest thing this card has to foil on
+ *  a physical trading card. */
+function drawBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
+  ctx.save()
+  ctx.font = '800 26px -apple-system, sans-serif'
+  const textWidth = ctx.measureText(tier.name).width
+  const paddingX = 22
+  const w = textWidth + paddingX * 2
+  const h = 52
+  const x = WIDTH - 64 - w
+  const y = 48
+  const r = h / 2
+
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+  ctx.fillStyle = tier.color
+  ctx.fill()
+
+  ctx.fillStyle = COLORS.bgBottom
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(tier.name, x + w / 2, y + h / 2 + 2)
+  ctx.restore()
+}
+
+/** A QR square with its own light backing, so it stays scannable regardless
+ *  of what's behind it on the card. */
+async function drawQrCode(ctx: CanvasRenderingContext2D, url: string, x: number, y: number, size: number) {
+  const pad = 16
+  ctx.fillStyle = COLORS.paper
+  ctx.fillRect(x - pad, y - pad, size + pad * 2, size + pad * 2)
+
+  const qrCanvas = document.createElement('canvas')
+  await QRCode.toCanvas(qrCanvas, url, {
+    width: size,
+    margin: 0,
+    color: { dark: COLORS.bgBottom, light: COLORS.paper },
+  })
+  ctx.drawImage(qrCanvas, x, y, size, size)
+}
+
+/** Renders a precision bout as a single, self-contained trading card sized
+ *  for an Instagram feed post — the target, its score and grade, and a QR
+ *  code back to the app, flattened so it can be shared as one file. */
+export async function buildTargetShareImage(bout: Bout, workout: Workout): Promise<Blob> {
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
   canvas.height = HEIGHT
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('This browser could not create an image surface.')
+
+  const pct = bout.metrics.ringPossible > 0 ? (bout.metrics.ringTotal / bout.metrics.ringPossible) * 100 : 0
+  const tier = tierFor(pct)
 
   const bg = ctx.createLinearGradient(0, 0, 0, HEIGHT)
   bg.addColorStop(0, COLORS.bgTop)
@@ -155,42 +225,62 @@ export function buildTargetShareImage(bout: Bout, workout: Workout): Blob | Prom
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
 
+  // The card frame — a trading card's defining feature, graded in the
+  // tier's own colour.
+  const frameInset = 22
+  ctx.strokeStyle = tier.color
+  ctx.lineWidth = 6
+  ctx.strokeRect(frameInset, frameInset, WIDTH - frameInset * 2, HEIGHT - frameInset * 2)
+
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = 'left'
   ctx.fillStyle = COLORS.textMuted
-  ctx.font = '600 30px -apple-system, sans-serif'
+  ctx.font = '600 28px -apple-system, sans-serif'
   ctx.fillText('545 COACH', 64, 84)
+
+  drawBadge(ctx, tier)
 
   const title = workout.name || new Date(workout.startedAt).toLocaleDateString(undefined, {
     month: 'long', day: 'numeric', year: 'numeric',
   })
   ctx.fillStyle = COLORS.textPrimary
-  ctx.font = '700 58px -apple-system, sans-serif'
-  const titleBottom = wrapText(ctx, title, 64, 170, WIDTH - 128, 64)
+  ctx.font = '700 56px -apple-system, sans-serif'
+  const titleBottom = wrapText(ctx, title, 64, 172, WIDTH - 128, 62)
 
-  ctx.fillStyle = COLORS.accent
+  ctx.fillStyle = tier.color
   ctx.font = '600 32px -apple-system, sans-serif'
-  ctx.fillText(POSITION_LABEL[bout.position], 64, titleBottom + 46)
+  ctx.fillText(`${POSITION_LABEL[bout.position]} · ${tier.tagline}`, 64, titleBottom + 46)
 
-  drawTargetDiagram(ctx, bout, WIDTH / 2, 650, 320)
+  drawTargetDiagram(ctx, bout, WIDTH / 2, 610, 280)
 
   ctx.textAlign = 'center'
-  ctx.fillStyle = COLORS.textPrimary
-  ctx.font = '800 116px -apple-system, sans-serif'
-  ctx.fillText(`${bout.metrics.ringTotal}/${bout.metrics.ringPossible}`, WIDTH / 2, 1120)
+  ctx.fillStyle = tier.color
+  ctx.font = '800 112px -apple-system, sans-serif'
+  ctx.fillText(`${bout.metrics.ringTotal}/${bout.metrics.ringPossible}`, WIDTH / 2, 1010)
 
-  ctx.font = '500 32px -apple-system, sans-serif'
+  ctx.font = '500 30px -apple-system, sans-serif'
   ctx.fillStyle = COLORS.textMuted
   ctx.fillText(
     `${bout.shots.length} shot${bout.shots.length === 1 ? '' : 's'} · ${bout.metrics.meanRadius.toFixed(0)} mm mean radius`,
-    WIDTH / 2, 1205,
+    WIDTH / 2, 1062,
   )
 
-  ctx.font = '500 26px -apple-system, sans-serif'
+  // Footer: a QR code back to the app on the left, the URL and date beside
+  // it — the "fine print" of the card.
+  const qrSize = 120
+  const footerY = 1170
+  await drawQrCode(ctx, APP_URL, 90, footerY, qrSize)
+
+  ctx.textAlign = 'left'
+  ctx.fillStyle = COLORS.textPrimary
+  ctx.font = '600 30px -apple-system, sans-serif'
+  ctx.fillText('Try 545 Coach', 90 + qrSize + 32, footerY + 44)
   ctx.fillStyle = COLORS.textMuted
+  ctx.font = '500 26px -apple-system, sans-serif'
+  ctx.fillText(APP_URL.replace('https://', ''), 90 + qrSize + 32, footerY + 78)
   ctx.fillText(
     new Date(bout.shotAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-    WIDTH / 2, 1280,
+    90 + qrSize + 32, footerY + 112,
   )
 
   return new Promise<Blob>((resolve, reject) => {
@@ -210,6 +300,10 @@ function shareFileName(bout: Bout, workout: Workout): string {
  * Shares a precision bout's target as one image via the OS share sheet, or
  * falls back to a plain download where file sharing isn't available (mainly
  * desktop browsers without the Web Share API).
+ *
+ * APP_URL above is the app's current Netlify subdomain — update it if the
+ * app ever moves to a permanent domain, so shared cards keep pointing
+ * somewhere real.
  */
 export async function shareTargetImage(bout: Bout, workout: Workout): Promise<void> {
   const blob = await buildTargetShareImage(bout, workout)
