@@ -356,11 +356,19 @@ export function AnalysisView({
       {raceCount > 0 && (
         <>
           <h3 style={{ marginTop: 24 }}>Race performance</h3>
-          <div className="stats">
+          <div className="stats three">
             <div className="stat">
               <div className="k">Overall</div>
               <div className="v">{metalPct(raceMetal)}</div>
               <div className="n">{raceCount} race{raceCount === 1 ? '' : 's'}</div>
+            </div>
+            <div className="stat">
+              <div className="k">Prone</div>
+              <div className="v">{metalPct(raceMetal.filter((b) => b.position === 'prone'))}</div>
+            </div>
+            <div className="stat">
+              <div className="k">Standing</div>
+              <div className="v">{metalPct(raceMetal.filter((b) => b.position === 'standing'))}</div>
             </div>
           </div>
           {[...raceMetalByType.entries()].map(([type, bs]) => {
