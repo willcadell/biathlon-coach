@@ -665,7 +665,9 @@ export function CoachView({ session, onIdentityChanged }: Props) {
           <ClubLogo logoPath={c.logoPath} size={40} />
           <div className="grow">
             <div className="title">{c.name}</div>
-            <div className="meta">Join code {c.joinCode}</div>
+            <div className="meta">
+              Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{c.joinCode}</strong>
+            </div>
           </div>
           <span className="meta" aria-hidden="true">›</span>
         </button>

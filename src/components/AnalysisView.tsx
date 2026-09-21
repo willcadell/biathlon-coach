@@ -197,7 +197,7 @@ export function AnalysisView({
     <>
       <h1>Analysis</h1>
 
-      <h3>Precision</h3>
+      <h2 style={{ marginTop: 0 }}>Precision</h2>
       <div className="stats three">
         <div className="stat">
           <div className="k">Overall</div>
@@ -306,7 +306,7 @@ export function AnalysisView({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
-        <h3 style={{ margin: 0 }}>Metal</h3>
+        <h2 style={{ margin: 0 }}>Metal</h2>
         {raceWorkoutIds.size > 0 && (
           <div className="seg" style={{ flex: 'none', width: 168 }}>
             {(['all', 'training', 'race'] as const).map((f) => (
@@ -338,7 +338,7 @@ export function AnalysisView({
       {targetsProne.length > 0 && (
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-            <h2 style={{ margin: 0 }}>Which targets get hit — prone</h2>
+            <h3 style={{ margin: 0 }}>Which targets get hit — prone</h3>
             <div className="seg" style={{ flex: 'none', width: 96 }}>
               {([5, 10, 20] as const).map((n) => (
                 <button
@@ -371,7 +371,7 @@ export function AnalysisView({
       {targetsStanding.length > 0 && (
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-            <h2 style={{ margin: 0 }}>Which targets get hit — standing</h2>
+            <h3 style={{ margin: 0 }}>Which targets get hit — standing</h3>
             <div className="seg" style={{ flex: 'none', width: 96 }}>
               {([5, 10, 20] as const).map((n) => (
                 <button
@@ -403,7 +403,7 @@ export function AnalysisView({
 
       {raceCount > 0 && (
         <>
-          <h3 style={{ marginTop: 24 }}>Race performance</h3>
+          <h2 style={{ marginTop: 24 }}>Race performance</h2>
 
           <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
           <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
@@ -429,7 +429,7 @@ export function AnalysisView({
 
       {dryfire.total > 0 && (
         <>
-          <h3 style={{ marginTop: 24 }}>Dry-fire</h3>
+          <h2 style={{ marginTop: 24 }}>Dry-fire</h2>
           <div className="stats three">
             <div className="stat">
               <div className="k">This week</div>

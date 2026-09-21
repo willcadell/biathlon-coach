@@ -149,7 +149,9 @@ function CoachedClubsCard() {
                 {c.name}
                 {c.isAdmin && <span className="pill" style={{ marginLeft: 6 }}>Admin</span>}
               </span>
-              <span className="meta">Join code {c.joinCode}</span>
+              <span className="meta">
+                Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{c.joinCode}</strong>
+              </span>
             </div>
           ))
         )}
@@ -352,7 +354,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
         <h2>Account</h2>
         <div className="card">
-          <p>Signed in as {session.user.email}.</p>
+          <p>{session.user.email}</p>
           <button className="secondary" onClick={() => void signOut()}>
             Sign out
           </button>
@@ -526,7 +528,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
       <h2>Account</h2>
       <div className="card">
-        <p>Signed in as {session.user.email}.</p>
+        <p>{session.user.email}</p>
         <button className="secondary" onClick={() => void signOut()}>
           Sign out
         </button>
