@@ -116,6 +116,12 @@ export function SignInView() {
             log their own training.
           </p>
           {error && <div className="notice error" style={{ marginTop: 12 }}>{error}</div>}
+
+          <p className="meta" style={{ marginTop: 20, textAlign: 'center' }}>
+            <a href="/privacy" className="link">Privacy Policy</a>
+            {' · '}
+            <a href="/terms" className="link">Terms and Conditions</a>
+          </p>
         </div>
       </main>
     </div>

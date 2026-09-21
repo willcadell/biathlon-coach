@@ -359,6 +359,11 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             Sign out
           </button>
         </div>
+        <p className="meta" style={{ textAlign: 'center' }}>
+          <a href="/privacy" className="link">Privacy Policy</a>
+          {' · '}
+          <a href="/terms" className="link">Terms and Conditions</a>
+        </p>
       </>
     )
   }
@@ -533,6 +538,11 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           Sign out
         </button>
       </div>
+      <p className="meta" style={{ textAlign: 'center' }}>
+        <a href="/privacy" className="link">Privacy Policy</a>
+        {' · '}
+        <a href="/terms" className="link">Terms and Conditions</a>
+      </p>
     </>
   )
 }

@@ -15,6 +15,9 @@ import { AnalysisView } from './components/AnalysisView'
 import { ProfileView } from './components/ProfileView'
 import { CoachView, ClubSettingsView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
+import { PrivacyPolicyView } from './components/PrivacyPolicyView'
+import { TermsView } from './components/TermsView'
+import { NotFoundView } from './components/NotFoundView'
 
 const ACTIVE_WORKOUT_KEY = 'biathlon-coach:active-workout'
 
@@ -118,7 +121,21 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
   },
 ]
 
+/** Privacy and Terms need to be reachable without signing in — a coach
+ *  linking a minor's parent to them, or an app-store reviewer, shouldn't
+ *  need a Google account first. Checked ahead of the auth gate below, and
+ *  anything else unrecognized falls through to the 404 page rather than a
+ *  blank screen or Netlify's own default. */
 export default function App() {
+  const path = window.location.pathname
+  if (path === '/privacy') return <PrivacyPolicyView />
+  if (path === '/terms') return <TermsView />
+  if (path !== '/') return <NotFoundView />
+
+  return <AuthenticatedApp />
+}
+
+function AuthenticatedApp() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => onAuthChange(setSession), [])
