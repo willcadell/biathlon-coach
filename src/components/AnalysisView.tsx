@@ -372,7 +372,12 @@ export function AnalysisView({
                 <p className="meta" style={{ marginBottom: 4 }}>
                   {RACE_TYPE_LABEL[type]} · {n} race{n === 1 ? '' : 's'}
                 </p>
-                <div className="stats">
+                <div className="stats three">
+                  <div className="stat">
+                    <div className="k">Overall</div>
+                    <div className="v">{metalPct(bs)}</div>
+                    <div className="n">{bs.length} bout{bs.length === 1 ? '' : 's'}</div>
+                  </div>
                   <div className="stat">
                     <div className="k">Prone</div>
                     <div className="v">{metalPct(prone)}</div>
