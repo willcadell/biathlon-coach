@@ -30,6 +30,43 @@ function metalPct(bouts: MetalBout[]): string {
   return `${Math.round(((shots - misses) / shots) * 100)}%`
 }
 
+/** A biathlon season runs November to May, crossing the calendar year — the
+ *  "start year" of a date's season is that November's year. June through
+ *  October (the off-season) counts toward the upcoming season rather than
+ *  the one just finished, so checking in mid-summer already reads as "this
+ *  season" for the winter ahead. */
+function seasonStartYear(date: Date): number {
+  const month = date.getMonth() + 1
+  return month <= 5 ? date.getFullYear() - 1 : date.getFullYear()
+}
+
+const seasonLabel = (startYear: number): string => `${String(startYear).slice(-2)}/${String(startYear + 1).slice(-2)}`
+
+/** Overall/prone/standing hit rate for one group of metal bouts — reused
+ *  for the season comparison and the by-format breakdown below it, so both
+ *  read identically. */
+function MetalPositionStats({ bouts, races }: { bouts: MetalBout[]; races: number }) {
+  const prone = bouts.filter((b) => b.position === 'prone')
+  const standing = bouts.filter((b) => b.position === 'standing')
+  return (
+    <div className="stats three">
+      <div className="stat">
+        <div className="k">Overall</div>
+        <div className="v">{metalPct(bouts)}</div>
+        <div className="n">{races} race{races === 1 ? '' : 's'}</div>
+      </div>
+      <div className="stat">
+        <div className="k">Prone</div>
+        <div className="v">{metalPct(prone)}</div>
+      </div>
+      <div className="stat">
+        <div className="k">Standing</div>
+        <div className="v">{metalPct(standing)}</div>
+      </div>
+    </div>
+  )
+}
+
 /** Minutes logged in dryfire workouts, in three rolling windows — the last
  *  7 and 30 days, not calendar week/month, same rolling-window convention
  *  the rest of this view uses (see WINDOW_DAYS above). */
@@ -102,6 +139,17 @@ export function AnalysisView({
   const raceCountByType = new Map<RaceType, number>(
     [...raceMetalByType.entries()].map(([type, bs]) => [type, new Set(bs.map((b) => b.workoutId)).size]),
   )
+
+  const raceWorkoutSeasonStart = new Map(
+    workouts.filter((w) => w.raceType).map((w) => [w.id, seasonStartYear(new Date(w.startedAt))]),
+  )
+  const thisSeasonStart = seasonStartYear(new Date())
+  const lastSeasonStart = thisSeasonStart - 1
+  const raceMetalForSeason = (start: number) => raceMetal.filter((b) => raceWorkoutSeasonStart.get(b.workoutId) === start)
+  const thisSeasonMetal = raceMetalForSeason(thisSeasonStart)
+  const lastSeasonMetal = raceMetalForSeason(lastSeasonStart)
+  const raceCountForSeason = (bs: MetalBout[]) => new Set(bs.map((b) => b.workoutId)).size
+
   const dryfire = dryfireMinutes(workouts)
 
   const findings = useMemo(() => analyse(recent, settings, workouts), [recent, settings, workouts])
@@ -356,50 +404,26 @@ export function AnalysisView({
       {raceCount > 0 && (
         <>
           <h3 style={{ marginTop: 24 }}>Race performance</h3>
-          <div className="stats three">
-            <div className="stat">
-              <div className="k">Overall</div>
-              <div className="v">{metalPct(raceMetal)}</div>
-              <div className="n">{raceCount} race{raceCount === 1 ? '' : 's'}</div>
+
+          <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
+          <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
+
+          {lastSeasonMetal.length > 0 && (
+            <>
+              <p className="meta" style={{ marginTop: 12, marginBottom: 4 }}>Last season ({seasonLabel(lastSeasonStart)})</p>
+              <MetalPositionStats bouts={lastSeasonMetal} races={raceCountForSeason(lastSeasonMetal)} />
+            </>
+          )}
+
+          <p className="meta" style={{ marginTop: 16, marginBottom: 4 }}>All-time by format</p>
+          {[...raceMetalByType.entries()].map(([type, bs]) => (
+            <div key={type} style={{ marginTop: 8 }}>
+              <p className="meta" style={{ marginBottom: 4 }}>
+                {RACE_TYPE_LABEL[type]} · {raceCountByType.get(type) ?? 0} race{(raceCountByType.get(type) ?? 0) === 1 ? '' : 's'}
+              </p>
+              <MetalPositionStats bouts={bs} races={raceCountByType.get(type) ?? 0} />
             </div>
-            <div className="stat">
-              <div className="k">Prone</div>
-              <div className="v">{metalPct(raceMetal.filter((b) => b.position === 'prone'))}</div>
-            </div>
-            <div className="stat">
-              <div className="k">Standing</div>
-              <div className="v">{metalPct(raceMetal.filter((b) => b.position === 'standing'))}</div>
-            </div>
-          </div>
-          {[...raceMetalByType.entries()].map(([type, bs]) => {
-            const n = raceCountByType.get(type) ?? 0
-            const prone = bs.filter((b) => b.position === 'prone')
-            const standing = bs.filter((b) => b.position === 'standing')
-            return (
-              <div key={type} style={{ marginTop: 12 }}>
-                <p className="meta" style={{ marginBottom: 4 }}>
-                  {RACE_TYPE_LABEL[type]} · {n} race{n === 1 ? '' : 's'}
-                </p>
-                <div className="stats three">
-                  <div className="stat">
-                    <div className="k">Overall</div>
-                    <div className="v">{metalPct(bs)}</div>
-                    <div className="n">{bs.length} bout{bs.length === 1 ? '' : 's'}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="k">Prone</div>
-                    <div className="v">{metalPct(prone)}</div>
-                    <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="k">Standing</div>
-                    <div className="v">{metalPct(standing)}</div>
-                    <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          ))}
         </>
       )}
 
