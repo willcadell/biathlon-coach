@@ -358,7 +358,7 @@ export async function rosterMetalBouts(athleteIds: string[]): Promise<MetalBout[
  *  either view unchanged. */
 export async function rosterWorkouts(athleteIds: string[]): Promise<Workout[]> {
   if (athleteIds.length === 0) return []
-  const { data: rows, error } = await supabase.from('workouts').select('*').in('athlete_id', athleteIds)
+  const { data: rows, error } = await supabase.from('workouts').select('*').in('athlete_id', athleteIds).order('started_at', { ascending: false })
   if (error) throw error
   const workoutIds = (rows ?? []).map((r) => r.id as string)
   if (workoutIds.length === 0) return []

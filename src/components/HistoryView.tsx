@@ -382,6 +382,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
   const total = bouts.reduce((n, b) => n + b.shots.length, 0)
   const metalShots = metalBouts.length * DISCS_PER_METAL_BOUT
+  const sortedWorkouts = [...workouts].sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const mixedFaces = new Set(bouts.map((b) => b.targetFaceId)).size > 1
 
   return (
@@ -401,7 +402,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           </button>
         )}
       </div>
-      {workouts.map((w) => {
+      {sortedWorkouts.map((w) => {
         const ownBouts = bouts.filter((b) => b.workoutId === w.id)
         const ownMetal = metalBouts.filter((m) => m.workoutId === w.id)
         return (
