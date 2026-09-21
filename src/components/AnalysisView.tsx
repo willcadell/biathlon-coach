@@ -119,7 +119,7 @@ export function AnalysisView({
     return targetStats(sorted.slice(0, standingWindow))
   }, [metalStanding, standingWindow])
 
-  if (bouts.length === 0 && metalBouts.length === 0) {
+  if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
       <>
         <h1>Analysis</h1>
