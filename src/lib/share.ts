@@ -11,12 +11,13 @@ const APP_URL = 'https://545coach.netlify.app'
 
 // Fixed literal colors, independent of the viewer's own light/dark theme —
 // a shared image should look the same to everyone it's shared with, not
-// shift with whoever generated it.
+// shift with whoever generated it. Values mirror the app's own light-theme
+// tokens (styles.css :root) rather than inventing a separate palette, so a
+// shared card, the icon, and the app itself all read as one brand.
 const COLORS = {
-  bgTop: '#1c1f24',
-  bgBottom: '#0e1013',
-  paper: '#ffffff',
-  black: '#17181c',
+  paperBase: '#f7f6f2', // ~ --page
+  paper: '#ffffff', // ~ --raised — target disc + QR backing
+  targetBlack: '#17181c', // the target's own scoring black, not a UI colour
   ringInner: '#4a4d55',
   ringOuter: '#cfd1d6',
   hitZone: 'rgba(111, 168, 220, 0.85)',
@@ -24,28 +25,38 @@ const COLORS = {
   flier: '#c0392b',
   centre: '#c96a3a',
   ellipse: '#c96a3a',
-  textPrimary: '#f4f4f2',
-  textMuted: '#9a9ea8',
+  textPrimary: '#171716', // ~ --text-primary
+  textMuted: '#83807a', // ~ --text-muted
+  border: 'rgba(23, 23, 22, 0.12)', // ~ --border
 }
 
 const POSITION_LABEL: Record<Position, string> = { prone: 'Prone', standing: 'Standing' }
 
-/** A trading-card "grade" from the bout's score — the border, badge, and
- *  score colour all key off this, and the tagline turns the raw number into
- *  something worth posting instead of just a stat. Kept encouraging at the
- *  low end, same spirit as diagnostics.ts staying conservative rather than
- *  ever reading as a scolding. */
+/** A trading-card "grade" from the bout's score. `wash` is a pale tint used
+ *  for the background glow and badge fill; `deep` is the saturated version
+ *  used for the frame and any text, kept legible on the card's light paper
+ *  background. Sharp and Solid reuse the app's own series-1/series-2 accents
+ *  so the card ties back to the rest of the app instead of inventing new
+ *  brand colours; Elite gets a one-off gold as its celebratory exception.
+ *  Tagline stays encouraging at the low end, same spirit as diagnostics.ts
+ *  staying conservative rather than ever reading as a scolding. */
 interface Tier {
   name: string
   tagline: string
-  color: string
+  wash: string
+  deep: string
 }
 
 function tierFor(pct: number): Tier {
-  if (pct >= 90) return { name: 'ELITE', tagline: 'Outstanding session!', color: '#e0b64c' }
-  if (pct >= 75) return { name: 'SHARP', tagline: 'Great session!', color: '#8fb4d9' }
-  if (pct >= 55) return { name: 'SOLID', tagline: 'Solid work.', color: '#c98a58' }
-  return { name: 'LOGGED', tagline: 'Logged and learning.', color: '#9aa0a8' }
+  if (pct >= 90) return { name: 'ELITE', tagline: 'Outstanding session!', wash: '#e0b64c', deep: '#8a6115' }
+  if (pct >= 75) return { name: 'SHARP', tagline: 'Great session!', wash: '#8fb4d9', deep: '#2a78d6' }
+  if (pct >= 55) return { name: 'SOLID', tagline: 'Solid work.', wash: '#c98a58', deep: '#c1541a' }
+  return { name: 'LOGGED', tagline: 'Logged and learning.', wash: '#9aa0a8', deep: '#6b6f76' }
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
 }
 
 /** The bout's ring diagram — the same picture TargetPlot draws, redrawn in
@@ -70,7 +81,7 @@ function drawTargetDiagram(ctx: CanvasRenderingContext2D, bout: Bout, cx: number
   ctx.fill()
 
   ctx.beginPath()
-  ctx.fillStyle = COLORS.black
+  ctx.fillStyle = COLORS.targetBlack
   ctx.arc(cx, cy, blackRadius * scale, 0, Math.PI * 2)
   ctx.fill()
 
@@ -180,28 +191,31 @@ function drawBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
   ctx.arcTo(x, y + h, x, y, r)
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
-  ctx.fillStyle = tier.color
+  ctx.fillStyle = tier.wash
   ctx.fill()
 
-  ctx.fillStyle = COLORS.bgBottom
+  ctx.fillStyle = tier.deep
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(tier.name, x + w / 2, y + h / 2 + 2)
   ctx.restore()
 }
 
-/** A QR square with its own light backing, so it stays scannable regardless
- *  of what's behind it on the card. */
+/** A QR square with its own light backing and a hairline border, so it stays
+ *  scannable and visually distinct on the card's own light background. */
 async function drawQrCode(ctx: CanvasRenderingContext2D, url: string, x: number, y: number, size: number) {
   const pad = 16
   ctx.fillStyle = COLORS.paper
   ctx.fillRect(x - pad, y - pad, size + pad * 2, size + pad * 2)
+  ctx.strokeStyle = COLORS.border
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(x - pad, y - pad, size + pad * 2, size + pad * 2)
 
   const qrCanvas = document.createElement('canvas')
   await QRCode.toCanvas(qrCanvas, url, {
     width: size,
     margin: 0,
-    color: { dark: COLORS.bgBottom, light: COLORS.paper },
+    color: { dark: COLORS.textPrimary, light: COLORS.paper },
   })
   ctx.drawImage(qrCanvas, x, y, size, size)
 }
@@ -219,16 +233,21 @@ export async function buildTargetShareImage(bout: Bout, workout: Workout): Promi
   const pct = bout.metrics.ringPossible > 0 ? (bout.metrics.ringTotal / bout.metrics.ringPossible) * 100 : 0
   const tier = tierFor(pct)
 
-  const bg = ctx.createLinearGradient(0, 0, 0, HEIGHT)
-  bg.addColorStop(0, COLORS.bgTop)
-  bg.addColorStop(1, COLORS.bgBottom)
-  ctx.fillStyle = bg
+  // A warm paper base — same as the app's own background — with a soft
+  // wash of the tier's colour glowing in from the top, like light through
+  // tinted glass, instead of a solid dark card.
+  ctx.fillStyle = COLORS.paperBase
+  ctx.fillRect(0, 0, WIDTH, HEIGHT)
+  const wash = ctx.createLinearGradient(0, 0, 0, HEIGHT * 0.8)
+  wash.addColorStop(0, hexToRgba(tier.wash, 0.28))
+  wash.addColorStop(1, hexToRgba(tier.wash, 0))
+  ctx.fillStyle = wash
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
 
   // The card frame — a trading card's defining feature, graded in the
   // tier's own colour.
   const frameInset = 22
-  ctx.strokeStyle = tier.color
+  ctx.strokeStyle = tier.deep
   ctx.lineWidth = 6
   ctx.strokeRect(frameInset, frameInset, WIDTH - frameInset * 2, HEIGHT - frameInset * 2)
 
@@ -247,14 +266,14 @@ export async function buildTargetShareImage(bout: Bout, workout: Workout): Promi
   ctx.font = '700 56px -apple-system, sans-serif'
   const titleBottom = wrapText(ctx, title, 64, 172, WIDTH - 128, 62)
 
-  ctx.fillStyle = tier.color
+  ctx.fillStyle = tier.deep
   ctx.font = '600 32px -apple-system, sans-serif'
   ctx.fillText(`${POSITION_LABEL[bout.position]} · ${tier.tagline}`, 64, titleBottom + 46)
 
   drawTargetDiagram(ctx, bout, WIDTH / 2, 610, 280)
 
   ctx.textAlign = 'center'
-  ctx.fillStyle = tier.color
+  ctx.fillStyle = tier.deep
   ctx.font = '800 112px -apple-system, sans-serif'
   ctx.fillText(`${bout.metrics.ringTotal}/${bout.metrics.ringPossible}`, WIDTH / 2, 1010)
 

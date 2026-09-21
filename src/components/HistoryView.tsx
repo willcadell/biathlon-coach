@@ -3,9 +3,11 @@ import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
+import { shareTargetImage } from '../lib/share'
+import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
-import { TrashIcon } from './icons'
+import { ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -101,6 +103,24 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sharingBoutId, setSharingBoutId] = useState<string | null>(null)
+  const [shareError, setShareError] = useState('')
+
+  async function shareBout(bout: Bout, workout: Workout | undefined) {
+    if (!workout) return
+    setSharingBoutId(bout.id)
+    setShareError('')
+    try {
+      await shareTargetImage(bout, workout)
+    } catch (e) {
+      // The user closing the share sheet without picking anything throws an
+      // AbortError — that is a cancel, not a failure worth reporting.
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      setShareError(errorMessage(e, 'Could not create a shareable image.'))
+    } finally {
+      setSharingBoutId(null)
+    }
+  }
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -164,19 +184,28 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         <h1 style={{ marginTop: 10 }}>{openBout.position === 'prone' ? 'Prone' : 'Standing'}</h1>
         <p className="lede">{fmt(openBout.shotAt)}</p>
         <ResultsView bout={openBout} settings={settings} workout={boutWorkout} imageUrl={openBoutImage} />
+        {shareError && <div className="notice error" style={{ marginTop: 16 }}>{shareError}</div>}
         {!readOnly && (
-          <button
-            className="secondary danger"
-            style={{ marginTop: 16 }}
-            onClick={async () => {
-              if (!confirm('Delete this bout and its photo? This cannot be undone.')) return
-              await deleteBout(openBout.id)
-              setOpenBoutId(null)
-              onChanged()
-            }}
-          >
-            Delete this bout
-          </button>
+          <div className="row" style={{ marginTop: 16 }}>
+            <button
+              className="secondary"
+              disabled={sharingBoutId === openBout.id}
+              onClick={() => void shareBout(openBout, boutWorkout)}
+            >
+              <ShareIcon /> Share
+            </button>
+            <button
+              className="secondary danger"
+              onClick={async () => {
+                if (!confirm('Delete this bout and its photo? This cannot be undone.')) return
+                await deleteBout(openBout.id)
+                setOpenBoutId(null)
+                onChanged()
+              }}
+            >
+              Delete this bout
+            </button>
+          </div>
         )}
       </>
     )
@@ -263,17 +292,38 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
 
         <h2>Entries</h2>
+        {shareError && <div className="notice error" style={{ marginBottom: 8 }}>{shareError}</div>}
         {entries.length === 0 && <p className="meta">Nothing was added to this workout.</p>}
         {entries.map((e) =>
           e.kind === 'precision' ? (
-            <button key={e.id} className="boutrow" onClick={() => setOpenBoutId(e.id)}>
-              {thumbs[e.id] ? <img src={thumbs[e.id]} alt="" /> : <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--grid)', flex: 'none' }} />}
-              <div className="grow">
-                <div className="title">{e.metrics.ringTotal}/{e.metrics.ringPossible} <span className="pill">{e.position}</span></div>
-                <div className="meta">{fmt(e.shotAt)} · {e.metrics.meanRadius.toFixed(0)} mm mean radius</div>
-              </div>
-              <span className="meta" aria-hidden="true">›</span>
-            </button>
+            <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
+              <button
+                onClick={() => setOpenBoutId(e.id)}
+                style={{
+                  display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0,
+                  background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit',
+                  textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                {thumbs[e.id] ? <img src={thumbs[e.id]} alt="" /> : <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--grid)', flex: 'none' }} />}
+                <div className="grow">
+                  <div className="title">{e.metrics.ringTotal}/{e.metrics.ringPossible} <span className="pill">{e.position}</span></div>
+                  <div className="meta">{fmt(e.shotAt)} · {e.metrics.meanRadius.toFixed(0)} mm mean radius</div>
+                </div>
+                <span className="meta" aria-hidden="true">›</span>
+              </button>
+              {!readOnly && (
+                <button
+                  className="link"
+                  aria-label="Share this target"
+                  disabled={sharingBoutId === e.id}
+                  onClick={() => void shareBout(e, openWorkout)}
+                  style={{ flex: 'none' }}
+                >
+                  <ShareIcon />
+                </button>
+              )}
+            </div>
           ) : (
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <div className="grow">
