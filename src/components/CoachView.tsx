@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Workout } from '../lib/types'
-import { DEFAULT_SETTINGS } from '../lib/types'
+import { DEFAULT_SETTINGS, scoringContext } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
+import { computeMetrics } from '../lib/geometry'
 import {
   addCoachNote, becomeCoach, coachesForClub, createClub, createProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, renameClub, rosterBouts,
@@ -363,11 +364,21 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
  * their device, never synced).
  */
 function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
-  const [bouts, setBouts] = useState<Bout[]>([])
+  const [rawBouts, setRawBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
+
+  // Recomputed from each bout's own shots rather than trusted from the
+  // stored `metrics` column — the athlete's own view already does this (see
+  // App.tsx), so a bout saved with a stale or missing metrics blob still
+  // reads correctly here instead of crashing the one view that trusted it
+  // as-is.
+  const bouts = useMemo(
+    () => rawBouts.map((b) => ({ ...b, metrics: computeMetrics(b.shots, b.position, scoringContext(b, DEFAULT_SETTINGS)) })),
+    [rawBouts],
+  )
 
   const refresh = () => {
     void Promise.all([
@@ -375,7 +386,7 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
       rosterMetalBouts([athlete.athleteId]),
       rosterWorkouts([athlete.athleteId]),
     ]).then(([b, m, w]) => {
-      setBouts(b)
+      setRawBouts(b)
       setMetalBouts(m)
       setWorkouts(w)
       setLoaded(true)

@@ -216,7 +216,7 @@ function analysePosition(
   }
 
   // --- The first shot after skiing in is its own skill.
-  const skied = group.filter((b) => b.context.skiedIn)
+  const skied = group.filter((b) => b.context?.skiedIn)
   if (skied.length >= 3) {
     const firstDev = mean(skied.map((b) => b.metrics.firstShotDeviation))
     const rest = mean(skied.map((b) => b.metrics.meanRadius))

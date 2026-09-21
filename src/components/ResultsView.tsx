@@ -222,7 +222,7 @@ export function ResultsView({
         </div>
       )}
 
-      {(bout.context.notes || bout.context.skiedIn) && (
+      {(bout.context?.notes || bout.context?.skiedIn) && (
         <div className="card" style={{ marginTop: 12 }}>
           <h3>Conditions</h3>
           <p className="meta" style={{ marginBottom: 0 }}>

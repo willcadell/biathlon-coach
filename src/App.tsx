@@ -18,6 +18,7 @@ import { SettingsView } from './components/SettingsView'
 import { PrivacyPolicyView } from './components/PrivacyPolicyView'
 import { TermsView } from './components/TermsView'
 import { NotFoundView } from './components/NotFoundView'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const ACTIVE_WORKOUT_KEY = 'biathlon-coach:active-workout'
 
@@ -315,43 +316,45 @@ function SignedInApp({
   return (
     <div className="app">
       <main className="main">
-        {tab === 'shoot' && (
-          <WorkoutView
-            settings={settings}
-            workout={activeWorkout}
-            entries={activeEntries}
-            onStart={startWorkout}
-            onFinish={() => setActiveWorkout(null)}
-            onCancel={() => void cancelWorkout()}
-            onWorkoutChanged={updateWorkout}
-            onDataChanged={refresh}
-          />
-        )}
-        {tab === 'analysis' && (
-          <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} />
-        )}
-        {tab === 'profile' && (
-          <ProfileView
-            session={session}
-            hasAthlete={identities.athlete}
-            hasCoach={identities.coach}
-            onIdentityChanged={onIdentityChanged}
-            mode={mode}
-            onSwitchRole={onSwitchRole}
-            onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
-          />
-        )}
-        {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
-        {tab === 'club' && <ClubSettingsView session={session} />}
-        {tab === 'settings' && (
-          <SettingsView
-            settings={settings}
-            onChange={updateSettings}
-            boutCount={bouts.length}
-            onDataChanged={refresh}
-            onBack={() => setTab('profile')}
-          />
-        )}
+        <ErrorBoundary key={tab}>
+          {tab === 'shoot' && (
+            <WorkoutView
+              settings={settings}
+              workout={activeWorkout}
+              entries={activeEntries}
+              onStart={startWorkout}
+              onFinish={() => setActiveWorkout(null)}
+              onCancel={() => void cancelWorkout()}
+              onWorkoutChanged={updateWorkout}
+              onDataChanged={refresh}
+            />
+          )}
+          {tab === 'analysis' && (
+            <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} />
+          )}
+          {tab === 'profile' && (
+            <ProfileView
+              session={session}
+              hasAthlete={identities.athlete}
+              hasCoach={identities.coach}
+              onIdentityChanged={onIdentityChanged}
+              mode={mode}
+              onSwitchRole={onSwitchRole}
+              onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
+            />
+          )}
+          {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
+          {tab === 'club' && <ClubSettingsView session={session} />}
+          {tab === 'settings' && (
+            <SettingsView
+              settings={settings}
+              onChange={updateSettings}
+              boutCount={bouts.length}
+              onDataChanged={refresh}
+              onBack={() => setTab('profile')}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       <nav className="tabs">
