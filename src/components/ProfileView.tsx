@@ -360,9 +360,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           </button>
         </div>
         <p className="meta" style={{ textAlign: 'center' }}>
-          <a href="/privacy" className="link">Privacy Policy</a>
+          <a href="/privacy" className="link" style={{ color: 'inherit' }}>Privacy Policy</a>
           {' · '}
-          <a href="/terms" className="link">Terms and Conditions</a>
+          <a href="/terms" className="link" style={{ color: 'inherit' }}>Terms and Conditions</a>
         </p>
       </>
     )
@@ -539,9 +539,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         </button>
       </div>
       <p className="meta" style={{ textAlign: 'center' }}>
-        <a href="/privacy" className="link">Privacy Policy</a>
+        <a href="/privacy" className="link" style={{ color: 'inherit' }}>Privacy Policy</a>
         {' · '}
-        <a href="/terms" className="link">Terms and Conditions</a>
+        <a href="/terms" className="link" style={{ color: 'inherit' }}>Terms and Conditions</a>
       </p>
     </>
   )
