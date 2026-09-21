@@ -351,6 +351,7 @@ export function AnalysisView({
 
       <CollapsibleSection
         title="Metal"
+        defaultOpen={false}
         headerExtra={raceWorkoutIds.size > 0 && (
           <div className="seg" style={{ flex: 'none', width: 168 }}>
             {(['all', 'training', 'race'] as const).map((f) => (
@@ -447,7 +448,7 @@ export function AnalysisView({
       </CollapsibleSection>
 
       {raceCount > 0 && (
-        <CollapsibleSection title="Race performance">
+        <CollapsibleSection title="Race performance" defaultOpen={false}>
           <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
           <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
 
@@ -471,7 +472,7 @@ export function AnalysisView({
       )}
 
       {dryfire.total > 0 && (
-        <CollapsibleSection title="Dry-fire">
+        <CollapsibleSection title="Dry-fire" defaultOpen={false}>
           <div className="stats three">
             <div className="stat">
               <div className="k">This week</div>
