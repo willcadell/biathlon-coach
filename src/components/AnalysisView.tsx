@@ -83,6 +83,49 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
   }
 }
 
+function ChevronIcon({ direction }: { direction: 'up' | 'down' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+      {direction === 'up' ? <path d="M6 15l6-6 6 6" /> : <path d="M6 9l6 6 6-6" />}
+    </svg>
+  )
+}
+
+/** One of the four top-level Analysis sections — collapsed by the arrow
+ *  next to its title rather than the whole heading row, so the heading
+ *  itself stays plain text, not link-styled. headerExtra (a filter, a
+ *  window selector) only shows while the section is open — it has nothing
+ *  to act on once its content is hidden. */
+function CollapsibleSection({
+  title, defaultOpen = true, headerExtra, children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  headerExtra?: React.ReactNode
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h2 style={{ margin: 0 }}>{title}</h2>
+          <button
+            className="link"
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <ChevronIcon direction={open ? 'up' : 'down'} />
+          </button>
+        </div>
+        {open && headerExtra}
+      </div>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
+    </>
+  )
+}
+
 export function AnalysisView({
   bouts,
   metalBouts,
@@ -197,117 +240,118 @@ export function AnalysisView({
     <>
       <h1>Analysis</h1>
 
-      <h2 style={{ marginTop: 0 }}>Precision</h2>
-      <div className="stats three">
-        <div className="stat">
-          <div className="k">Overall</div>
-          <div className="v">{precisionPct(bouts)}</div>
-          <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Prone</div>
-          <div className="v">{precisionPct(prone)}</div>
-          <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Standing</div>
-          <div className="v">{precisionPct(standing)}</div>
-          <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-
-      {thin && (
-        <div className="notice" style={{ marginTop: 16 }}>
-          This is a first read from very little recent data. Treat it as a hint until you have three
-          or four bouts in each position — the confidence figures below will climb as you log more.
-        </div>
-      )}
-
-      {recent.length > 0 && <h2 style={{ marginTop: 20 }}>What your groups are saying</h2>}
-      {recent.length > 0 && (
-        <p className="lede" style={{ marginTop: -6 }}>
-          Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'} —
-          the last {WINDOW_DAYS} days, not your all-time record.
-        </p>
-      )}
-      {findings.map((f, i) => (
-        <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
-          <div className="badge">
-            <i className="dot" />
-            {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : 'Doing well'}
+      <CollapsibleSection title="Precision">
+        <div className="stats three">
+          <div className="stat">
+            <div className="k">Overall</div>
+            <div className="v">{precisionPct(bouts)}</div>
+            <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
           </div>
-          <h3>{f.title}</h3>
-          <p>{f.evidence}</p>
-          <p className="cause">{f.cause}</p>
-          <p className="meta">
-            {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
-            {f.sampleSize === 1 ? '' : 's'}
-          </p>
+          <div className="stat">
+            <div className="k">Prone</div>
+            <div className="v">{precisionPct(prone)}</div>
+            <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
+          </div>
+          <div className="stat">
+            <div className="k">Standing</div>
+            <div className="v">{precisionPct(standing)}</div>
+            <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
+          </div>
         </div>
-      ))}
 
-      {plan.length > 0 && (
-        <>
-          <h2>Your next two weeks</h2>
-          <p className="lede">
-            In order. The first one or two matter most — doing all six badly is worse than doing two
-            properly.
+        {thin && (
+          <div className="notice" style={{ marginTop: 16 }}>
+            This is a first read from very little recent data. Treat it as a hint until you have three
+            or four bouts in each position — the confidence figures below will climb as you log more.
+          </div>
+        )}
+
+        {recent.length > 0 && <h3 style={{ marginTop: 20 }}>What your groups are saying</h3>}
+        {recent.length > 0 && (
+          <p className="lede" style={{ marginTop: -6 }}>
+            Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'} —
+            the last {WINDOW_DAYS} days, not your all-time record.
           </p>
-          <p className="meta" style={{ marginTop: -10 }}>
-            Keep a session to 15–30 minutes and five to seven variations with one clear focus, not a
-            long list. Run each rep until it holds steady — usually well under a minute — and if it
-            never settles after a few tries, it's too hard today; back off rather than force it. Close
-            every session with a couple of calm dry-fire clips under normal conditions.
-          </p>
-          {plan.map(({ drill, reason }, i) => (
-            <div key={drill.id} className="card">
-              <div className="badge" style={{ marginBottom: 4 }}>
-                {i + 1} · {drill.minutes} min · {drill.dryFire ? 'no range needed' : 'range'}
-              </div>
-              <h3>{drill.name}</h3>
-              <p>{drill.purpose}</p>
-              <p className="meta">Because of: {reason}. {drill.frequency}.</p>
-              <details open={openDrill === drill.id} onToggle={(e) =>
-                setOpenDrill((e.currentTarget as HTMLDetailsElement).open ? drill.id : null)
-              }>
-                <summary>How to do it</summary>
-                <ol className="steps">
-                  {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
-                </ol>
-              </details>
+        )}
+        {findings.map((f, i) => (
+          <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
+            <div className="badge">
+              <i className="dot" />
+              {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : 'Doing well'}
             </div>
-          ))}
-        </>
-      )}
+            <h3>{f.title}</h3>
+            <p>{f.evidence}</p>
+            <p className="cause">{f.cause}</p>
+            <p className="meta">
+              {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
+              {f.sampleSize === 1 ? '' : 's'}
+            </p>
+          </div>
+        ))}
 
-      {recent.length > 0 && (
-        <p className="meta" style={{ marginTop: 20 }}>
-          This reads your target photos and nothing else. It cannot see your position, your breathing
-          or your skis, and it is no substitute for a coach watching you shoot — but it will tell you
-          which question to ask one.
+        {plan.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 20 }}>Your next two weeks</h3>
+            <p className="lede">
+              In order. The first one or two matter most — doing all six badly is worse than doing two
+              properly.
+            </p>
+            <p className="meta" style={{ marginTop: -10 }}>
+              Keep a session to 15–30 minutes and five to seven variations with one clear focus, not a
+              long list. Run each rep until it holds steady — usually well under a minute — and if it
+              never settles after a few tries, it's too hard today; back off rather than force it. Close
+              every session with a couple of calm dry-fire clips under normal conditions.
+            </p>
+            {plan.map(({ drill, reason }, i) => (
+              <div key={drill.id} className="card">
+                <div className="badge" style={{ marginBottom: 4 }}>
+                  {i + 1} · {drill.minutes} min · {drill.dryFire ? 'no range needed' : 'range'}
+                </div>
+                <h3>{drill.name}</h3>
+                <p>{drill.purpose}</p>
+                <p className="meta">Because of: {reason}. {drill.frequency}.</p>
+                <details open={openDrill === drill.id} onToggle={(e) =>
+                  setOpenDrill((e.currentTarget as HTMLDetailsElement).open ? drill.id : null)
+                }>
+                  <summary>How to do it</summary>
+                  <ol className="steps">
+                    {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
+                  </ol>
+                </details>
+              </div>
+            ))}
+          </>
+        )}
+
+        {recent.length > 0 && (
+          <p className="meta" style={{ marginTop: 20 }}>
+            This reads your target photos and nothing else. It cannot see your position, your breathing
+            or your skis, and it is no substitute for a coach watching you shoot — but it will tell you
+            which question to ask one.
+          </p>
+        )}
+
+        <h3 style={{ marginTop: 20 }}>Score over time</h3>
+        <p className="lede">
+          Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.
         </p>
-      )}
+        <div className="card">
+          <TrendChart bouts={bouts} workouts={workouts} metric="score" />
+        </div>
 
-      <h2 style={{ marginTop: 24 }}>Score over time</h2>
-      <p className="lede">
-        Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.
-      </p>
-      <div className="card">
-        <TrendChart bouts={bouts} workouts={workouts} metric="score" />
-      </div>
+        <h3>Group size over time</h3>
+        <p className="lede">
+          Score says how you did. Group size says whether the shooting or the sight was
+          responsible, because a group can tighten while the score stays flat.
+        </p>
+        <div className="card">
+          <TrendChart bouts={bouts} workouts={workouts} metric="group" />
+        </div>
+      </CollapsibleSection>
 
-      <h2>Group size over time</h2>
-      <p className="lede">
-        Score says how you did. Group size says whether the shooting or the sight was
-        responsible, because a group can tighten while the score stays flat.
-      </p>
-      <div className="card">
-        <TrendChart bouts={bouts} workouts={workouts} metric="group" />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
-        <h2 style={{ margin: 0 }}>Metal</h2>
-        {raceWorkoutIds.size > 0 && (
+      <CollapsibleSection
+        title="Metal"
+        headerExtra={raceWorkoutIds.size > 0 && (
           <div className="seg" style={{ flex: 'none', width: 168 }}>
             {(['all', 'training', 'race'] as const).map((f) => (
               <button
@@ -321,90 +365,89 @@ export function AnalysisView({
             ))}
           </div>
         )}
-      </div>
-      <div className="stats">
-        <div className="stat">
-          <div className="k">Prone</div>
-          <div className="v">{metalPct(metalProne)}</div>
-          <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
+      >
+        <div className="stats">
+          <div className="stat">
+            <div className="k">Prone</div>
+            <div className="v">{metalPct(metalProne)}</div>
+            <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
+          </div>
+          <div className="stat">
+            <div className="k">Standing</div>
+            <div className="v">{metalPct(metalStanding)}</div>
+            <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
+          </div>
         </div>
-        <div className="stat">
-          <div className="k">Standing</div>
-          <div className="v">{metalPct(metalStanding)}</div>
-          <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
-        </div>
-      </div>
 
-      {targetsProne.length > 0 && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-            <h3 style={{ margin: 0 }}>Which targets get hit — prone</h3>
-            <div className="seg" style={{ flex: 'none', width: 96 }}>
-              {([5, 10, 20] as const).map((n) => (
-                <button
-                  key={n}
-                  aria-pressed={proneWindow === n}
-                  onClick={() => setProneWindow(n)}
-                  style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
-                >
-                  {n}
-                </button>
+        {targetsProne.length > 0 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+              <h3 style={{ margin: 0 }}>Which targets get hit — prone</h3>
+              <div className="seg" style={{ flex: 'none', width: 96 }}>
+                {([5, 10, 20] as const).map((n) => (
+                  <button
+                    key={n}
+                    aria-pressed={proneWindow === n}
+                    onClick={() => setProneWindow(n)}
+                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="meta" style={{ marginTop: -6 }}>
+              Hit rate per target, alpha to echo, left to right downrange — last {targetsProne[0]?.bouts ?? 0}{' '}
+              prone metal bout{targetsProne[0]?.bouts === 1 ? '' : 's'}.
+            </p>
+            <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              {targetsProne.map((t) => (
+                <div className="stat" key={t.target}>
+                  <div className="k">{t.target}</div>
+                  <div className="v">{t.hitRatePct}<small>%</small></div>
+                  <div className="n">{t.hits}/{t.bouts}</div>
+                </div>
               ))}
             </div>
-          </div>
-          <p className="meta" style={{ marginTop: -6 }}>
-            Hit rate per target, alpha to echo, left to right downrange — last {targetsProne[0]?.bouts ?? 0}{' '}
-            prone metal bout{targetsProne[0]?.bouts === 1 ? '' : 's'}.
-          </p>
-          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {targetsProne.map((t) => (
-              <div className="stat" key={t.target}>
-                <div className="k">{t.target}</div>
-                <div className="v">{t.hitRatePct}<small>%</small></div>
-                <div className="n">{t.hits}/{t.bouts}</div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {targetsStanding.length > 0 && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-            <h3 style={{ margin: 0 }}>Which targets get hit — standing</h3>
-            <div className="seg" style={{ flex: 'none', width: 96 }}>
-              {([5, 10, 20] as const).map((n) => (
-                <button
-                  key={n}
-                  aria-pressed={standingWindow === n}
-                  onClick={() => setStandingWindow(n)}
-                  style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
-                >
-                  {n}
-                </button>
+        {targetsStanding.length > 0 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+              <h3 style={{ margin: 0 }}>Which targets get hit — standing</h3>
+              <div className="seg" style={{ flex: 'none', width: 96 }}>
+                {([5, 10, 20] as const).map((n) => (
+                  <button
+                    key={n}
+                    aria-pressed={standingWindow === n}
+                    onClick={() => setStandingWindow(n)}
+                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="meta" style={{ marginTop: -6 }}>
+              Hit rate per target, alpha to echo, left to right downrange — last {targetsStanding[0]?.bouts ?? 0}{' '}
+              standing metal bout{targetsStanding[0]?.bouts === 1 ? '' : 's'}.
+            </p>
+            <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              {targetsStanding.map((t) => (
+                <div className="stat" key={t.target}>
+                  <div className="k">{t.target}</div>
+                  <div className="v">{t.hitRatePct}<small>%</small></div>
+                  <div className="n">{t.hits}/{t.bouts}</div>
+                </div>
               ))}
             </div>
-          </div>
-          <p className="meta" style={{ marginTop: -6 }}>
-            Hit rate per target, alpha to echo, left to right downrange — last {targetsStanding[0]?.bouts ?? 0}{' '}
-            standing metal bout{targetsStanding[0]?.bouts === 1 ? '' : 's'}.
-          </p>
-          <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-            {targetsStanding.map((t) => (
-              <div className="stat" key={t.target}>
-                <div className="k">{t.target}</div>
-                <div className="v">{t.hitRatePct}<small>%</small></div>
-                <div className="n">{t.hits}/{t.bouts}</div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </CollapsibleSection>
 
       {raceCount > 0 && (
-        <>
-          <h2 style={{ marginTop: 24 }}>Race performance</h2>
-
+        <CollapsibleSection title="Race performance">
           <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
           <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
 
@@ -424,12 +467,11 @@ export function AnalysisView({
               <MetalPositionStats bouts={bs} races={raceCountByType.get(type) ?? 0} />
             </div>
           ))}
-        </>
+        </CollapsibleSection>
       )}
 
       {dryfire.total > 0 && (
-        <>
-          <h2 style={{ marginTop: 24 }}>Dry-fire</h2>
+        <CollapsibleSection title="Dry-fire">
           <div className="stats three">
             <div className="stat">
               <div className="k">This week</div>
@@ -444,7 +486,7 @@ export function AnalysisView({
               <div className="v">{dryfire.total}<small>min</small></div>
             </div>
           </div>
-        </>
+        </CollapsibleSection>
       )}
 
       <details style={{ marginTop: 24 }}>
