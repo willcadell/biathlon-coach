@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
@@ -364,6 +364,89 @@ function MetalForm({
   )
 }
 
+/** The best of this session's precision bouts by ring percentage — the one
+ *  worth putting on the completion screen and offering to share. Null for a
+ *  dry-fire session or a range session with no precision bouts logged. */
+function bestBout(bouts: Bout[]): Bout | null {
+  if (bouts.length === 0) return null
+  return bouts.reduce((best, b) => {
+    const pct = b.metrics.ringPossible > 0 ? b.metrics.ringTotal / b.metrics.ringPossible : 0
+    const bestPct = best.metrics.ringPossible > 0 ? best.metrics.ringTotal / best.metrics.ringPossible : 0
+    return pct > bestPct ? b : best
+  })
+}
+
+/** Counts up to `target` once, starting `delayMs` after mount — timed to
+ *  land just as the checkmark settles. Jumps straight to the final value
+ *  for anyone who's asked for less motion. */
+function useCountUp(target: number, delayMs: number, durationMs: number): number {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setValue(target)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    function tick(now: number) {
+      const t = Math.max(0, now - start - delayMs)
+      const p = Math.min(1, t / durationMs)
+      setValue(Math.round(p * target))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, delayMs, durationMs])
+  return value
+}
+
+/** Replaces the workout form once Finish is tapped — a brief acknowledgment
+ *  before dropping back to "Start a session", with a one-tap route into
+ *  sharing the session's best target right when it's most relevant. */
+function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout; precisionBouts: Bout[]; onDone: () => void }) {
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState('')
+  const best = bestBout(precisionBouts)
+  const shownScore = useCountUp(best?.metrics.ringTotal ?? 0, 450, 600)
+
+  async function share() {
+    if (!best) return
+    setSharing(true)
+    setShareError('')
+    try {
+      await shareTargetImage(best, workout)
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      setShareError(errorMessage(e, 'Could not create a shareable image.'))
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  return (
+    <div className="session-complete">
+      <div className="check-circle">
+        <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+      </div>
+      <h1>Session logged</h1>
+      {best && (
+        <p className="lede">
+          Best bout: <span className="num">{shownScore}</span>/{best.metrics.ringPossible}
+        </p>
+      )}
+      {shareError && <div className="notice error" style={{ marginBottom: 12 }}>{shareError}</div>}
+      <div className="row">
+        <button className="secondary" onClick={onDone}>Back to start</button>
+        {best && (
+          <button className="primary" disabled={sharing} onClick={() => void share()}>
+            {sharing ? 'Preparing…' : 'Share this target'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Workout; onDeleted: () => void }) {
   const [sharing, setSharing] = useState(false)
   const [shareError, setShareError] = useState('')
@@ -568,6 +651,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   const [pendingStage, setPendingStage] = useState<{ index: number; position: Position } | null>(null)
   const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
+  const [complete, setComplete] = useState(false)
 
   const comboRounds = activeComboId
     ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
@@ -593,6 +677,13 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
     onCancel()
   }
 
+  // Reset here rather than on Finish, so the next session started doesn't
+  // land straight back on this one's completion screen.
+  function handleDone() {
+    setComplete(false)
+    onFinish()
+  }
+
   if (!workout) {
     return (
       <>
@@ -615,6 +706,10 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         </div>
       </>
     )
+  }
+
+  if (complete) {
+    return <SessionComplete workout={workout} precisionBouts={precisionBouts} onDone={handleDone} />
   }
 
   if (workout.workoutType === 'dryfire') {
@@ -650,7 +745,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
 
         <div className="row" style={{ marginTop: 10 }}>
           <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
-          <button className="primary" style={{ flex: 2 }} onClick={onFinish}>Finish session</button>
+          <button className="primary" style={{ flex: 2 }} onClick={() => setComplete(true)}>Finish session</button>
         </div>
       </>
     )
@@ -786,7 +881,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
 
       <div className="row" style={{ marginTop: 10 }}>
         <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
-        <button className="primary" style={{ flex: 2 }} onClick={onFinish}>Finish session</button>
+        <button className="primary" style={{ flex: 2 }} onClick={() => setComplete(true)}>Finish session</button>
       </div>
     </>
   )
