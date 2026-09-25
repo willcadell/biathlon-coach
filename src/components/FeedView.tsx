@@ -238,7 +238,7 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
           Feed
         </h2>
       ) : (
-        <h2>Club feed</h2>
+        <h1 style={{ margin: '28px 0 8px' }}>Club feed</h1>
       )}
       {error && <div className="notice error">{error}</div>}
       {posts === null && !error && <p className="meta">Loading…</p>}
