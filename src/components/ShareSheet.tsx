@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Bout, Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
 import { postToFeed, useMemberships } from '../lib/feed'
@@ -57,6 +57,14 @@ export function ShareSheet({
     }
   }
 
+  // Once posted, show the check for a moment and carry on by itself — there's
+  // nothing left to decide, so no "Done" to tap.
+  useEffect(() => {
+    if (!posted) return
+    const t = setTimeout(() => { onClose(); onPostedDone?.() }, 1100)
+    return () => clearTimeout(t)
+  }, [posted])
+
   const noun = bout ? 'target' : 'workout'
 
   return (
@@ -65,11 +73,13 @@ export function ShareSheet({
         <h2 style={{ marginTop: 0 }}>Share this {noun}</h2>
 
         {posted ? (
-          <>
-            <p>Posted to the <strong>{posted}</strong> feed.</p>
-            <p className="meta">You can take it down any time from the feed.</p>
-            <button className="primary" onClick={() => { onClose(); onPostedDone?.() }}>Done</button>
-          </>
+          <div style={{ textAlign: 'center', padding: '8px 0 4px' }} role="status">
+            <div className="posted-check">
+              <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <p style={{ margin: '0 0 4px' }}>Posted to the <strong>{posted}</strong> feed.</p>
+            <p className="meta" style={{ margin: 0 }}>You can take it down any time from the feed.</p>
+          </div>
         ) : (
           <>
             {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
