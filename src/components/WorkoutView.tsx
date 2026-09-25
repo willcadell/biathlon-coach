@@ -58,20 +58,34 @@ function WindFields({
   )
 }
 
-/** The format itself is chosen once, at the "Race" start button — this just
- *  lets it be corrected, not turned on or off after the fact. */
-function RaceTypeFields({ raceType, onChange }: { raceType: RaceType; onChange: (r: RaceType) => void }) {
+/** The format is picked here once and then shown as a logged line with an
+ *  Edit link, rather than leaving the whole picker on screen for the rest of
+ *  the race. Chosen at the "Race" start button is only a default — nothing
+ *  counts as chosen until it's tapped, so a fresh race opens the picker. */
+function RaceTypeFields({
+  raceType, open, onPick, onEdit,
+}: { raceType: RaceType; open: boolean; onPick: (r: RaceType) => void; onEdit: () => void }) {
+  if (!open) {
+    return (
+      <div className="row" style={{ alignItems: 'center' }}>
+        <span style={{ flex: 1, fontSize: 14 }}>
+          <span className="meta">Format · </span><strong>{RACE_TYPE_LABEL[raceType]}</strong>
+        </span>
+        <button className="link" style={{ flex: 'none' }} onClick={onEdit}>Edit</button>
+      </div>
+    )
+  }
   return (
-    <label className="field" style={{ marginBottom: 0 }}>
+    <div className="field" style={{ marginBottom: 0 }}>
       <span>Format</span>
       <div className="seg" style={{ flexWrap: 'wrap' }}>
         {(Object.keys(RACE_TYPE_LABEL) as RaceType[]).map((r) => (
-          <button key={r} aria-pressed={raceType === r} onClick={() => onChange(r)} style={{ minWidth: '45%' }}>
+          <button key={r} aria-pressed={raceType === r} onClick={() => onPick(r)} style={{ minWidth: '45%' }}>
             {RACE_TYPE_LABEL[r]}
           </button>
         ))}
       </div>
-    </label>
+    </div>
   )
 }
 
@@ -678,6 +692,9 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
   const [complete, setComplete] = useState(false)
+  // Which workout's race format has been confirmed (or is being re-edited).
+  const [formatConfirmedId, setFormatConfirmedId] = useState<string | null>(null)
+  const [editingFormat, setEditingFormat] = useState(false)
 
   const comboRounds = activeComboId
     ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
@@ -820,7 +837,13 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         <div className="card">
           <RaceTypeFields
             raceType={workout.raceType}
-            onChange={(r) => onWorkoutChanged({ ...workout, raceType: r })}
+            open={editingFormat || (formatConfirmedId !== workout.id && metalBouts.length === 0)}
+            onPick={(r) => {
+              onWorkoutChanged({ ...workout, raceType: r })
+              setFormatConfirmedId(workout.id)
+              setEditingFormat(false)
+            }}
+            onEdit={() => setEditingFormat(true)}
           />
         </div>
       )}
