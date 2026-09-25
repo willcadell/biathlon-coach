@@ -159,6 +159,13 @@ export async function deleteProgram(programId: string): Promise<void> {
   if (error) throw error
 }
 
+/** Puts an athlete who's in the club but not in a program into one — see
+ *  assign_athlete_to_program. */
+export async function assignAthleteToProgram(athleteId: string, programId: string): Promise<void> {
+  const { error } = await supabase.rpc('assign_athlete_to_program', { p_athlete_id: athleteId, p_program_id: programId })
+  if (error) throw error
+}
+
 /** Takes an athlete out of a program without removing them from the club —
  *  see remove_athlete_from_program. */
 export async function removeAthleteFromProgram(athleteId: string, programId: string): Promise<void> {

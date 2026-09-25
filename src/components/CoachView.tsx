@@ -4,7 +4,7 @@ import type { Bout, MetalBout, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  addCoachNote, becomeCoach, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
+  addCoachNote, assignAthleteToProgram, becomeCoach, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, setCoachAdmin, rosterBouts,
   rosterForClub, rosterMetalBouts, rosterWorkouts, uploadClubLogo,
   type Club, type ClubMatch, type CoCoach, type Coach, type Program, type RosterAthlete,
@@ -13,7 +13,7 @@ import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { errorMessage } from '../lib/errors'
-import { TrashIcon } from './icons'
+import { PlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -438,16 +438,21 @@ interface RosterGroupData {
 }
 
 function RosterGroup({
-  group, onOpenAthlete, onRemove,
+  group, onOpenAthlete, onRemove, programs, onAssign,
 }: {
   group: RosterGroupData
   onOpenAthlete: (id: string) => void
+  /** Only for the "No program yet" group, and only once the club has
+   *  programs to choose from — a plus on each athlete opens a picker. */
+  programs?: Program[]
+  onAssign?: (athlete: RosterAthlete, programId: string) => void
   /** Only for a real program's group — the "No program yet" group has no
    *  program to take someone out of. */
   onRemove?: (athlete: RosterAthlete, programName: string) => void
 }) {
   const targets = targetStats(group.metalBouts)
   const metal = metalStats(group.metalBouts)
+  const [pickingId, setPickingId] = useState<string | null>(null)
 
   return (
     <>
@@ -471,6 +476,33 @@ function RosterGroup({
                 </div>
                 <span className="meta" aria-hidden="true">›</span>
               </button>
+              {onAssign && programs && programs.length > 0 && (
+                pickingId === a.athleteId ? (
+                  <select
+                    autoFocus
+                    aria-label={`Add ${a.displayName || 'this athlete'} to a program`}
+                    defaultValue=""
+                    style={{ flex: 'none', width: 'auto', maxWidth: '50%', padding: '6px 8px' }}
+                    onBlur={() => setPickingId(null)}
+                    onChange={(e) => {
+                      if (!e.target.value) return
+                      onAssign(a, e.target.value)
+                      setPickingId(null)
+                    }}
+                  >
+                    <option value="" disabled>Add to…</option>
+                    {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                ) : (
+                  <button
+                    className="link" style={{ flex: 'none' }}
+                    aria-label={`Add ${a.displayName || 'this athlete'} to a program`}
+                    onClick={() => setPickingId(a.athleteId)}
+                  >
+                    <PlusIcon />
+                  </button>
+                )
+              )}
               {onRemove && (
                 <button
                   className="link danger" style={{ flex: 'none' }}
@@ -550,6 +582,16 @@ function ClubRosterSection({ club }: { club: Club }) {
       setReloadKey((k) => k + 1)
     } catch (e) {
       setActionError(errorMessage(e, 'Could not remove this athlete from the program. Check your connection and try again.'))
+    }
+  }
+
+  async function assignToProgram(athlete: RosterAthlete, programId: string) {
+    setActionError('')
+    try {
+      await assignAthleteToProgram(athlete.athleteId, programId)
+      setReloadKey((k) => k + 1)
+    } catch (e) {
+      setActionError(errorMessage(e, 'Could not add this athlete to the program. Check your connection and try again.'))
     }
   }
 
@@ -655,6 +697,8 @@ function ClubRosterSection({ club }: { club: Club }) {
         <RosterGroup
           key={g.key} group={g} onOpenAthlete={setOpenAthleteId}
           onRemove={g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
+          programs={g.key === NO_PROGRAM_KEY ? programs : undefined}
+          onAssign={g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
         />
       ))}
     </>
