@@ -778,8 +778,13 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         />
 
         <div className="row" style={{ marginTop: 10 }}>
-          <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
-          <button className="primary" style={{ flex: 2 }} onClick={() => setComplete(true)}>Finish session</button>
+          <button
+          className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+          aria-label="Cancel session" title="Cancel session" onClick={handleCancel}
+        >
+          <TrashIcon />
+        </button>
+          <button className="primary" onClick={() => setComplete(true)}>Finish session</button>
         </div>
       </>
     )
@@ -920,8 +925,13 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
       />
 
       <div className="row" style={{ marginTop: 10 }}>
-        <button className="secondary danger" style={{ flex: 1 }} onClick={handleCancel}>Cancel session</button>
-        <button className="primary" style={{ flex: 2 }} onClick={() => setComplete(true)}>Finish session</button>
+        <button
+          className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+          aria-label="Cancel session" title="Cancel session" onClick={handleCancel}
+        >
+          <TrashIcon />
+        </button>
+        <button className="primary" onClick={() => setComplete(true)}>Finish session</button>
       </div>
     </>
   )
