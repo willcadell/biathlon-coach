@@ -13,7 +13,7 @@ import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { errorMessage } from '../lib/errors'
-import { PlusIcon, TrashIcon } from './icons'
+import { PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -865,15 +865,21 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
             {c.isAdmin && <span className="pill" style={{ flex: 'none' }}>Admin</span>}
             {club.isAdmin && c.coachId !== myCoachId && (
               <span style={{ flex: 'none', display: 'flex', gap: 12 }}>
-                <button className="link" onClick={() => void changeAdmin(c)}>
-                  {c.isAdmin ? 'Remove admin' : 'Make admin'}
+                <button
+                  className="link"
+                  aria-label={c.isAdmin ? `Remove admin rights from ${c.displayName || 'this coach'}` : `Make ${c.displayName || 'this coach'} an admin`}
+                  title={c.isAdmin ? 'Remove admin' : 'Make admin'}
+                  onClick={() => void changeAdmin(c)}
+                >
+                  {c.isAdmin ? <ShieldMinusIcon /> : <ShieldPlusIcon />}
                 </button>
                 <button
                   className="link danger"
                   aria-label={`Remove ${c.displayName || 'this coach'} from the club`}
+                  title="Remove from club"
                   onClick={() => void removeCoach(c)}
                 >
-                  Remove
+                  <TrashIcon />
                 </button>
               </span>
             )}

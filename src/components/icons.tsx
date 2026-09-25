@@ -25,3 +25,24 @@ export function PlusIcon() {
     </svg>
   )
 }
+
+const SHIELD = 'M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z'
+
+/** Admin rights: a shield, plus to grant them, minus to take them back. */
+export function ShieldPlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+      <path d={SHIELD} />
+      <path d="M12 9v5M9.5 11.5h5" />
+    </svg>
+  )
+}
+
+export function ShieldMinusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+      <path d={SHIELD} />
+      <path d="M9.5 11.5h5" />
+    </svg>
+  )
+}
