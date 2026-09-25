@@ -367,7 +367,6 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
   if (workouts.length === 0) {
     return (
       <>
-        <h1>History</h1>
         <div className="empty">
           <p>No workouts yet.</p>
           <p className="meta">Start a workout from the Shoot tab and it will appear here, with trends once you have a few.</p>
@@ -383,8 +382,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
   return (
     <>
-      <h1>History</h1>
-      <p className="lede">
+      <p className="lede" style={{ marginTop: 0 }}>
         {workouts.length} workout{workouts.length === 1 ? '' : 's'}, {bouts.length} precision bout{bouts.length === 1 ? '' : 's'}
         {' '}({total} shot{total === 1 ? '' : 's'}), {metalBouts.length} metal bout{metalBouts.length === 1 ? '' : 's'}
         {' '}({metalShots} shot{metalShots === 1 ? '' : 's'}). The breakdown and trends are in Analysis.
