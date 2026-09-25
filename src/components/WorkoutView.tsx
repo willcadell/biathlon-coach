@@ -209,7 +209,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
                 {c.clips > 0 && ` · ${c.clips} clip${c.clips === 1 ? '' : 's'} to confirm`}
                 {c.note && <span className="meta"> — {c.note}</span>}
               </span>
-              <button className="link danger" aria-label="Remove" onClick={() => remove(c.id)}><TrashIcon /></button>
+              <button className="link danger" aria-label="Remove" style={{ flex: 'none' }} onClick={() => remove(c.id)}><TrashIcon /></button>
             </div>
           ))}
         </div>
