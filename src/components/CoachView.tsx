@@ -472,9 +472,12 @@ function RosterGroup({
                 }}
               >
                 <div className="grow">
-                  <div className="title">{a.displayName || 'Unnamed athlete'}</div>
+                  <div className="title">
+                    {a.displayName || 'Unnamed athlete'}
+                    {' '}
+                    <span aria-hidden="true" style={{ color: 'var(--series-1)' }}>→</span>
+                  </div>
                 </div>
-                <span className="meta" aria-hidden="true">›</span>
               </button>
               {onAssign && programs && programs.length > 0 && (
                 pickingId === a.athleteId ? (
