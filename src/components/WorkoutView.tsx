@@ -6,8 +6,10 @@ import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
-import { shareTargetImage } from '../lib/share'
 import { CaptureView } from './CaptureView'
+import { FeedView } from './FeedView'
+import { ShareSheet } from './ShareSheet'
+import { useMemberships } from '../lib/feed'
 import { MiniTargets } from './MiniTargets'
 import { ShareIcon, TrashIcon } from './icons'
 
@@ -423,31 +425,20 @@ function useCountUp(target: number, delayMs: number, durationMs: number): number
  *  before dropping back to "Start a session", with a one-tap route into
  *  sharing the session's best target right when it's most relevant. */
 function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout; precisionBouts: Bout[]; onDone: () => void }) {
-  const [sharing, setSharing] = useState(false)
   const [choosing, setChoosing] = useState(false)
-  const [shareError, setShareError] = useState('')
+  // Which thing the share sheet is open for: one of this session's targets,
+  // or the whole workout.
+  const [sheet, setSheet] = useState<{ bout?: Bout } | null>(null)
+  const memberships = useMemberships()
   const best = bestBout(precisionBouts)
   const shownScore = useCountUp(best?.metrics.ringTotal ?? 0, 450, 600)
   const inOrder = [...precisionBouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
+  const inClub = memberships !== null && memberships.length > 0
 
-  async function share(bout: Bout) {
-    setSharing(true)
-    setShareError('')
-    try {
-      await shareTargetImage(bout, workout)
-      setChoosing(false)
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return
-      setShareError(errorMessage(e, 'Could not create a shareable image.'))
-    } finally {
-      setSharing(false)
-    }
-  }
-
-  // One target has nothing to choose between, so it shares straight away;
+  // One target has nothing to choose between, so it opens straight away;
   // with several, the button opens a list to pick from instead.
   function onShareClick() {
-    if (inOrder.length === 1) void share(inOrder[0])
+    if (inOrder.length === 1) setSheet({ bout: inOrder[0] })
     else setChoosing((c) => !c)
   }
 
@@ -462,12 +453,11 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
           Best bout: <span className="num">{shownScore}</span>/{best.metrics.ringPossible}
         </p>
       )}
-      {shareError && <div className="notice error" style={{ marginBottom: 12 }}>{shareError}</div>}
       {choosing && (
         <div style={{ width: '100%', maxWidth: 320, marginBottom: 12, textAlign: 'left' }}>
           <p className="meta" style={{ margin: '0 0 8px' }}>Choose a target to share</p>
           {inOrder.map((b, i) => (
-            <button key={b.id} className="boutrow" disabled={sharing} onClick={() => void share(b)}>
+            <button key={b.id} className="boutrow" onClick={() => { setSheet({ bout: b }); setChoosing(false) }}>
               <div className="grow">
                 <div className="title">
                   {b.metrics.ringTotal}/{b.metrics.ringPossible} <span className="pill">{b.position}</span>
@@ -483,33 +473,23 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
       <div className="row">
         <button className="secondary" onClick={onDone}>Back to start</button>
         {inOrder.length > 0 && (
-          <button className="primary" disabled={sharing} onClick={onShareClick}>
-            {sharing ? 'Preparing…' : inOrder.length === 1 ? 'Share this target' : choosing ? 'Cancel' : 'Share a target…'}
+          <button className="primary" onClick={onShareClick}>
+            {inOrder.length === 1 ? 'Share this target' : choosing ? 'Cancel' : 'Share a target…'}
           </button>
         )}
       </div>
+      {inClub && (
+        <button className="link" style={{ marginTop: 14 }} onClick={() => setSheet({})}>
+          Post this workout to the club feed
+        </button>
+      )}
+      {sheet && <ShareSheet bout={sheet.bout} workout={workout} onClose={() => setSheet(null)} />}
     </div>
   )
 }
 
 function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Workout; onDeleted: () => void }) {
   const [sharing, setSharing] = useState(false)
-  const [shareError, setShareError] = useState('')
-
-  async function share() {
-    setSharing(true)
-    setShareError('')
-    try {
-      await shareTargetImage(bout, workout)
-    } catch (e) {
-      // The user closing the share sheet without picking anything throws
-      // an AbortError — that is a cancel, not a failure worth reporting.
-      if (e instanceof DOMException && e.name === 'AbortError') return
-      setShareError(errorMessage(e, 'Could not create a shareable image.'))
-    } finally {
-      setSharing(false)
-    }
-  }
 
   return (
     <div className="boutrow" style={{ cursor: 'default' }}>
@@ -520,10 +500,10 @@ function PrecisionRow({ bout, workout, onDeleted }: { bout: Bout; workout: Worko
         <div className="meta">
           {bout.shots.length} shot{bout.shots.length === 1 ? '' : 's'} · {bout.metrics.meanRadius.toFixed(0)} mm mean radius
         </div>
-        {shareError && <div className="notice error" style={{ marginTop: 6 }}>{shareError}</div>}
+        {sharing && <ShareSheet bout={bout} workout={workout} onClose={() => setSharing(false)} />}
       </div>
       <div style={{ display: 'flex', gap: 12, flex: 'none', alignItems: 'center' }}>
-        <button className="link" aria-label="Share this target" disabled={sharing} onClick={() => void share()}>
+        <button className="link" aria-label="Share this target" onClick={() => setSharing(true)}>
           <ShareIcon />
         </button>
         <button
@@ -752,6 +732,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
             {starting === 'race' ? 'Starting…' : 'Race'}
           </button>
         </div>
+        <FeedView role="athlete" />
       </>
     )
   }

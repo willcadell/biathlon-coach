@@ -47,7 +47,7 @@ interface Tier {
   deep: string
 }
 
-function tierFor(pct: number): Tier {
+export function tierFor(pct: number): Tier {
   if (pct >= 90) return { name: 'ELITE', tagline: 'Outstanding session!', wash: '#e0b64c', deep: '#8a6115' }
   if (pct >= 75) return { name: 'SHARP', tagline: 'Great session!', wash: '#8fb4d9', deep: '#2a78d6' }
   if (pct >= 55) return { name: 'SOLID', tagline: 'Solid work.', wash: '#c98a58', deep: '#c1541a' }

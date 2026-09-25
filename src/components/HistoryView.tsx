@@ -3,10 +3,9 @@ import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
-import { shareTargetImage } from '../lib/share'
-import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
+import { ShareSheet } from './ShareSheet'
 import { ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
@@ -103,24 +102,9 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [sharingBoutId, setSharingBoutId] = useState<string | null>(null)
-  const [shareError, setShareError] = useState('')
-
-  async function shareBout(bout: Bout, workout: Workout | undefined) {
-    if (!workout) return
-    setSharingBoutId(bout.id)
-    setShareError('')
-    try {
-      await shareTargetImage(bout, workout)
-    } catch (e) {
-      // The user closing the share sheet without picking anything throws an
-      // AbortError — that is a cancel, not a failure worth reporting.
-      if (e instanceof DOMException && e.name === 'AbortError') return
-      setShareError(errorMessage(e, 'Could not create a shareable image.'))
-    } finally {
-      setSharingBoutId(null)
-    }
-  }
+  // What the share sheet is open for: a target, or (no bout) a whole workout.
+  const [sheet, setSheet] = useState<{ bout?: Bout; workout: Workout } | null>(null)
+  const shareSheet = sheet ? <ShareSheet bout={sheet.bout} workout={sheet.workout} onClose={() => setSheet(null)} /> : null
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -184,13 +168,13 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         <h1 style={{ marginTop: 10 }}>{openBout.position === 'prone' ? 'Prone' : 'Standing'}</h1>
         <p className="lede">{fmt(openBout.shotAt)}</p>
         <ResultsView bout={openBout} settings={settings} workout={boutWorkout} imageUrl={openBoutImage} />
-        {shareError && <div className="notice error" style={{ marginTop: 16 }}>{shareError}</div>}
+        {shareSheet}
         {!readOnly && (
           <div className="row" style={{ marginTop: 16 }}>
             <button
               className="secondary"
-              disabled={sharingBoutId === openBout.id}
-              onClick={() => void shareBout(openBout, boutWorkout)}
+              disabled={!boutWorkout}
+              onClick={() => boutWorkout && setSheet({ bout: openBout, workout: boutWorkout })}
             >
               <ShareIcon /> Share
             </button>
@@ -236,6 +220,12 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
           <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
 
+          {shareSheet}
+          {!readOnly && (
+            <button className="secondary" style={{ marginTop: 10 }} onClick={() => setSheet({ workout: openWorkout })}>
+              <ShareIcon /> Share workout
+            </button>
+          )}
           {!readOnly && (
             <button
               className="secondary danger" style={{ marginTop: 10 }}
@@ -292,7 +282,6 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
 
         <h2>Entries</h2>
-        {shareError && <div className="notice error" style={{ marginBottom: 8 }}>{shareError}</div>}
         {entries.length === 0 && <p className="meta">Nothing was added to this workout.</p>}
         {entries.map((e) =>
           e.kind === 'precision' ? (
@@ -316,8 +305,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 <button
                   className="link"
                   aria-label="Share this target"
-                  disabled={sharingBoutId === e.id}
-                  onClick={() => void shareBout(e, openWorkout)}
+                  onClick={() => setSheet({ bout: e, workout: openWorkout })}
                   style={{ flex: 'none' }}
                 >
                   <ShareIcon />
@@ -350,10 +338,16 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           ),
         )}
 
+        {shareSheet}
+        {!readOnly && (
+          <button className="secondary" style={{ marginTop: 16 }} onClick={() => setSheet({ workout: openWorkout })}>
+            <ShareIcon /> Share workout
+          </button>
+        )}
         {!readOnly && (
           <button
             className="secondary danger"
-            style={{ marginTop: 16 }}
+            style={{ marginTop: 10 }}
             onClick={async () => {
               if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
               await deleteWorkout(openWorkout.id)

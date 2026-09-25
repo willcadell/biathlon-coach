@@ -12,6 +12,7 @@ import {
 import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
+import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
 import { AdminPill, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
@@ -791,6 +792,8 @@ export function CoachView({ session, onIdentityChanged }: Props) {
           <span className="meta" aria-hidden="true">›</span>
         </button>
       ))}
+
+      {clubs.length > 0 && <FeedView role="coach" clubCount={clubs.length} />}
     </>
   )
 }
