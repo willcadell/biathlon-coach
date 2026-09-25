@@ -477,7 +477,7 @@ function RosterGroup({
                   aria-label={`Remove ${a.displayName || 'this athlete'} from ${group.label}`}
                   onClick={() => onRemove(a, group.label)}
                 >
-                  Remove
+                  <TrashIcon />
                 </button>
               )}
             </div>
