@@ -32,11 +32,16 @@ export interface WorkoutPayload {
   best: { ringTotal: number; ringPossible: number } | null
 }
 
+export interface AnnouncementPayload {
+  text: string
+}
+
 interface PostBase {
   id: string
   clubId: string
   clubName: string
-  athleteId: string
+  /** Null for a coach's announcement, which has no athlete behind it. */
+  athleteId: string | null
   authorName: string
   createdAt: string
 }
@@ -44,6 +49,7 @@ interface PostBase {
 export type FeedPost =
   | (PostBase & { kind: 'target'; payload: TargetPayload })
   | (PostBase & { kind: 'workout'; payload: WorkoutPayload })
+  | (PostBase & { kind: 'announcement'; payload: AnnouncementPayload })
 
 export const FEED_PAGE_SIZE = 20
 
@@ -134,6 +140,15 @@ export async function myCowbellTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_cowbell_total')
   if (error) throw error
   return Number(data ?? 0)
+}
+
+export const ANNOUNCEMENT_MAX = 500
+
+/** A coach's text announcement to one club's feed — any coach at the club;
+ *  post_announcement checks that itself and trims and length-checks the text. */
+export async function postAnnouncement(clubId: string, text: string): Promise<void> {
+  const { error } = await supabase.rpc('post_announcement', { p_club_id: clubId, p_text: text })
+  if (error) throw error
 }
 
 /** Allowed for the post's author or any coach at its club — the database

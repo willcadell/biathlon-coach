@@ -5,7 +5,7 @@ import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
-import { CowbellIcon, TrashIcon } from './icons'
+import { CoachMark, CowbellIcon, TrashIcon } from './icons'
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -407,6 +407,31 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
             author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
           />
         )
+        if (post.kind === 'announcement') {
+          return (
+            <div
+              key={post.id} className="card"
+              style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: 'color-mix(in srgb, var(--series-1) 7%, var(--surface-1))' }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  flex: 'none', width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'color-mix(in srgb, var(--series-1) 14%, transparent)', color: 'var(--series-1)',
+                }}
+              >
+                <CoachMark size={30} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {header}
+                <span className="pill" style={{ color: 'var(--series-1)' }}>Announcement</span>
+                <LastLine trailing={bell}>
+                  <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{post.payload.text}</p>
+                </LastLine>
+              </div>
+            </div>
+          )
+        }
         return post.kind === 'target' ? (
           <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <CardThumb p={post.payload} />

@@ -94,3 +94,26 @@ export function CowbellIcon({ filled = false, size = 20 }: { filled?: boolean; s
     </svg>
   )
 }
+
+/** Announce to the club: a megaphone. */
+export function MegaphoneIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
+      <path d="M3 11v2a1 1 0 0 0 1 1h2l8 4V6L6 10H4a1 1 0 0 0-1 1z" />
+      <path d="M6.5 14l1.2 4.5h2.2L9 15.5" />
+      <path d="M17.5 8.5a5 5 0 0 1 0 7" />
+    </svg>
+  )
+}
+
+/** The 545 Coach mark — the two rings and centre dot used for the coach tab —
+ *  standing for "this came from a coach". */
+export function CoachMark({ size = 28 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width={size} height={size} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+    </svg>
+  )
+}

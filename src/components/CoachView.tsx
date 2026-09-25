@@ -12,9 +12,10 @@ import {
 import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
+import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
-import { AdminPill, GoArrow, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
+import { AdminPill, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -766,7 +767,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
     return (
       <>
         <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
-        <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
+        <ClubTitle club={openClub} />
         <ClubRosterSection club={openClub} />
       </>
     )
@@ -789,6 +790,28 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       ))}
 
       {clubs.length > 0 && <FeedView role="coach" clubs={clubs} />}
+    </>
+  )
+}
+
+/** A club page's title: the club's logo, its name, and a megaphone for
+ *  posting an announcement to the club's feed. */
+function ClubTitle({ club }: { club: Club }) {
+  const [announcing, setAnnouncing] = useState(false)
+  return (
+    <>
+      <h1 style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <ClubLogo logoPath={club.logoPath} size={34} />
+        <span style={{ minWidth: 0 }}>{club.name}</span>
+        <button
+          className="link" style={{ flex: 'none', display: 'inline-flex' }}
+          aria-label={`Post an announcement to ${club.name}`} title="Announce to the club"
+          onClick={() => setAnnouncing(true)}
+        >
+          <MegaphoneIcon size={22} />
+        </button>
+      </h1>
+      {announcing && <AnnounceSheet club={club} onClose={() => setAnnouncing(false)} />}
     </>
   )
 }
@@ -934,7 +957,7 @@ export function ClubSettingsView({ session }: { session: Session }) {
     return (
       <>
         <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
-        <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
+        <ClubTitle club={openClub} />
         <ClubAdminSection
           club={openClub}
           myCoachId={coach.id}
