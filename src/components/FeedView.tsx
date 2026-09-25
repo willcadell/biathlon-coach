@@ -232,17 +232,12 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
 
   return (
     <>
-      {role === 'athlete' ? (
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(memberships ?? []).map((m) => <ClubLogo key={m.clubId} logoPath={m.logoPath} size={28} />)}
-          Feed
-        </h2>
-      ) : (
-        <h1 style={{ margin: '28px 0 8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          {(clubs ?? []).map((c) => <ClubLogo key={c.id} logoPath={c.logoPath} size={28} />)}
-          Combo Feed
-        </h1>
-      )}
+      <h1 style={{ margin: '28px 0 8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        {role === 'athlete'
+          ? (memberships ?? []).map((m) => <ClubLogo key={m.clubId} logoPath={m.logoPath} size={28} />)
+          : (clubs ?? []).map((c) => <ClubLogo key={c.id} logoPath={c.logoPath} size={28} />)}
+        {role === 'athlete' ? 'Feed' : 'Combo Feed'}
+      </h1>
       {error && <div className="notice error">{error}</div>}
       {posts === null && !error && <p className="meta">Loading…</p>}
       {posts?.length === 0 && (
