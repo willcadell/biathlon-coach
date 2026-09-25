@@ -3,6 +3,7 @@ import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
+import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
@@ -241,6 +242,26 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               </button>
             </div>
           )}
+          {devModeOn() && !readOnly && (
+            <button
+              className="secondary dev-switch" style={{ marginTop: 10 }}
+              onClick={async () => {
+                if (!confirm(
+                  'Make this workout live?\n\nIt leaves dev mode and becomes real data: your coaches can see it, ' +
+                  'and it counts in your analysis. Its bouts come with it. You can then share it to the club.',
+                )) return
+                try {
+                  await makeWorkoutLive(openWorkout.id)
+                  setOpenWorkoutId(null)
+                  onChanged()
+                } catch {
+                  alert('Could not make that workout live. Check your connection and try again.')
+                }
+              }}
+            >
+              Make live
+            </button>
+          )}
         </>
       )
     }
@@ -359,6 +380,26 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               <ShareIcon /> Share workout
             </button>
           </div>
+        )}
+        {devModeOn() && !readOnly && (
+          <button
+            className="secondary dev-switch" style={{ marginTop: 10 }}
+            onClick={async () => {
+              if (!confirm(
+                'Make this workout live?\n\nIt leaves dev mode and becomes real data: your coaches can see it, ' +
+                'and it counts in your analysis. Its bouts come with it. You can then share it to the club.',
+              )) return
+              try {
+                await makeWorkoutLive(openWorkout.id)
+                setOpenWorkoutId(null)
+                onChanged()
+              } catch {
+                alert('Could not make that workout live. Check your connection and try again.')
+              }
+            }}
+          >
+            Make live
+          </button>
         )}
       </>
     )

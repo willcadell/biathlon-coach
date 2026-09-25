@@ -25,3 +25,10 @@ export function setDevMode(on: boolean): void {
   }
   window.location.reload()
 }
+
+/** Turn one of your test workouts into a live one, with its bouts and click
+ *  log. Only works from dev mode, on your own test workouts. */
+export async function makeWorkoutLive(workoutId: string): Promise<void> {
+  const { error } = await supabase.rpc('make_workout_live', { p_workout_id: workoutId })
+  if (error) throw error
+}
