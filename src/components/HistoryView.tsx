@@ -222,22 +222,23 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
           {shareSheet}
           {!readOnly && (
-            <button className="secondary" style={{ marginTop: 10 }} onClick={() => setSheet({ workout: openWorkout })}>
-              <ShareIcon /> Share workout
-            </button>
-          )}
-          {!readOnly && (
-            <button
-              className="secondary danger" style={{ marginTop: 10 }}
-              onClick={async () => {
-                if (!confirm('Delete this dry-fire session?')) return
-                await deleteWorkout(openWorkout.id)
-                setOpenWorkoutId(null)
-                onChanged()
-              }}
-            >
-              Delete this session
-            </button>
+            <div className="row" style={{ marginTop: 10 }}>
+              <button
+                className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+                aria-label="Delete this session" title="Delete this session"
+                onClick={async () => {
+                  if (!confirm('Delete this dry-fire session?')) return
+                  await deleteWorkout(openWorkout.id)
+                  setOpenWorkoutId(null)
+                  onChanged()
+                }}
+              >
+                <TrashIcon />
+              </button>
+              <button className="secondary" onClick={() => setSheet({ workout: openWorkout })}>
+                <ShareIcon /> Share workout
+              </button>
+            </div>
           )}
         </>
       )
@@ -339,23 +340,23 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
         {shareSheet}
         {!readOnly && (
-          <button className="secondary" style={{ marginTop: 16 }} onClick={() => setSheet({ workout: openWorkout })}>
-            <ShareIcon /> Share workout
-          </button>
-        )}
-        {!readOnly && (
-          <button
-            className="secondary danger"
-            style={{ marginTop: 10 }}
-            onClick={async () => {
-              if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
-              await deleteWorkout(openWorkout.id)
-              setOpenWorkoutId(null)
-              onChanged()
-            }}
-          >
-            Delete this workout
-          </button>
+          <div className="row" style={{ marginTop: 16 }}>
+            <button
+              className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+              aria-label="Delete this workout" title="Delete this workout"
+              onClick={async () => {
+                if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
+                await deleteWorkout(openWorkout.id)
+                setOpenWorkoutId(null)
+                onChanged()
+              }}
+            >
+              <TrashIcon />
+            </button>
+            <button className="secondary" onClick={() => setSheet({ workout: openWorkout })}>
+              <ShareIcon /> Share workout
+            </button>
+          </div>
         )}
       </>
     )
