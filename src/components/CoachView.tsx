@@ -14,7 +14,7 @@ import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
-import { AdminPill, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
+import { AdminPill, GoArrow, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -475,8 +475,7 @@ function RosterGroup({
                 <div className="grow">
                   <div className="title">
                     {a.displayName || 'Unnamed athlete'}
-                    {' '}
-                    <span aria-hidden="true" style={{ color: 'var(--series-1)' }}>→</span>
+                    <GoArrow />
                   </div>
                 </div>
               </button>
@@ -781,12 +780,11 @@ export function CoachView({ session, onIdentityChanged }: Props) {
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
           <ClubLogo logoPath={c.logoPath} size={40} />
           <div className="grow">
-            <div className="title">{c.name}</div>
+            <div className="title">{c.name}<GoArrow /></div>
             <div className="meta">
               Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{c.joinCode}</strong>
             </div>
           </div>
-          <span className="meta" aria-hidden="true">›</span>
         </button>
       ))}
 
@@ -960,9 +958,8 @@ export function ClubSettingsView({ session }: { session: Session }) {
             <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
               <ClubLogo logoPath={c.logoPath} size={40} />
               <div className="grow">
-                <div className="title">{c.name}</div>
+                <div className="title">{c.name}<GoArrow /></div>
               </div>
-              <span className="meta" aria-hidden="true">›</span>
             </button>
           ))}
         </>

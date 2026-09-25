@@ -11,7 +11,7 @@ import { FeedView } from './FeedView'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { MiniTargets } from './MiniTargets'
-import { ShareIcon, TrashIcon } from './icons'
+import { GoArrow, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
   '12': '12 · headwind',
@@ -115,10 +115,9 @@ function RaceStages({
           return (
             <button key={i} className="boutrow" onClick={() => onAddStage(position, i)}>
               <div className="grow">
-                <div className="title">{label}</div>
+                <div className="title">{label}<GoArrow /></div>
                 <div className="meta">Not shot yet</div>
               </div>
-              <span className="meta" aria-hidden="true">›</span>
             </button>
           )
         }
@@ -126,13 +125,12 @@ function RaceStages({
         return (
           <button key={i} className="boutrow" onClick={() => onEditStage(bout)}>
             <div className="grow">
-              <div className="title">{label} · {hitCount(hits)}/{DISCS_PER_METAL_BOUT} hits</div>
+              <div className="title">{label} · {hitCount(hits)}/{DISCS_PER_METAL_BOUT} hits<GoArrow /></div>
               <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MiniTargets hits={hits} />
                 {bout.heartRate > 0 && `${bout.heartRate} bpm on entry`}
               </div>
             </div>
-            <span className="meta" aria-hidden="true">›</span>
           </button>
         )
       })}

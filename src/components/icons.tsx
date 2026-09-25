@@ -74,3 +74,10 @@ export function AdminPill({ style }: { style?: React.CSSProperties }) {
     </span>
   )
 }
+
+/** The "this opens something" cue in a list row: a blue right arrow straight
+ *  after the words, in the same style as the back arrow, rather than a small
+ *  grey chevron at the far edge. */
+export function GoArrow() {
+  return <span aria-hidden="true" style={{ color: 'var(--series-1)', marginLeft: 6 }}>→</span>
+}

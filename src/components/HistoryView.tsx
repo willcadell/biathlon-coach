@@ -6,7 +6,7 @@ import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
-import { ShareIcon, TrashIcon } from './icons'
+import { GoArrow, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -296,10 +296,9 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               >
                 {thumbs[e.id] ? <img src={thumbs[e.id]} alt="" /> : <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--grid)', flex: 'none' }} />}
                 <div className="grow">
-                  <div className="title">{e.metrics.ringTotal}/{e.metrics.ringPossible} <span className="pill">{e.position}</span></div>
+                  <div className="title">{e.metrics.ringTotal}/{e.metrics.ringPossible} <span className="pill">{e.position}</span><GoArrow /></div>
                   <div className="meta">{fmt(e.shotAt)} · {e.metrics.meanRadius.toFixed(0)} mm mean radius</div>
                 </div>
-                <span className="meta" aria-hidden="true">›</span>
               </button>
               {!readOnly && (
                 <button
@@ -417,6 +416,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 {w.workoutType === 'dryfire' && <span className="pill">Dry-fire</span>}
                 {w.raceType && <span className="pill">{RACE_TYPE_LABEL[w.raceType]}</span>}
                 {w.wind !== 'none' && <span className="pill">{w.wind} wind</span>}
+                {!selecting && <GoArrow />}
               </div>
               <div className="meta">
                 {w.name && `${fmt(w.startedAt)} · `}
@@ -426,7 +426,6 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 {mixedFaces && ownBouts.length > 0 && ` · ${faceById(ownBouts[0].targetFaceId).name}`}
               </div>
             </div>
-            {!selecting && <span className="meta" aria-hidden="true">›</span>}
           </button>
         )
       })}
