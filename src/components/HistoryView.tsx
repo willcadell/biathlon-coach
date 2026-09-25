@@ -4,6 +4,7 @@ import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
+import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
@@ -111,8 +112,8 @@ function MakeLiveButton({ workoutId, onDone }: { workoutId: string; onDone: () =
         try {
           await makeWorkoutLive(workoutId)
           onDone()
-        } catch {
-          alert('Could not make that workout live. Check your connection and try again.')
+        } catch (e) {
+          alert(errorMessage(e, 'Could not make that workout live. Check your connection and try again.'))
         }
       }}
     >
