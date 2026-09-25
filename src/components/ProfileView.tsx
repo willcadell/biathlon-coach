@@ -182,15 +182,16 @@ function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwit
   if (!onSwitchRole) return null
   return (
     <>
-      <h2>Session</h2>
-      <div className="card">
-        <p style={{ marginTop: 0 }}>
-          Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
-        </p>
-        <button className="secondary" onClick={onSwitchRole}>
-          Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
-        </button>
-      </div>
+      <Dropdown title="Session" level={2}>
+        <div className="card">
+          <p style={{ marginTop: 0 }}>
+            Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
+          </p>
+          <button className="secondary" onClick={onSwitchRole}>
+            Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
+          </button>
+        </div>
+      </Dropdown>
     </>
   )
 }
@@ -362,13 +363,14 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           </button>
         </div>
 
-        <h2>Account</h2>
-        <div className="card">
-          <p>{session.user.email}</p>
-          <button className="secondary" onClick={() => void signOut()}>
-            Sign out
-          </button>
-        </div>
+        <Dropdown title="Account" level={2}>
+          <div className="card">
+            <p>{session.user.email}</p>
+            <button className="secondary" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          </div>
+        </Dropdown>
         <p className="meta" style={{ textAlign: 'center' }}>
           <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
           {' · '}
@@ -572,13 +574,14 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
-      <h2>Account</h2>
-      <div className="card">
-        <p>{session.user.email}</p>
-        <button className="secondary" onClick={() => void signOut()}>
-          Sign out
-        </button>
-      </div>
+      <Dropdown title="Account" level={2}>
+        <div className="card">
+          <p>{session.user.email}</p>
+          <button className="secondary" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </div>
+      </Dropdown>
       <p className="meta" style={{ textAlign: 'center' }}>
         <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
         {' · '}
