@@ -47,14 +47,29 @@ export function ShieldMinusIcon() {
   )
 }
 
-/** The "Admin" tag: the shield in front of the word, so the icon used for
- *  granting or revoking admin rights reads as belonging to it. */
+/** Solid shield with a person cut out of it — a filled glyph stays legible at
+ *  tag size where an outline shield doesn't. */
+function AdminShield({ size }: { size: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" width={size} height={size} aria-hidden="true">
+      <path d="M12 2.5l8 3.2v5.6c0 4.8-3.3 8.6-8 10.2-4.7-1.6-8-5.4-8-10.2V5.7z M12 6.9a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z M7.3 17.2c.6-2.4 2.5-3.6 4.7-3.6s4.1 1.2 4.7 3.6z" />
+    </svg>
+  )
+}
+
+/** The "Admin" tag: the shield in front of the word, tinted so it stands
+ *  apart from the plain grey pills. */
 export function AdminPill({ style }: { style?: React.CSSProperties }) {
   return (
-    <span className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, ...style }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="11" height="11" aria-hidden="true">
-        <path d={SHIELD} />
-      </svg>
+    <span
+      className="pill"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        background: 'color-mix(in srgb, var(--series-1) 14%, transparent)', color: 'var(--series-1)',
+        ...style,
+      }}
+    >
+      <AdminShield size={13} />
       Admin
     </span>
   )
