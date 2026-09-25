@@ -104,6 +104,38 @@ export async function postToFeed(clubId: string, source: { boutId: string } | { 
   if (error) throw error
 }
 
+export interface CowbellCount {
+  rings: number
+  /** Whether the signed-in user has rung this one. */
+  mine: boolean
+}
+
+/** Cowbell counts for a page of posts in one call. Posts nobody has rung are
+ *  simply absent from the result — callers treat missing as zero. */
+export async function cowbellCounts(postIds: string[]): Promise<Record<string, CowbellCount>> {
+  if (postIds.length === 0) return {}
+  const { data, error } = await supabase.rpc('feed_cowbell_counts', { p_post_ids: postIds })
+  if (error) throw error
+  const out: Record<string, CowbellCount> = {}
+  for (const row of (data ?? []) as { post_id: string; rings: number | string; mine: boolean }[]) {
+    out[row.post_id] = { rings: Number(row.rings), mine: row.mine }
+  }
+  return out
+}
+
+/** Ring or take back the signed-in user's cowbell on a post. Idempotent. */
+export async function setCowbell(postId: string, on: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_cowbell', { p_post_id: postId, p_on: on })
+  if (error) throw error
+}
+
+/** Bells on the athlete's own posts from other people. */
+export async function myCowbellTotal(): Promise<number> {
+  const { data, error } = await supabase.rpc('my_cowbell_total')
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
 /** Allowed for the post's author or any coach at its club — the database
  *  enforces it, and a refused delete removes zero rows rather than erroring. */
 export async function deleteFeedPost(id: string): Promise<void> {

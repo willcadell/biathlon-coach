@@ -370,3 +370,19 @@ details.help p {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* --- Cowbell ------------------------------------------------------------ */
+button.link.cowbell { display: inline-flex; align-items: center; gap: 6px; padding: 6px 4px; color: var(--text-muted); text-decoration: none; }
+button.link.cowbell[aria-pressed='true'] { color: var(--series-2); }
+.cowbell .count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cowbell svg { transform-origin: 50% 8%; }
+.cowbell.ringing svg { animation: cowbell-ring 0.6s ease-in-out; }
+@keyframes cowbell-ring {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(-22deg); }
+  40% { transform: rotate(18deg); }
+  60% { transform: rotate(-11deg); }
+  80% { transform: rotate(5deg); }
+  100% { transform: rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) { .cowbell.ringing svg { animation: none; } }

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { FEED_PAGE_SIZE, deleteFeedPost, currentUserId, feedPosts, useMemberships, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
+import { FEED_PAGE_SIZE, cowbellCounts, deleteFeedPost, currentUserId, feedPosts, myCowbellTotal, setCowbell, useMemberships, type CowbellCount, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
 import { RACE_TYPE_LABEL, faceById, type Bout, type RaceType, type Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
-import { TrashIcon } from './icons'
+import { CowbellIcon, TrashIcon } from './icons'
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -166,6 +166,29 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
   )
 }
 
+/** Ring a cowbell for a post. Filled and orange once you've rung it; tap
+ *  again to take it back. The count is always shown, including zero. */
+function CowbellButton({ count, mine, author, onToggle }: { count: number; mine: boolean; author: string; onToggle: () => void }) {
+  const [ringing, setRinging] = useState(false)
+  useEffect(() => {
+    if (!ringing) return
+    const t = setTimeout(() => setRinging(false), 650)
+    return () => clearTimeout(t)
+  }, [ringing])
+  return (
+    <button
+      className={`link cowbell${ringing ? ' ringing' : ''}`}
+      aria-pressed={mine}
+      aria-label={`${mine ? 'Take back your cowbell from' : 'Ring the cowbell for'} ${author}’s post — ${count} so far`}
+      title={mine ? 'Take back your cowbell' : 'Ring the cowbell'}
+      onClick={() => { if (!mine) setRinging(true); onToggle() }}
+    >
+      <CowbellIcon filled={mine} />
+      <span className="count">{count}</span>
+    </button>
+  )
+}
+
 /**
  * What athletes have chosen to share with their club. An athlete sees their
  * own club's posts and removes only their own; a coach sees one feed combined
@@ -180,6 +203,28 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
+  const [bells, setBells] = useState<Record<string, CowbellCount>>({})
+  const [bellTotal, setBellTotal] = useState<number | null>(null)
+
+  // Counts are best-effort: a failure leaves the posts readable, just without
+  // numbers, rather than blanking the feed.
+  function loadBells(ids: string[]) {
+    void cowbellCounts(ids)
+      .then((c) => setBells((prev) => ({ ...prev, ...c })))
+      .catch(() => {})
+  }
+
+  async function toggleBell(post: FeedPost) {
+    const cur = bells[post.id] ?? { rings: 0, mine: false }
+    const next = { rings: Math.max(0, cur.rings + (cur.mine ? -1 : 1)), mine: !cur.mine }
+    setBells((prev) => ({ ...prev, [post.id]: next }))
+    try {
+      await setCowbell(post.id, next.mine)
+    } catch {
+      setBells((prev) => ({ ...prev, [post.id]: cur }))
+      setError('Could not ring the cowbell. Check your connection and try again.')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -189,6 +234,7 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
         setPosts(p)
         setUserId(id)
         setHasMore(p.length === FEED_PAGE_SIZE)
+        loadBells(p.map((x) => x.id))
       })
       .catch((e) => { if (!cancelled) setError(errorMessage(e, 'Could not load the club feed. Check your connection and try again.')) })
     return () => { cancelled = true }
@@ -204,6 +250,7 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
         const seen = new Set((prev ?? []).map((p) => p.id))
         return [...(prev ?? []), ...next.filter((p) => !seen.has(p.id))]
       })
+      loadBells(next.map((x) => x.id))
       setHasMore(next.length === FEED_PAGE_SIZE)
     } catch (e) {
       // Stop auto-loading rather than retrying in a loop on a bad connection;
@@ -227,6 +274,13 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
     io.observe(el)
     return () => io.disconnect()
   }, [posts, hasMore, loadingMore])
+
+  useEffect(() => {
+    if (role !== 'athlete') return
+    let cancelled = false
+    void myCowbellTotal().then((n) => { if (!cancelled) setBellTotal(n) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [role])
 
   // An athlete in no club has no feed to show, and no reason to see a heading
   // for one.
@@ -253,6 +307,12 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
           : (clubs ?? []).map((c) => <ClubLogo key={c.id} logoPath={c.logoPath} size={28} />)}
         {role === 'athlete' ? 'Feed' : 'Combo Feed'}
       </h1>
+      {role === 'athlete' && bellTotal !== null && (bellTotal > 0 || (posts ?? []).some((p) => p.athleteId === userId)) && (
+        <p className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 10px' }}>
+          <span style={{ color: 'var(--series-2)', display: 'inline-flex' }}><CowbellIcon filled size={16} /></span>
+          <span><strong>{bellTotal}</strong> bell{bellTotal === 1 ? '' : 's'} earned on your posts</span>
+        </p>
+      )}
       {error && <div className="notice error">{error}</div>}
       {posts === null && !error && <p className="meta">Loading…</p>}
       {posts?.length === 0 && (
@@ -282,12 +342,20 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
             <div style={{ flex: 1, minWidth: 0 }}>
               {header}
               <TargetSummary p={post.payload} />
+              <CowbellButton
+                count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
+                author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
+              />
             </div>
           </div>
         ) : (
           <div key={post.id} className="card">
             {header}
             <WorkoutCard p={post.payload} />
+            <CowbellButton
+              count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
+              author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
+            />
           </div>
         )
       })}

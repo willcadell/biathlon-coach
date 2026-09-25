@@ -81,3 +81,16 @@ export function AdminPill({ style }: { style?: React.CSSProperties }) {
 export function GoArrow() {
   return <span aria-hidden="true" style={{ color: 'var(--series-1)', marginLeft: 6 }}>→</span>
 }
+
+/** A cowbell: handle, flared body, the rim, and the clapper. Filled once
+ *  you've rung it. */
+export function CowbellIcon({ filled = false, size = 20 }: { filled?: boolean; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
+      <path d="M10 6.5V5a2 2 0 0 1 4 0v1.5" />
+      <path d="M8.6 6.5h6.8l3.1 11H5.5z" fill={filled ? 'currentColor' : 'none'} />
+      <path d="M5 17.5h14" />
+      <circle cx="12" cy="20.4" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
