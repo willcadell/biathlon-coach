@@ -778,7 +778,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
       <h1>Coach</h1>
       <p className="lede">Coaching as {coach.displayName || session.user.email}.</p>
 
-      <h2>Your clubs</h2>
+      <h2>Coach your clubs</h2>
       {clubs.length === 0 && <p className="meta">Nothing yet — create or join one from your Profile.</p>}
       {clubs.map((c) => (
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { deleteFeedPost, currentUserId, feedPosts, useMemberships, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
+import { FEED_PAGE_SIZE, deleteFeedPost, currentUserId, feedPosts, useMemberships, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
 import { RACE_TYPE_LABEL, faceById, type Bout, type RaceType, type Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
@@ -162,14 +162,56 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
   const [posts, setPosts] = useState<FeedPost[] | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const sentinel = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
     void Promise.all([feedPosts(), currentUserId()])
-      .then(([p, id]) => { if (!cancelled) { setPosts(p); setUserId(id) } })
+      .then(([p, id]) => {
+        if (cancelled) return
+        setPosts(p)
+        setUserId(id)
+        setHasMore(p.length === FEED_PAGE_SIZE)
+      })
       .catch((e) => { if (!cancelled) setError(errorMessage(e, 'Could not load the club feed. Check your connection and try again.')) })
     return () => { cancelled = true }
   }, [])
+
+  async function loadMore() {
+    if (loadingMore || !hasMore || !posts || posts.length === 0) return
+    const last = posts[posts.length - 1]
+    setLoadingMore(true)
+    try {
+      const next = await feedPosts({ createdAt: last.createdAt, id: last.id })
+      setPosts((prev) => {
+        const seen = new Set((prev ?? []).map((p) => p.id))
+        return [...(prev ?? []), ...next.filter((p) => !seen.has(p.id))]
+      })
+      setHasMore(next.length === FEED_PAGE_SIZE)
+    } catch (e) {
+      // Stop auto-loading rather than retrying in a loop on a bad connection;
+      // the button below picks it back up.
+      setError(errorMessage(e, 'Could not load more of the feed. Check your connection and try again.'))
+      setHasMore(false)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Infinite scroll: when the marker below the last post comes near view,
+  // fetch the next page. Re-armed after every page, so a page that doesn't
+  // fill the screen keeps loading until it does.
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !hasMore || loadingMore || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore()
+    }, { rootMargin: '400px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [posts, hasMore, loadingMore])
 
   // An athlete in no club has no feed to show, and no reason to see a heading
   // for one.
@@ -236,6 +278,15 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
           </div>
         )
       })}
+      {hasMore && (
+        <div ref={sentinel} style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+          {loadingMore ? (
+            <span className="meta">Loading more…</span>
+          ) : (
+            <button className="link" onClick={() => void loadMore()}>Show more</button>
+          )}
+        </div>
+      )}
     </>
   )
 }

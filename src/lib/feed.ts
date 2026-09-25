@@ -40,15 +40,35 @@ export type FeedPost =
   | (PostBase & { kind: 'target'; payload: TargetPayload })
   | (PostBase & { kind: 'workout'; payload: WorkoutPayload })
 
-/** The most recent posts across every club the caller belongs to or coaches
- *  — row-level security decides which those are, so there's no club filter
- *  here: an athlete gets their club's feed, a coach the combined feed. */
-export async function feedPosts(limit = 50): Promise<FeedPost[]> {
-  const { data, error } = await supabase
+export const FEED_PAGE_SIZE = 20
+
+/** Where the next page starts: just after this post, in newest-first order. */
+export interface FeedCursor {
+  createdAt: string
+  id: string
+}
+
+/** One page of the most recent posts across every club the caller belongs to
+ *  or coaches — row-level security decides which those are, so there's no
+ *  club filter here: an athlete gets their club's feed, a coach the combined
+ *  feed. Pass the last post's cursor to get the page after it.
+ *
+ *  The cursor is (created_at, id) rather than an offset, so posts arriving
+ *  while someone scrolls don't shift the pages and repeat or skip a post; id
+ *  breaks the tie between posts made in the same instant. createdAt is kept
+ *  exactly as the database returned it — re-serialising through a JS Date
+ *  would drop the microseconds and skip posts sharing a millisecond. */
+export async function feedPosts(after?: FeedCursor, limit = FEED_PAGE_SIZE): Promise<FeedPost[]> {
+  let query = supabase
     .from('feed_posts')
     .select('id, club_id, athlete_id, author_name, kind, payload, created_at')
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit)
+  if (after) {
+    query = query.or(`created_at.lt."${after.createdAt}",and(created_at.eq."${after.createdAt}",id.lt.${after.id})`)
+  }
+  const { data, error } = await query
   if (error) throw error
   if (!data || data.length === 0) return []
 
