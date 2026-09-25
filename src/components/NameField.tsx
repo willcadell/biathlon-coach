@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { errorMessage } from '../lib/errors'
+import { PencilIcon } from './icons'
 
 /**
- * A name that's set once and then sits locked — "Name · Will" with an Edit
- * link — the way the race format does, instead of an always-open text box
+ * A name that's set once and then sits locked — "Name · Will" with an edit
+ * pencil — the way the race format does, instead of an always-open text box
  * that looks unsaved. Edit opens the field with Save and Cancel; a name that
  * hasn't been set yet opens straight into the field.
  */
@@ -41,10 +42,10 @@ export function NameField({
             <span className="meta">Name · </span><strong>{value}</strong>
           </span>
           <button
-            className="link" style={{ flex: 'none' }}
+            className="link" style={{ flex: 'none' }} aria-label="Edit name" title="Edit name"
             onClick={() => { setDraft(value); setError(''); setEditing(true) }}
           >
-            Edit
+            <PencilIcon />
           </button>
         </div>
         <div className="meta" style={{ fontSize: 12, marginTop: 4 }}>{hint}</div>
