@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
@@ -682,6 +682,17 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
   const [complete, setComplete] = useState(false)
+  // On the start screen, whether the Range / Dryfire / Race buttons have
+  // scrolled out of sight — the feed below can run long, so a way back up.
+  const startButtons = useRef<HTMLDivElement>(null)
+  const [startOffscreen, setStartOffscreen] = useState(false)
+  useEffect(() => {
+    const el = startButtons.current
+    if (workout || !el || typeof IntersectionObserver === 'undefined') { setStartOffscreen(false); return }
+    const io = new IntersectionObserver(([entry]) => setStartOffscreen(!entry.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [workout])
   // Which workout's race format has been confirmed (or is being re-edited).
   const [formatConfirmedId, setFormatConfirmedId] = useState<string | null>(null)
   const [editingFormat, setEditingFormat] = useState(false)
@@ -726,7 +737,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
           logged once for the whole session. A dry-fire session just tracks time and notes.
         </p>
         {startError && <div className="notice error">{startError}</div>}
-        <div className="row">
+        <div className="row" ref={startButtons}>
           {/* Each kind of session in its own colour, matching its tile in the
               feed. The green and orange are deepened so white text on them is
               still comfortably readable. */}
@@ -750,6 +761,17 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
           </button>
         </div>
         <FeedView role="athlete" />
+        <button
+          type="button"
+          className={`to-top${startOffscreen ? ' show' : ''}`}
+          aria-label="Back to the top to start a session" title="Start a session"
+          aria-hidden={!startOffscreen} tabIndex={startOffscreen ? 0 : -1}
+          onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" aria-hidden="true">
+            <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" />
+          </svg>
+        </button>
       </>
     )
   }
