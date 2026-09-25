@@ -9,6 +9,7 @@ import {
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
+import { AdminPill } from './icons'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
  *  them to know which, it just tries a club code, then a program code. */
@@ -147,7 +148,7 @@ function CoachedClubsCard() {
               <ClubLogo logoPath={c.logoPath} size={32} />
               <span style={{ flex: 1 }}>
                 {c.name}
-                {c.isAdmin && <span className="pill" style={{ marginLeft: 6 }}>Admin</span>}
+                {c.isAdmin && <AdminPill style={{ marginLeft: 6 }} />}
               </span>
               <span className="meta">
                 Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{c.joinCode}</strong>

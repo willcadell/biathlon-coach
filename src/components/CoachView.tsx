@@ -13,7 +13,7 @@ import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { errorMessage } from '../lib/errors'
-import { PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
+import { AdminPill, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -862,7 +862,7 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
         {coaches.map((c) => (
           <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{ flex: 1, minWidth: 0 }}>{c.displayName || 'Unnamed coach'}</span>
-            {c.isAdmin && <span className="pill" style={{ flex: 'none' }}>Admin</span>}
+            {c.isAdmin && <AdminPill style={{ flex: 'none' }} />}
             {club.isAdmin && c.coachId !== myCoachId && (
               <span style={{ flex: 'none', display: 'flex', gap: 12 }}>
                 <button

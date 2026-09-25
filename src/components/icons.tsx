@@ -46,3 +46,16 @@ export function ShieldMinusIcon() {
     </svg>
   )
 }
+
+/** The "Admin" tag: the shield in front of the word, so the icon used for
+ *  granting or revoking admin rights reads as belonging to it. */
+export function AdminPill({ style }: { style?: React.CSSProperties }) {
+  return (
+    <span className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, ...style }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="11" height="11" aria-hidden="true">
+        <path d={SHIELD} />
+      </svg>
+      Admin
+    </span>
+  )
+}
