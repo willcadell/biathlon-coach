@@ -21,6 +21,7 @@
   --mark-line: rgba(255, 255, 255, 0.5);
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.06), 0 4px 12px rgba(11, 11, 11, 0.04);
   --radius: 12px;
+  --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -308,6 +309,18 @@ ol.steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--te
 ol.steps li { margin-bottom: 5px; }
 
 details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+/* Same chevron as the Analysis section headings (blue, down when closed, up
+   when open) instead of the browser's default triangle. The little "?" help
+   toggles keep their own circle. */
+details:not(.help) > summary { list-style: none; display: flex; align-items: center; gap: 6px; }
+details:not(.help) > summary::-webkit-details-marker { display: none; }
+details:not(.help) > summary::marker { content: ''; }
+details:not(.help) > summary::after {
+  content: ''; flex: none; width: 18px; height: 18px; background: var(--series-1);
+  -webkit-mask: var(--chevron-down) center / contain no-repeat;
+  mask: var(--chevron-down) center / contain no-repeat;
+}
+details:not(.help)[open] > summary::after { transform: rotate(180deg); }
 
 details.help { display: inline-block; margin-left: 6px; vertical-align: text-top; }
 details.help summary {
