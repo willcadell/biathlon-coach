@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { deleteFeedPost, currentUserId, feedPosts, useMemberships, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
-import { RACE_TYPE_LABEL, faceById, type RaceType } from '../lib/types'
+import { RACE_TYPE_LABEL, faceById, type Bout, type RaceType, type Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
-import { tierFor } from '../lib/share'
+import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
 import { TrashIcon } from './icons'
@@ -32,6 +32,63 @@ function TargetCard({ p }: { p: TargetPayload }) {
         {p.workoutName ? `${p.workoutName} · ` : ''}{p.shots.length} shot{p.shots.length === 1 ? '' : 's'} · {p.metrics.meanRadius.toFixed(0)} mm mean radius
       </div>
     </>
+  )
+}
+
+/** The same trading-card image the Share dialog produces, redrawn from the
+ *  post's own snapshot. Only drawn once it scrolls into view — each one is a
+ *  full-size canvas, and a long feed shouldn't render dozens up front. Falls
+ *  back to the plain card if the image can't be drawn. */
+function TargetImage({ p }: { p: TargetPayload }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+  const [url, setUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    const el = box.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setVisible(true); return }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setVisible(true); io.disconnect() }
+    }, { rootMargin: '300px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!visible) return
+    let objectUrl: string | null = null
+    let cancelled = false
+    // The card only reads these fields; the rest of a Bout/Workout isn't
+    // part of a post, so it isn't invented here.
+    const bout = {
+      kind: 'precision', shotAt: p.shotAt, position: p.position, targetFaceId: p.targetFaceId,
+      bulletDiameterMm: p.bulletDiameterMm, shots: p.shots, metrics: p.metrics,
+    } as unknown as Bout
+    const workout = { name: p.workoutName, startedAt: p.shotAt } as unknown as Workout
+    void buildTargetShareImage(bout, workout)
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setUrl(objectUrl)
+      })
+      .catch(() => { if (!cancelled) setFailed(true) })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [visible, p])
+
+  if (failed) return <TargetCard p={p} />
+  return (
+    <div ref={box} style={{ aspectRatio: '1080 / 1350', borderRadius: 10, overflow: 'hidden', background: 'var(--grid)' }}>
+      {url && (
+        <img
+          src={url} style={{ width: '100%', display: 'block' }}
+          alt={`${p.position} target, ${p.metrics.ringTotal} out of ${p.metrics.ringPossible}`}
+        />
+      )}
+    </div>
   )
 }
 
@@ -129,7 +186,7 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
               </button>
             )}
           </div>
-          {post.kind === 'target' ? <TargetCard p={post.payload} /> : <WorkoutCard p={post.payload} />}
+          {post.kind === 'target' ? <TargetImage p={post.payload} /> : <WorkoutCard p={post.payload} />}
         </div>
       ))}
     </>
