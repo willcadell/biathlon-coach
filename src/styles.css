@@ -305,6 +305,9 @@ table.data th, table.data td { text-align: right; padding: 6px 4px; border-botto
 table.data th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
 table.data th:first-child, table.data td:first-child { text-align: left; }
 
+/* A thin line under the back link on a workout's detail page, above its name. */
+hr.detail-rule { border: 0; border-top: 1px solid var(--border); margin: 10px 0 0; }
+
 ol.steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--text-secondary); }
 ol.steps li { margin-bottom: 5px; }
 

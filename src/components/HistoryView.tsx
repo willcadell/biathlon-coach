@@ -205,7 +205,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
       return (
         <>
           <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
-          <h1 style={{ marginTop: 10 }}>
+          <hr className="detail-rule" />
+          <h1 style={{ marginTop: 14 }}>
             {openWorkout.name || 'Dry-fire session'}
             <span className="pill">Dry-fire</span>
           </h1>
@@ -247,7 +248,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
     return (
       <>
         <button className="link" onClick={() => setOpenWorkoutId(null)}>← All workouts</button>
-        <h1 style={{ marginTop: 10 }}>
+        <hr className="detail-rule" />
+        <h1 style={{ marginTop: 14 }}>
           {openWorkout.name || 'Workout'}
           {openWorkout.raceType && <span className="pill">{RACE_TYPE_LABEL[openWorkout.raceType]}</span>}
         </h1>
