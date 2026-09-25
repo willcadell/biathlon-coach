@@ -149,3 +149,12 @@ export function RaceMedalIcon({ size = 26 }: { size?: number }) {
     </svg>
   )
 }
+
+/** The arrow that opens and closes a section: down when closed, up when open. */
+export function ChevronIcon({ direction }: { direction: 'up' | 'down' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+      {direction === 'up' ? <path d="M6 15l6-6 6 6" /> : <path d="M6 9l6 6 6-6" />}
+    </svg>
+  )
+}

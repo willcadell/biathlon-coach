@@ -120,7 +120,7 @@ export function PersonalCoachesCard() {
               </button>
             </div>
             <p className="meta" style={{ margin: '6px 0 0' }}>
-              They enter it in the Coach tab of their own account. It works once, and expires in{' '}
+              They enter it in their own Profile, under Follow an athlete. It works once, and expires in{' '}
               {daysLeft(invite.expiresAt)} day{daysLeft(invite.expiresAt) === 1 ? '' : 's'}.{' '}
               <button className="link" disabled={busy} onClick={() => void makeInvite()}>Make a new code</button>
             </p>

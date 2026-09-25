@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL } from '../lib/types'
+import { ChevronIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, hitsOf, missCount, targetStats } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
@@ -81,14 +82,6 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
     month: sum(since(30)),
     total: dryfire.reduce((n, w) => n + w.dryfireMinutes, 0),
   }
-}
-
-function ChevronIcon({ direction }: { direction: 'up' | 'down' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-      {direction === 'up' ? <path d="M6 15l6-6 6 6" /> : <path d="M6 9l6 6 6-6" />}
-    </svg>
-  )
 }
 
 /** One of the four top-level Analysis sections — collapsed by the arrow

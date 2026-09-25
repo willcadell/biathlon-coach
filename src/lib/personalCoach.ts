@@ -88,6 +88,14 @@ export async function myPersonalAthletes(): Promise<PersonalAthlete[]> {
     .sort((a, b) => a.displayName.localeCompare(b.displayName))
 }
 
+/** Who a live invite code belongs to, without using it up. Null if it's not valid. */
+export async function findPersonalInvite(code: string): Promise<PersonalAthlete | null> {
+  const { data, error } = await supabase.rpc('find_personal_coach_invite', { p_code: code.trim().toUpperCase() })
+  if (error) throw error
+  const row = (data as { athlete_id: string; athlete_name: string }[] | null)?.[0]
+  return row ? { athleteId: row.athlete_id, displayName: row.athlete_name } : null
+}
+
 /** Accept an athlete's invite. The code is single-use and expires. */
 export async function redeemPersonalInvite(code: string): Promise<PersonalAthlete> {
   const { data, error } = await supabase.rpc('redeem_personal_coach_invite', { p_code: code.trim().toUpperCase() })

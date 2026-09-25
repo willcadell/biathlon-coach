@@ -146,8 +146,9 @@ the coach home gathers what athletes in every club you coach have shared, plus
 announcements. Any coach can remove a post, and a total of bells earned on your own
 announcements sits above the feed.
 
-**Coaches athletes personally.** Enter an athlete's invite code under *Coach your
-athletes* to follow them outside any club: open them for the same read-only view
+**Coaches athletes personally.** Enter an athlete's invite code in your Profile
+(*Follow an athlete*) to follow them outside any club. They're then listed on your
+home under *Coach your individual athletes*: open them for the same read-only view
 of their analysis and history, leave notes on their workouts, and see their posts
 and their club's announcements in your feed.
 

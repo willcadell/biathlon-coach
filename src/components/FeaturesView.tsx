@@ -150,8 +150,9 @@ function CoachFeatures() {
       <Feature title="Coach an athlete personally">
         <p {...p}>
           Not every athlete you follow is in your club. If an athlete — or a young athlete's parent —
-          gives you an invite code from their Profile, enter it under <em>Coach your athletes</em> and you
-          can see that athlete's sessions, analysis and posts, and leave notes on their workouts. You also
+          gives you an invite code from their Profile, enter it in your own Profile under <em>Follow an
+          athlete</em>. They then appear on your home under <em>Coach your individual athletes</em>, and you
+          can see their sessions, analysis and posts, and leave notes on their workouts. You also
           see announcements from their club's coaches, but never the rest of their club's feed.
         </p>
       </Feature>

@@ -15,7 +15,7 @@ import { ClubLogo } from './ClubLogo'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
-import { myPersonalAthletes, redeemPersonalInvite, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
+import { myPersonalAthletes, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
 import { AdminPill, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
@@ -739,8 +739,9 @@ function useCoachAndClubs(session: Session) {
 }
 
 /** Athletes this coach follows personally — a parent's child, or someone
- *  outside any club they coach. The athlete invited them; the code comes from
- *  the athlete's own Profile. */
+ *  outside any club they coach — listed under their clubs. Following someone
+ *  starts in Profile (the athlete's invite code goes there); this just shows
+ *  who you follow, and only once you follow someone. */
 function PersonalAthletesSection({
   athletes, onOpen, onChanged,
 }: {
@@ -748,24 +749,8 @@ function PersonalAthletesSection({
   onOpen: (athleteId: string) => void
   onChanged: () => void
 }) {
-  const [code, setCode] = useState('')
-  const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
-
-  async function add() {
-    if (!code.trim()) return
-    setAdding(true)
-    setError('')
-    try {
-      await redeemPersonalInvite(code)
-      setCode('')
-      onChanged()
-    } catch (e) {
-      setError(errorMessage(e, 'Could not accept that code. Check it and your connection, and try again.'))
-    } finally {
-      setAdding(false)
-    }
-  }
+  if (athletes.length === 0) return null
 
   async function stop(a: PersonalAthlete) {
     const who = a.displayName || 'this athlete'
@@ -784,7 +769,8 @@ function PersonalAthletesSection({
 
   return (
     <>
-      <h1 style={{ margin: '28px 0 8px' }}>Coach your athletes</h1>
+      <h1 style={{ margin: '28px 0 8px' }}>Coach your individual athletes</h1>
+      {error && <div className="notice error">{error}</div>}
       {athletes.map((a) => (
         <div key={a.athleteId} className="boutrow" style={{ cursor: 'default' }}>
           <button
@@ -808,31 +794,6 @@ function PersonalAthletesSection({
           </button>
         </div>
       ))}
-      <div className="card">
-        <label className="field" style={{ marginBottom: 0 }}>
-          <span>
-            {athletes.length === 0 ? 'Follow an athlete personally' : 'Add another athlete'}
-            <small>
-              A parent, or a coach outside the athlete's club: they make an invite code in their Profile and
-              give it to you.
-            </small>
-          </span>
-          <div className="row">
-            <input
-              type="text" style={{ flex: 1 }} placeholder="e.g. 7K4RXP" value={code} autoCapitalize="characters"
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void add() }}
-            />
-            <button
-              className="secondary" style={{ flex: 'none', width: 'auto' }}
-              disabled={adding || !code.trim()} onClick={() => void add()}
-            >
-              {adding ? 'Adding…' : 'Add'}
-            </button>
-          </div>
-        </label>
-        {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
-      </div>
     </>
   )
 }
@@ -894,7 +855,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
     <>
       <h1 style={{ marginBottom: 8 }}>Coach your clubs</h1>
       {clubs.length === 0 && (personal ?? []).length === 0 && (
-        <p className="meta">Nothing yet — create or join a club from your Profile, or follow an athlete with their invite code below.</p>
+        <p className="meta">Nothing yet — create or join a club, or follow an athlete, from your Profile.</p>
       )}
       {clubs.map((c) => (
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>

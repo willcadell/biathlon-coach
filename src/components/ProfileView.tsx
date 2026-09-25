@@ -10,6 +10,8 @@ import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
 import { AdminPill, TrashIcon } from './icons'
+import { Dropdown } from './Dropdown'
+import { FollowAthleteCard } from './FollowAthleteCard'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
@@ -159,11 +161,17 @@ function CoachedClubsCard() {
         )}
       </div>
 
-      <h3 style={{ marginTop: 16 }}>New club</h3>
-      <CreateClub onCreated={(c) => setClubs((prev) => [...(prev ?? []), c])} />
+      <Dropdown title="New club">
+        <CreateClub onCreated={(c) => setClubs((prev) => [...(prev ?? []), c])} />
+      </Dropdown>
 
-      <h3 style={{ marginTop: 16 }}>Join an existing club</h3>
-      <JoinClubAsCoach onJoined={refreshClubs} />
+      <Dropdown title="Join an existing club">
+        <JoinClubAsCoach onJoined={refreshClubs} />
+      </Dropdown>
+
+      <Dropdown title="Follow an athlete">
+        <FollowAthleteCard />
+      </Dropdown>
     </>
   )
 }
