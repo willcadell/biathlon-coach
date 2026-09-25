@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { MegaphoneIcon } from './icons'
 import { ANNOUNCEMENT_MAX, postAnnouncement } from '../lib/feed'
 import { errorMessage } from '../lib/errors'
 
@@ -19,7 +18,6 @@ export function AnnounceSheet({
 }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
-  const [posted, setPosted] = useState(false)
   const [error, setError] = useState('')
   const trimmed = text.trim()
 
@@ -28,7 +26,10 @@ export function AnnounceSheet({
     setError('')
     try {
       await postAnnouncement(club.id, trimmed)
-      setPosted(true)
+      // No second "posted" screen: closing is the confirmation, and the
+      // page behind shakes its megaphone in acknowledgement.
+      onClose()
+      onPosted?.()
     } catch (e) {
       setError(errorMessage(e, 'Could not post the announcement. Check your connection and try again.'))
     } finally {
@@ -40,37 +41,24 @@ export function AnnounceSheet({
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={`Announce to ${club.name}`}>
       <div className="modal-card">
         <h2 style={{ marginTop: 0 }}>Announce to {club.name}</h2>
-        {posted ? (
-          <>
-            <div className="megaphone-shake" style={{ color: 'var(--series-1)', marginBottom: 8 }}>
-              <MegaphoneIcon size={44} />
-            </div>
-            <p style={{ marginTop: 0 }}>Posted to the <strong>{club.name}</strong> feed.</p>
-            <p className="meta">Everyone in the club will see it, and can ring a cowbell for it.</p>
-            <button className="primary" onClick={() => { onClose(); onPosted?.() }}>Done</button>
-          </>
-        ) : (
-          <>
-            {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
-            <label className="field" style={{ marginBottom: 6 }}>
-              <span>Announcement<small>Shown to every athlete and coach in the club.</small></span>
-              <textarea
-                autoFocus rows={5} maxLength={ANNOUNCEMENT_MAX} value={text}
-                placeholder="e.g. Range closed Saturday — bring your own targets."
-                onChange={(e) => setText(e.target.value)}
-              />
-            </label>
-            <p className="meta" style={{ textAlign: 'right', margin: '0 0 12px', fontVariantNumeric: 'tabular-nums' }}>
-              {text.length}/{ANNOUNCEMENT_MAX}
-            </p>
-            <div className="row">
-              <button className="secondary" onClick={onClose} disabled={busy}>Cancel</button>
-              <button className="primary" onClick={() => void post()} disabled={busy || trimmed.length === 0}>
-                {busy ? 'Posting…' : 'Post'}
-              </button>
-            </div>
-          </>
-        )}
+        {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
+        <label className="field" style={{ marginBottom: 6 }}>
+          <span>Announcement<small>Shown to every athlete and coach in the club.</small></span>
+          <textarea
+            autoFocus rows={5} maxLength={ANNOUNCEMENT_MAX} value={text}
+            placeholder="e.g. Range closed Saturday — bring your own targets."
+            onChange={(e) => setText(e.target.value)}
+          />
+        </label>
+        <p className="meta" style={{ textAlign: 'right', margin: '0 0 12px', fontVariantNumeric: 'tabular-nums' }}>
+          {text.length}/{ANNOUNCEMENT_MAX}
+        </p>
+        <div className="row">
+          <button className="secondary" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="primary" onClick={() => void post()} disabled={busy || trimmed.length === 0}>
+            {busy ? 'Posting…' : 'Post'}
+          </button>
+        </div>
       </div>
     </div>
   )
