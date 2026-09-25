@@ -138,18 +138,45 @@ function RaceStages({
   )
 }
 
-const clampToDigits = (n: number, max: number) => Math.max(0, Math.min(max, Math.trunc(n) || 0))
+/** A counter driven purely by two tap targets: no typing numbers. The active
+ *  arrow (the direction the running total currently points) is highlighted. */
+function Tally({
+  label, sub, value, decLabel, decIcon, decActive, incLabel, incIcon, incActive, onDec, onInc,
+}: {
+  label: string; sub?: string; value: number
+  decLabel: string; decIcon: string; decActive?: boolean
+  incLabel: string; incIcon: string; incActive?: boolean
+  onDec: () => void; onInc: () => void
+}) {
+  return (
+    <div style={{ flex: 'none' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 }}>
+        {label}{sub && <small style={{ display: 'block', fontWeight: 400, color: 'var(--text-muted)', marginTop: 3 }}>{sub}</small>}
+      </div>
+      <div className="seg" style={{ alignItems: 'center', gap: 4 }}>
+        <button type="button" aria-label={decLabel} title={decLabel} aria-pressed={decActive || undefined} onClick={onDec} style={{ width: 40, flex: 'none' }}>{decIcon}</button>
+        <span aria-live="polite" style={{ minWidth: 22, textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value}</span>
+        <button type="button" aria-label={incLabel} title={incLabel} aria-pressed={incActive || undefined} onClick={onInc} style={{ width: 40, flex: 'none' }}>{incIcon}</button>
+      </div>
+    </div>
+  )
+}
 
 function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Workout) => void }) {
   // Once at least one adjustment exists, the entry form collapses behind a
   // button — filling it back in for every future correction is more
   // clutter than the log itself is worth once it is no longer empty.
   const [open, setOpen] = useState(workout.clickLog.length === 0)
-  const [vertical, setVertical] = useState(0)
-  const [verticalDir, setVerticalDir] = useState<'up' | 'down'>('up')
-  const [horizontal, setHorizontal] = useState(0)
-  const [horizontalDir, setHorizontalDir] = useState<'left' | 'right'>('left')
+  // Signed running totals: up / right count positive, down / left negative,
+  // so tapping the opposite arrow takes a click back off rather than logging
+  // both directions at once.
+  const [vNet, setVNet] = useState(0)
+  const [hNet, setHNet] = useState(0)
   const [clips, setClips] = useState(0)
+  const vertical = Math.abs(vNet)
+  const verticalDir: 'up' | 'down' = vNet < 0 ? 'down' : 'up'
+  const horizontal = Math.abs(hNet)
+  const horizontalDir: 'left' | 'right' = hNet > 0 ? 'right' : 'left'
   const [note, setNote] = useState('')
 
   function add() {
@@ -159,8 +186,8 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
       vertical, verticalDir, horizontal, horizontalDir, clips, note,
     }
     onChange({ ...workout, clickLog: [...workout.clickLog, entry] })
-    setVertical(0)
-    setHorizontal(0)
+    setVNet(0)
+    setHNet(0)
     setClips(0)
     setNote('')
     setOpen(false)
@@ -193,49 +220,27 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
       ) : (
         <>
           <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', gap: 10 }}>
-            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
-              <span>Vert</span>
-              <input
-                type="number" inputMode="numeric" min={0} max={99} value={vertical || ''}
-                onChange={(e) => setVertical(clampToDigits(Number(e.target.value), 99))}
-              />
-            </label>
-            <div className="seg" style={{ flex: 'none' }}>
-              <button
-                type="button" aria-pressed={verticalDir === 'up'} aria-label="Up" title="Up"
-                onClick={() => setVerticalDir('up')} style={{ width: 40 }}
-              >↑</button>
-              <button
-                type="button" aria-pressed={verticalDir === 'down'} aria-label="Down" title="Down"
-                onClick={() => setVerticalDir('down')} style={{ width: 40 }}
-              >↓</button>
-            </div>
-
-            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
-              <span>Horiz</span>
-              <input
-                type="number" inputMode="numeric" min={0} max={99} value={horizontal || ''}
-                onChange={(e) => setHorizontal(clampToDigits(Number(e.target.value), 99))}
-              />
-            </label>
-            <div className="seg" style={{ flex: 'none' }}>
-              <button
-                type="button" aria-pressed={horizontalDir === 'left'} aria-label="Left" title="Left"
-                onClick={() => setHorizontalDir('left')} style={{ width: 40 }}
-              >←</button>
-              <button
-                type="button" aria-pressed={horizontalDir === 'right'} aria-label="Right" title="Right"
-                onClick={() => setHorizontalDir('right')} style={{ width: 40 }}
-              >→</button>
-            </div>
-
-            <label className="field" style={{ flex: 'none', width: 52, marginBottom: 0 }}>
-              <span>Clips<small>To confirm</small></span>
-              <input
-                type="number" inputMode="numeric" min={0} max={9} value={clips || ''}
-                onChange={(e) => setClips(clampToDigits(Number(e.target.value), 9))}
-              />
-            </label>
+            <Tally
+              label="Vert" value={vertical}
+              decLabel="Down" decIcon="↓" decActive={vNet < 0}
+              incLabel="Up" incIcon="↑" incActive={vNet > 0}
+              onDec={() => setVNet((n) => Math.max(-99, n - 1))}
+              onInc={() => setVNet((n) => Math.min(99, n + 1))}
+            />
+            <Tally
+              label="Horiz" value={horizontal}
+              decLabel="Left" decIcon="←" decActive={hNet < 0}
+              incLabel="Right" incIcon="→" incActive={hNet > 0}
+              onDec={() => setHNet((n) => Math.max(-99, n - 1))}
+              onInc={() => setHNet((n) => Math.min(99, n + 1))}
+            />
+            <Tally
+              label="Clips" sub="To confirm" value={clips}
+              decLabel="Fewer clips" decIcon="−"
+              incLabel="More clips" incIcon="+"
+              onDec={() => setClips((n) => Math.max(0, n - 1))}
+              onInc={() => setClips((n) => Math.min(9, n + 1))}
+            />
 
             <label className="field" style={{ flex: '1 1 160px', marginBottom: 0 }}>
               <span>Note</span>
