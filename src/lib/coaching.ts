@@ -152,6 +152,33 @@ export async function createProgram(clubId: string, name: string): Promise<Progr
   return { id: data.id, clubId: data.club_id, name: data.name, joinCode: data.join_code }
 }
 
+/** Any coach who oversees the club, or is scoped to this program, can delete
+ *  it — see delete_program. Athletes in it stay in the club, just unassigned. */
+export async function deleteProgram(programId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_program', { p_program_id: programId })
+  if (error) throw error
+}
+
+/** Takes an athlete out of a program without removing them from the club —
+ *  see remove_athlete_from_program. */
+export async function removeAthleteFromProgram(athleteId: string, programId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_athlete_from_program', { p_athlete_id: athleteId, p_program_id: programId })
+  if (error) throw error
+}
+
+/** Admin-only, enforced by set_coach_admin itself — which also refuses to
+ *  demote a club's last admin. */
+export async function setCoachAdmin(clubId: string, coachId: string, isAdmin: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_coach_admin', { p_club_id: clubId, p_coach_id: coachId, p_is_admin: isAdmin })
+  if (error) throw error
+}
+
+/** Admin-only, enforced by remove_coach_from_club itself. */
+export async function removeCoachFromClub(clubId: string, coachId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_coach_from_club', { p_club_id: clubId, p_coach_id: coachId })
+  if (error) throw error
+}
+
 /** Only the admin coach of this club gets a code back — see
  *  get_coach_join_code in the migration, which checks is_admin itself
  *  rather than trusting the caller's own idea of their role. */

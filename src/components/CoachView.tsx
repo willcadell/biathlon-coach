@@ -4,8 +4,8 @@ import type { Bout, MetalBout, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  addCoachNote, becomeCoach, coachesForClub, createClub, createProgram, findClubByCoachCode, getCoach,
-  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, renameClub, rosterBouts,
+  addCoachNote, becomeCoach, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
+  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, setCoachAdmin, rosterBouts,
   rosterForClub, rosterMetalBouts, rosterWorkouts, uploadClubLogo,
   type Club, type ClubMatch, type CoCoach, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
@@ -13,6 +13,7 @@ import { forLogo } from '../lib/imaging'
 import { AnalysisView } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { errorMessage } from '../lib/errors'
+import { TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -135,6 +136,20 @@ function ProgramsCard({ club }: { club: Club }) {
     return () => { cancelled = true }
   }, [club.id])
 
+  async function remove(program: Program) {
+    if (!confirm(
+      `Delete the program "${program.name}"?\n\nAthletes in it stay in the club but move to "No program yet". ` +
+      `Its join code stops working, and any coach assigned only to this program loses that assignment. This can't be undone.`,
+    )) return
+    setError('')
+    try {
+      await deleteProgram(program.id)
+      setPrograms((prev) => (prev ?? []).filter((p) => p.id !== program.id))
+    } catch (e) {
+      setError(errorMessage(e, 'Could not delete this program. Check your connection and try again.'))
+    }
+  }
+
   async function add() {
     const trimmed = name.trim()
     if (!trimmed) return
@@ -169,6 +184,12 @@ function ProgramsCard({ club }: { club: Club }) {
                 <span className="meta">
                   Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{p.joinCode}</strong>
                 </span>
+                <button
+                  className="link danger" style={{ flex: 'none' }}
+                  aria-label={`Delete ${p.name}`} onClick={() => void remove(p)}
+                >
+                  <TrashIcon />
+                </button>
               </div>
             ))}
           </div>
@@ -416,7 +437,15 @@ interface RosterGroupData {
   metalBouts: MetalBout[]
 }
 
-function RosterGroup({ group, onOpenAthlete }: { group: RosterGroupData; onOpenAthlete: (id: string) => void }) {
+function RosterGroup({
+  group, onOpenAthlete, onRemove,
+}: {
+  group: RosterGroupData
+  onOpenAthlete: (id: string) => void
+  /** Only for a real program's group — the "No program yet" group has no
+   *  program to take someone out of. */
+  onRemove?: (athlete: RosterAthlete, programName: string) => void
+}) {
   const targets = targetStats(group.metalBouts)
   const metal = metalStats(group.metalBouts)
 
@@ -428,12 +457,30 @@ function RosterGroup({ group, onOpenAthlete }: { group: RosterGroupData; onOpenA
       ) : (
         <>
           {group.athletes.map((a) => (
-            <button key={a.athleteId} className="boutrow" onClick={() => onOpenAthlete(a.athleteId)}>
-              <div className="grow">
-                <div className="title">{a.displayName || 'Unnamed athlete'}</div>
-              </div>
-              <span className="meta" aria-hidden="true">›</span>
-            </button>
+            <div key={a.athleteId} className="boutrow" style={{ cursor: 'default' }}>
+              <button
+                onClick={() => onOpenAthlete(a.athleteId)}
+                style={{
+                  display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0,
+                  background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit',
+                  textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                <div className="grow">
+                  <div className="title">{a.displayName || 'Unnamed athlete'}</div>
+                </div>
+                <span className="meta" aria-hidden="true">›</span>
+              </button>
+              {onRemove && (
+                <button
+                  className="link danger" style={{ flex: 'none' }}
+                  aria-label={`Remove ${a.displayName || 'this athlete'} from ${group.label}`}
+                  onClick={() => onRemove(a, group.label)}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           ))}
 
           <div className="stats" style={{ marginTop: 10 }}>
@@ -486,6 +533,25 @@ function ClubRosterSection({ club }: { club: Club }) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [groupData, setGroupData] = useState<Map<string, { bouts: Bout[]; metalBouts: MetalBout[] }>>(new Map())
   const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [actionError, setActionError] = useState('')
+
+  async function removeFromProgram(athlete: RosterAthlete, programName: string) {
+    if (!athlete.programId) return
+    const who = athlete.displayName || 'This athlete'
+    if (!confirm(
+      `Remove ${who} from "${programName}"?\n\nThey stay in the club but won't be in this program any more, ` +
+      `and coaches assigned only to this program will stop seeing their training. ` +
+      `They can rejoin with the program's join code.`,
+    )) return
+    setActionError('')
+    try {
+      await removeAthleteFromProgram(athlete.athleteId, athlete.programId)
+      setReloadKey((k) => k + 1)
+    } catch (e) {
+      setActionError(errorMessage(e, 'Could not remove this athlete from the program. Check your connection and try again.'))
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -513,7 +579,7 @@ function ClubRosterSection({ club }: { club: Club }) {
       })
       .catch((e) => console.error('Could not load this club’s roster', e))
     return () => { cancelled = true }
-  }, [club.id])
+  }, [club.id, reloadKey])
 
   const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
   if (openAthlete) {
@@ -584,7 +650,13 @@ function ClubRosterSection({ club }: { club: Club }) {
   return (
     <>
       <h2>Roster</h2>
-      {groups.map((g) => <RosterGroup key={g.key} group={g} onOpenAthlete={setOpenAthleteId} />)}
+      {actionError && <div className="notice error">{actionError}</div>}
+      {groups.map((g) => (
+        <RosterGroup
+          key={g.key} group={g} onOpenAthlete={setOpenAthleteId}
+          onRemove={g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
+        />
+      ))}
     </>
   )
 }
@@ -680,9 +752,39 @@ export function CoachView({ session, onIdentityChanged }: Props) {
  *  codes — separate from ClubRosterSection so the Coach tab (clubs and
  *  roster) and the Club tab (identity and sharing) can each show only what
  *  they're about. */
-function ClubAdminSection({ club, onChanged }: { club: Club; onChanged: (patch: Partial<Club>) => void }) {
+function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachId: string; onChanged: (patch: Partial<Club>) => void }) {
   const [coaches, setCoaches] = useState<CoCoach[]>([])
   const [coachCode, setCoachCode] = useState<string | null>(null)
+  const [coachError, setCoachError] = useState('')
+
+  async function changeAdmin(coach: CoCoach) {
+    const name = coach.displayName || 'this coach'
+    const message = coach.isAdmin
+      ? `Remove admin rights from ${name}?\n\nThey stay on the club as a coach.`
+      : `Make ${name} an admin of ${club.name}?\n\nAdmins can rename the club, invite and remove coaches, and make other coaches admins.`
+    if (!confirm(message)) return
+    setCoachError('')
+    try {
+      await setCoachAdmin(club.id, coach.coachId, !coach.isAdmin)
+      setCoaches((prev) => prev.map((c) => (c.coachId === coach.coachId ? { ...c, isAdmin: !coach.isAdmin } : c)))
+    } catch (e) {
+      setCoachError(errorMessage(e, 'Could not change admin rights. Check your connection and try again.'))
+    }
+  }
+
+  async function removeCoach(coach: CoCoach) {
+    if (!confirm(
+      `Remove ${coach.displayName || 'this coach'} from ${club.name}?\n\nThey'll lose access to the club's roster ` +
+      `and athletes' training. They can rejoin with the coach invite code.`,
+    )) return
+    setCoachError('')
+    try {
+      await removeCoachFromClub(club.id, coach.coachId)
+      setCoaches((prev) => prev.filter((c) => c.coachId !== coach.coachId))
+    } catch (e) {
+      setCoachError(errorMessage(e, 'Could not remove this coach. Check your connection and try again.'))
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -711,15 +813,30 @@ function ClubAdminSection({ club, onChanged }: { club: Club; onChanged: (patch: 
       <h2>Coaches</h2>
       <div className="card">
         {coaches.map((c) => (
-          <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ flex: 1 }}>{c.displayName || 'Unnamed coach'}</span>
-            {c.isAdmin && <span className="pill">Admin</span>}
+          <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+            <span style={{ flex: 1, minWidth: 0 }}>{c.displayName || 'Unnamed coach'}</span>
+            {c.isAdmin && <span className="pill" style={{ flex: 'none' }}>Admin</span>}
+            {club.isAdmin && c.coachId !== myCoachId && (
+              <span style={{ flex: 'none', display: 'flex', gap: 12 }}>
+                <button className="link" onClick={() => void changeAdmin(c)}>
+                  {c.isAdmin ? 'Remove admin' : 'Make admin'}
+                </button>
+                <button
+                  className="link danger"
+                  aria-label={`Remove ${c.displayName || 'this coach'} from the club`}
+                  onClick={() => void removeCoach(c)}
+                >
+                  Remove
+                </button>
+              </span>
+            )}
           </div>
         ))}
+        {coachError && <div className="notice error" style={{ marginBottom: 10 }}>{coachError}</div>}
         {club.isAdmin && (
           <>
             <p className="meta" style={{ marginTop: coaches.length > 0 ? 14 : 0, marginBottom: 4 }}>
-              Only you, as admin, can see this — share it to invite another coach to this club.
+              Only admins can see this — share it to invite another coach to this club.
             </p>
             <p style={{ margin: 0 }}>
               Coach invite code{' '}
@@ -769,6 +886,7 @@ export function ClubSettingsView({ session }: { session: Session }) {
         <h1 style={{ marginTop: 10 }}>{openClub.name}</h1>
         <ClubAdminSection
           club={openClub}
+          myCoachId={coach.id}
           onChanged={(patch) =>
             setClubs((prev) => prev.map((c) => (c.id === openClub.id ? { ...c, ...patch } : c)))
           }
