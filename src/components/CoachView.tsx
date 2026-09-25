@@ -790,7 +790,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
         </button>
       ))}
 
-      {clubs.length > 0 && <FeedView role="coach" clubCount={clubs.length} />}
+      {clubs.length > 0 && <FeedView role="coach" clubs={clubs} />}
     </>
   )
 }

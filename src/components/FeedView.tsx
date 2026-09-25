@@ -157,7 +157,7 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
  * across every club they coach and can remove any post. Which posts come back
  * is decided by the database, not filtered here.
  */
-export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubCount?: number }) {
+export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: { id: string; logoPath: string | null }[] }) {
   const memberships = useMemberships()
   const [posts, setPosts] = useState<FeedPost[] | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -217,7 +217,7 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
   // for one.
   if (role === 'athlete' && (memberships === null || memberships.length === 0)) return null
 
-  const multipleClubs = role === 'coach' ? (clubCount ?? 0) > 1 : (memberships?.length ?? 0) > 1
+  const multipleClubs = role === 'coach' ? (clubs?.length ?? 0) > 1 : (memberships?.length ?? 0) > 1
 
   async function remove(post: FeedPost) {
     if (!confirm('Remove this from the club feed?\n\nThe target or workout itself isn’t deleted — it just stops being shared.')) return
@@ -238,7 +238,10 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
           Feed
         </h2>
       ) : (
-        <h1 style={{ margin: '28px 0 8px' }}>Club feed</h1>
+        <h1 style={{ margin: '28px 0 8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          {(clubs ?? []).map((c) => <ClubLogo key={c.id} logoPath={c.logoPath} size={28} />)}
+          Combo Feed
+        </h1>
       )}
       {error && <div className="notice error">{error}</div>}
       {posts === null && !error && <p className="meta">Loading…</p>}
