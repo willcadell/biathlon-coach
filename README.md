@@ -279,7 +279,7 @@ insert into dev_users (user_id) select id from auth.users where email = 'you@exa
 delete from dev_users where user_id = '...';
 ```
 
-**Make live.** Open a test workout from History in dev mode and tap *Make live* to promote it,
+**Going live.** Open a test workout from History in dev mode and tap the red plus beside the waste bin to promote it,
 with its bouts and click log, to real data. It's the only way a row's test tag changes
 (`make_workout_live`, which refuses outside dev mode or for anyone else's workout). Feed
 posts and coach notes made about it stay test data; share it again once it's live.

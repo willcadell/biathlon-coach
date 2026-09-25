@@ -7,7 +7,7 @@ import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
-import { GoArrow, ShareIcon, TrashIcon } from './icons'
+import { GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -94,6 +94,31 @@ interface Props {
    *  feedback on a specific workout, the one write allowed in read-only
    *  mode. Omitted entirely for an athlete looking at their own history. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
+}
+
+/** Dev mode only: promote this test workout to live data, next to the bin. */
+function MakeLiveButton({ workoutId, onDone }: { workoutId: string; onDone: () => void }) {
+  if (!devModeOn()) return null
+  return (
+    <button
+      className="secondary dev-switch" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+      aria-label="Make this workout live" title="Make this workout live"
+      onClick={async () => {
+        if (!confirm(
+          'Make this workout live?\n\nIt leaves dev mode and becomes real data: your coaches can see it, ' +
+          'and it counts in your analysis. Its bouts come with it. You can then share it to the club.',
+        )) return
+        try {
+          await makeWorkoutLive(workoutId)
+          onDone()
+        } catch {
+          alert('Could not make that workout live. Check your connection and try again.')
+        }
+      }}
+    >
+      <PlusIcon />
+    </button>
+  )
 }
 
 export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote }: Props) {
@@ -237,30 +262,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               >
                 <TrashIcon />
               </button>
+              <MakeLiveButton workoutId={openWorkout.id} onDone={() => { setOpenWorkoutId(null); onChanged() }} />
               <button className="secondary" onClick={() => setSheet({ workout: openWorkout })}>
                 <ShareIcon /> Share workout
               </button>
             </div>
-          )}
-          {devModeOn() && !readOnly && (
-            <button
-              className="secondary dev-switch" style={{ marginTop: 10 }}
-              onClick={async () => {
-                if (!confirm(
-                  'Make this workout live?\n\nIt leaves dev mode and becomes real data: your coaches can see it, ' +
-                  'and it counts in your analysis. Its bouts come with it. You can then share it to the club.',
-                )) return
-                try {
-                  await makeWorkoutLive(openWorkout.id)
-                  setOpenWorkoutId(null)
-                  onChanged()
-                } catch {
-                  alert('Could not make that workout live. Check your connection and try again.')
-                }
-              }}
-            >
-              Make live
-            </button>
           )}
         </>
       )
@@ -376,30 +382,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             >
               <TrashIcon />
             </button>
+            <MakeLiveButton workoutId={openWorkout.id} onDone={() => { setOpenWorkoutId(null); onChanged() }} />
             <button className="secondary" onClick={() => setSheet({ workout: openWorkout })}>
               <ShareIcon /> Share workout
             </button>
           </div>
-        )}
-        {devModeOn() && !readOnly && (
-          <button
-            className="secondary dev-switch" style={{ marginTop: 10 }}
-            onClick={async () => {
-              if (!confirm(
-                'Make this workout live?\n\nIt leaves dev mode and becomes real data: your coaches can see it, ' +
-                'and it counts in your analysis. Its bouts come with it. You can then share it to the club.',
-              )) return
-              try {
-                await makeWorkoutLive(openWorkout.id)
-                setOpenWorkoutId(null)
-                onChanged()
-              } catch {
-                alert('Could not make that workout live. Check your connection and try again.')
-              }
-            }}
-          >
-            Make live
-          </button>
         )}
       </>
     )
