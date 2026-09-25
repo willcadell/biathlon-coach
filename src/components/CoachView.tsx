@@ -15,6 +15,7 @@ import { ClubLogo } from './ClubLogo'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
+import { myPersonalAthletes, redeemPersonalInvite, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
 import { AdminPill, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
@@ -737,9 +738,114 @@ function useCoachAndClubs(session: Session) {
   return { coach, setCoach, clubs, setClubs, loadError, refreshClubs }
 }
 
+/** Athletes this coach follows personally — a parent's child, or someone
+ *  outside any club they coach. The athlete invited them; the code comes from
+ *  the athlete's own Profile. */
+function PersonalAthletesSection({
+  athletes, onOpen, onChanged,
+}: {
+  athletes: PersonalAthlete[]
+  onOpen: (athleteId: string) => void
+  onChanged: () => void
+}) {
+  const [code, setCode] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+
+  async function add() {
+    if (!code.trim()) return
+    setAdding(true)
+    setError('')
+    try {
+      await redeemPersonalInvite(code)
+      setCode('')
+      onChanged()
+    } catch (e) {
+      setError(errorMessage(e, 'Could not accept that code. Check it and your connection, and try again.'))
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function stop(a: PersonalAthlete) {
+    const who = a.displayName || 'this athlete'
+    if (!confirm(
+      `Stop coaching ${who}?\n\nYou'll no longer see their sessions, analysis or posts. ` +
+      `They can invite you again with a new code.`,
+    )) return
+    setError('')
+    try {
+      await stopCoachingAthlete(a.athleteId)
+      onChanged()
+    } catch (e) {
+      setError(errorMessage(e, 'Could not stop coaching this athlete. Check your connection and try again.'))
+    }
+  }
+
+  return (
+    <>
+      <h1 style={{ margin: '28px 0 8px' }}>Coach your athletes</h1>
+      {athletes.map((a) => (
+        <div key={a.athleteId} className="boutrow" style={{ cursor: 'default' }}>
+          <button
+            onClick={() => onOpen(a.athleteId)}
+            style={{
+              display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0,
+              background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit',
+              textAlign: 'left', cursor: 'pointer',
+            }}
+          >
+            <div className="grow">
+              <div className="title">{a.displayName || 'Unnamed athlete'}<GoArrow /></div>
+            </div>
+          </button>
+          <button
+            className="link danger" style={{ flex: 'none' }}
+            aria-label={`Stop coaching ${a.displayName || 'this athlete'}`} title="Stop coaching"
+            onClick={() => void stop(a)}
+          >
+            <TrashIcon />
+          </button>
+        </div>
+      ))}
+      <div className="card">
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>
+            {athletes.length === 0 ? 'Follow an athlete personally' : 'Add another athlete'}
+            <small>
+              A parent, or a coach outside the athlete's club: they make an invite code in their Profile and
+              give it to you.
+            </small>
+          </span>
+          <div className="row">
+            <input
+              type="text" style={{ flex: 1 }} placeholder="e.g. 7K4RXP" value={code} autoCapitalize="characters"
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void add() }}
+            />
+            <button
+              className="secondary" style={{ flex: 'none', width: 'auto' }}
+              disabled={adding || !code.trim()} onClick={() => void add()}
+            >
+              {adding ? 'Adding…' : 'Add'}
+            </button>
+          </div>
+        </label>
+        {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
+      </div>
+    </>
+  )
+}
+
 export function CoachView({ session, onIdentityChanged }: Props) {
   const { coach, setCoach, clubs, loadError, refreshClubs } = useCoachAndClubs(session)
   const [openClubId, setOpenClubId] = useState<string | null>(null)
+  const [personal, setPersonal] = useState<PersonalAthlete[] | null>(null)
+  const [openPersonalId, setOpenPersonalId] = useState<string | null>(null)
+
+  const refreshPersonal = () =>
+    void myPersonalAthletes().then(setPersonal).catch((e) => console.error('Could not load personal athletes', e))
+  useEffect(() => { if (coach) refreshPersonal() }, [coach])
 
   if (loadError) {
     return (
@@ -762,6 +868,17 @@ export function CoachView({ session, onIdentityChanged }: Props) {
     )
   }
 
+  const openPersonal = (personal ?? []).find((a) => a.athleteId === openPersonalId)
+  if (openPersonal) {
+    return (
+      <>
+        <button className="link" onClick={() => setOpenPersonalId(null)}>← All athletes</button>
+        <h1 style={{ marginTop: 10 }}>{openPersonal.displayName || 'Unnamed athlete'}</h1>
+        <AthleteDetail athlete={{ athleteId: openPersonal.athleteId, displayName: openPersonal.displayName, programId: null }} />
+      </>
+    )
+  }
+
   const openClub = clubs.find((c) => c.id === openClubId)
   if (openClub) {
     return (
@@ -776,7 +893,9 @@ export function CoachView({ session, onIdentityChanged }: Props) {
   return (
     <>
       <h1 style={{ marginBottom: 8 }}>Coach your clubs</h1>
-      {clubs.length === 0 && <p className="meta">Nothing yet — create or join one from your Profile.</p>}
+      {clubs.length === 0 && (personal ?? []).length === 0 && (
+        <p className="meta">Nothing yet — create or join a club from your Profile, or follow an athlete with their invite code below.</p>
+      )}
       {clubs.map((c) => (
         <button key={c.id} className="boutrow" onClick={() => setOpenClubId(c.id)}>
           <ClubLogo logoPath={c.logoPath} size={40} />
@@ -789,7 +908,13 @@ export function CoachView({ session, onIdentityChanged }: Props) {
         </button>
       ))}
 
-      {clubs.length > 0 && <FeedView role="coach" clubs={clubs} />}
+      <PersonalAthletesSection
+        athletes={personal ?? []}
+        onOpen={setOpenPersonalId}
+        onChanged={refreshPersonal}
+      />
+
+      {(clubs.length > 0 || (personal ?? []).length > 0) && <FeedView role="coach" clubs={clubs} />}
     </>
   )
 }

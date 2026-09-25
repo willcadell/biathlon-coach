@@ -106,6 +106,14 @@ function AthleteFeatures() {
           you can leave a program, or the club, whenever you like.
         </p>
       </Feature>
+      <Feature title="Personal coaches">
+        <p {...p}>
+          Invite one person to follow you — a parent, or a coach outside your club. You make an invite code
+          in your Profile and give it to them; they enter it in their own account. They can then see your
+          sessions, analysis and posts, plus announcements from your club's coaches. They can't see the
+          rest of your club's feed, or your target photos, and you can remove them at any time.
+        </p>
+      </Feature>
       <Feature icon={<CowbellIcon size={22} />} title="The club feed">
         <p {...p}>
           Under Start a session you'll find your club's feed: targets and workouts your clubmates chose to
@@ -137,6 +145,14 @@ function CoachFeatures() {
           Invite other coaches with a separate coach code. Every coach at a club can see who else coaches
           there; an admin can make another coach an admin, take that back, and remove coaches. A club
           always keeps at least one admin.
+        </p>
+      </Feature>
+      <Feature title="Coach an athlete personally">
+        <p {...p}>
+          Not every athlete you follow is in your club. If an athlete — or a young athlete's parent —
+          gives you an invite code from their Profile, enter it under <em>Coach your athletes</em> and you
+          can see that athlete's sessions, analysis and posts, and leave notes on their workouts. You also
+          see announcements from their club's coaches, but never the rest of their club's feed.
         </p>
       </Feature>
       <Feature title="You can still train">

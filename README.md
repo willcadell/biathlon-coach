@@ -107,6 +107,14 @@ training — and asks for consent, which matters where athletes are minors. An
 athlete is in one program at a time and can leave a program, or the club, whenever
 they like.
 
+**Invites a personal coach.** One individual — a parent, or a coach outside the
+club — can follow an athlete regardless of any club. It always starts with the
+athlete: in Profile they make a single-use invite code (valid for seven days) and
+hand it over; the coach accepts it from their own account. A personal coach sees
+the athlete's sessions, analysis and posts, plus announcements made by the
+coaches of the athlete's clubs, but not the rest of those clubs' feeds, and never
+the athlete's target photos. Either side can end it at any time.
+
 **Reads and posts to the club feed.** Under *Start a session* is the club's feed:
 targets and workouts clubmates chose to share, marked with the same icon and colour
 as the session type, and announcements from coaches. Ring a **cowbell** for
@@ -138,6 +146,11 @@ the coach home gathers what athletes in every club you coach have shared, plus
 announcements. Any coach can remove a post, and a total of bells earned on your own
 announcements sits above the feed.
 
+**Coaches athletes personally.** Enter an athlete's invite code under *Coach your
+athletes* to follow them outside any club: open them for the same read-only view
+of their analysis and history, leave notes on their workouts, and see their posts
+and their club's announcements in your feed.
+
 **Sees only what athletes agreed to share.** An athlete's training is visible to a
 coach only once they've joined the coach's club or program and accepted the notice.
 A coach assigned to one program sees just that program; admins and whole-club
@@ -159,8 +172,9 @@ coaches see everyone. If an athlete leaves, the coach stops seeing them.
 The data model in one paragraph: an **athlete** and a **coach** are two identities
 under one auth account. An athlete has **memberships** in clubs (one per club,
 carrying the athlete's program or none); a coach has **assignments** to a club or a
-single program, and an admin flag. Who can see whose training is decided entirely
-by those rows, in one function (`is_coach_of`), reused by every table's policy.
+single program, and an admin flag. A **personal coach** link ties a coach to one athlete outside any club. Who can
+see whose training is decided entirely by those rows, in one function
+(`is_coach_of`), reused by every table's policy.
 
 Rules that matter are enforced in the database, not the client, and each is tested
 against the live schema as an admin, a non-admin coach, an athlete and an outsider,

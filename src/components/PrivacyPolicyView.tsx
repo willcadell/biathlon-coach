@@ -33,6 +33,11 @@ export function PrivacyPolicyView() {
             coach — so the right people can see the right rosters.
           </p>
           <p>
+            <strong>Personal coaches.</strong> If you invite a personal coach, we store a short-lived
+            invite code and, once it's accepted, a link between you and that person, so they can see
+            your training. If you're a personal coach, we store the link to each athlete you follow.
+          </p>
+          <p>
             <strong>Coach notes.</strong> If a coach leaves a note on your workout, that note is stored
             and shared with every coach linked to you on that club, not just the one who wrote it.
           </p>
@@ -63,7 +68,15 @@ export function PrivacyPolicyView() {
             already saw.
           </p>
           <p>
-            What a coach sees depends on how they're assigned. A coach assigned to one program sees only
+            <strong>Personal coaches.</strong> You can also invite one individual — a parent, or a coach
+            outside your club — to follow you, regardless of any club. Only you can start this: you make
+            an invite code and give it to them, and they accept it. It works once and expires after seven
+            days. A personal coach can see your sessions, analysis and posts, and announcements made by
+            the coaches of your club, but not the rest of the club's feed and never your target photos.
+            You can remove them at any time, and they can step away themselves.
+          </p>
+          <p>
+            What a club coach sees depends on how they're assigned. A coach assigned to one program sees only
             that program's athletes; a coach who oversees the whole club, and its admins, see every
             athlete in it.
           </p>
@@ -136,6 +149,10 @@ export function PrivacyPolicyView() {
           and set up the account with you.
         </p>
         <p>
+          A young athlete's parent can follow their training as a personal coach. The athlete starts it by
+          giving the parent an invite code, so it stays their decision, and it can be ended at any time.
+        </p>
+        <p>
           The club feed is worth a specific mention for young athletes: a post shows a name, scores and
           a target to everyone in the club, including other athletes. Posting is always the athlete's own
           choice and can be taken back, but a parent or guardian may want to talk it through first.
@@ -148,6 +165,7 @@ export function PrivacyPolicyView() {
             <li style={{ marginBottom: 5 }}>Delete individual bouts, metal rounds, or whole workouts from History.</li>
             <li style={{ marginBottom: 5 }}>Delete every stored photo while keeping your scored results, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Export everything you've logged as a JSON file, from Settings.</li>
+            <li style={{ marginBottom: 5 }}>Invite a personal coach, cancel an unused invite, or remove a personal coach at any time, from Profile.</li>
             <li style={{ marginBottom: 5 }}>Remove anything you've posted to a club's feed, at any time, from the feed itself.</li>
             <li style={{ marginBottom: 5 }}>Leave just a program while staying in the club, or leave the club altogether, from Profile. Leaving a club stops any new sharing with its coaches and removes what you posted to its feed.</li>
             <li>Sign out, which ends your session without deleting your data.</li>

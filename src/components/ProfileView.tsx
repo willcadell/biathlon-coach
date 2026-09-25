@@ -10,6 +10,7 @@ import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
 import { AdminPill, TrashIcon } from './icons'
+import { PersonalCoachesCard } from './PersonalCoachesCard'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
  *  them to know which, it just tries a club code, then a program code. */
@@ -502,8 +503,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                   {match.kind === 'club'
                     ? <><strong>{match.name}</strong></>
                     : <><strong>{match.name}</strong> in <strong>{match.clubName}</strong></>}
-                  {' '}shares your workouts, scores, and target photos with its coach(es) going forward — they'll
-                  be able to see your training, and any coach's notes on it, for as long as you're a member.
+                  {' '}shares your workouts and scores with its coach(es) going forward — they'll be able to see
+                  your training, and any coach's notes on it, for as long as you're a member. Your target photos
+                  stay private.
                 </p>
                 <p className="meta">If you're under 18, check with a parent or guardian before continuing.</p>
                 <div className="row" style={{ marginTop: 14 }}>
@@ -517,6 +519,8 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               </div>
             </div>
           )}
+
+          <PersonalCoachesCard />
         </>
       )}
 
