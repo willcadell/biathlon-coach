@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FEED_PAGE_SIZE, cowbellCounts, deleteFeedPost, currentUserId, feedPosts, myCowbellTotal, setCowbell, useMemberships, type CowbellCount, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
 import { RACE_TYPE_LABEL, faceById, type Bout, type RaceType, type Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
@@ -10,7 +10,20 @@ import { CowbellIcon, TrashIcon } from './icons'
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
-function TargetSummary({ p }: { p: TargetPayload }) {
+/** An entry's last line, with the cowbell opposite its end at the right
+ *  instead of on a row of its own. Bottom-aligned, so if the line wraps the
+ *  bell stays level with the last row of text. */
+function LastLine({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
+  if (!trailing) return <>{children}</>
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+      <div style={{ minWidth: 0 }}>{children}</div>
+      <div style={{ flex: 'none' }}>{trailing}</div>
+    </div>
+  )
+}
+
+function TargetSummary({ p, trailing }: { p: TargetPayload; trailing?: ReactNode }) {
   const pct = p.metrics.ringPossible > 0 ? (p.metrics.ringTotal / p.metrics.ringPossible) * 100 : 0
   const tier = tierFor(pct)
   return (
@@ -22,9 +35,11 @@ function TargetSummary({ p }: { p: TargetPayload }) {
         <span className="pill">{p.position}</span>
         <span className="pill" style={{ color: tier.deep }}>{tier.name}</span>
       </div>
-      <div className="meta">
-        {p.workoutName ? `${p.workoutName} · ` : ''}{p.shots.length} shot{p.shots.length === 1 ? '' : 's'} · {p.metrics.meanRadius.toFixed(0)} mm mean radius
-      </div>
+      <LastLine trailing={trailing}>
+        <div className="meta">
+          {p.workoutName ? `${p.workoutName} · ` : ''}{p.shots.length} shot{p.shots.length === 1 ? '' : 's'} · {p.metrics.meanRadius.toFixed(0)} mm mean radius
+        </div>
+      </LastLine>
     </>
   )
 }
@@ -126,7 +141,7 @@ function CardThumb({ p }: { p: TargetPayload }) {
   )
 }
 
-function WorkoutCard({ p }: { p: WorkoutPayload }) {
+function WorkoutCard({ p, trailing }: { p: WorkoutPayload; trailing?: ReactNode }) {
   const parts: string[] = []
   if (p.workoutType === 'dryfire') {
     parts.push(`${p.dryfireMinutes} min dry-fire`)
@@ -140,6 +155,7 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
       )
     }
   }
+  const hasStages = !!p.stages && p.stages.length > 0
   return (
     <>
       <div style={{ fontSize: 16, fontWeight: 600 }}>
@@ -147,20 +163,26 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
         {p.workoutType === 'dryfire' && <span className="pill" style={{ marginLeft: 8 }}>Dry-fire</span>}
         {p.raceType && <span className="pill" style={{ marginLeft: 8 }}>{RACE_TYPE_LABEL[p.raceType as RaceType] ?? 'Race'}</span>}
       </div>
-      <div className="meta">{when(p.startedAt)}{parts.length > 0 && ` · ${parts.join(' · ')}`}</div>
-      {p.stages && p.stages.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-          {p.stages.map((st, i) => (
-            <span key={i} className="pill" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {st.position === 'prone' ? 'Prone' : 'Standing'} {st.hits}/5
-            </span>
-          ))}
-        </div>
+      <LastLine trailing={!hasStages && !p.best ? trailing : undefined}>
+        <div className="meta">{when(p.startedAt)}{parts.length > 0 && ` · ${parts.join(' · ')}`}</div>
+      </LastLine>
+      {hasStages && (
+        <LastLine trailing={!p.best ? trailing : undefined}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            {p.stages!.map((st, i) => (
+              <span key={i} className="pill" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {st.position === 'prone' ? 'Prone' : 'Standing'} {st.hits}/5
+              </span>
+            ))}
+          </div>
+        </LastLine>
       )}
       {p.best && (
-        <div style={{ marginTop: 6 }}>
-          Best bout <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{p.best.ringTotal}/{p.best.ringPossible}</strong>
-        </div>
+        <LastLine trailing={trailing}>
+          <div style={{ marginTop: 6 }}>
+            Best bout <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{p.best.ringTotal}/{p.best.ringPossible}</strong>
+          </div>
+        </LastLine>
       )}
     </>
   )
@@ -335,30 +357,24 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
             )}
           </div>
         )
+        const bell = (
+          <CowbellButton
+            count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
+            author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
+          />
+        )
         return post.kind === 'target' ? (
-          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <CardThumb p={post.payload} />
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               {header}
-              <TargetSummary p={post.payload} />
-              <div style={{ marginTop: 'auto', alignSelf: 'flex-end' }}>
-                <CowbellButton
-                  count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
-                  author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
-                />
-              </div>
+              <TargetSummary p={post.payload} trailing={bell} />
             </div>
           </div>
         ) : (
           <div key={post.id} className="card">
             {header}
-            <WorkoutCard p={post.payload} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <CowbellButton
-                count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
-                author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
-              />
-            </div>
+            <WorkoutCard p={post.payload} trailing={bell} />
           </div>
         )
       })}
