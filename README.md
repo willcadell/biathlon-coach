@@ -1,43 +1,51 @@
-# Biathlon Coach
+# 545 Coach
 
-Photograph a precision target, get it scored, and get told what to train.
+Precision and metal shooting analysis for biathletes, and the tools coaches need
+to see how a whole club is training.
 
-The app runs in a phone browser. It finds the bullet holes in the photo, converts
-them to millimetres on the face, scores the rings, and builds a training plan from
-what your groups look like over time. Everything stays on your device.
+An athlete photographs a target and gets it scored, logs metal, dry-fire and race
+sessions, and is told what to train. A coach runs a club: programs, a roster,
+notes on workouts, announcements, and a feed of what athletes choose to share.
+It's a phone-friendly web app (a PWA) with Google sign-in, backed by Supabase.
+
+A plain-language version of the feature list, for athletes and for coaches, lives
+in the app itself at `/features`.
 
 ## What it does
 
-**Runs a workout.** A workout is the unit of a training session: wind and its
-direction are entered once at the start, not retyped per bout, and any clicks you
-actually dial into the rifle during the zero process get logged there too. Inside
-one workout you add as many precision bouts and metal bouts as you shoot, in any
-order.
+### For athletes
 
-**Scores a precision bout.** Ten shots, always — that's the discipline. You
-photograph the target and pick prone or standing. With an API key set, Claude
-finds the black aiming areas and the holes, then hands you the reading to
-confirm: the screen says how many shots it found, every marker is draggable, and
-the button reads *Confirm and score*. Nothing is scored until you say so. Without
-a key the same screen starts empty and you tap the shots in — pinch or use the
-zoom buttons to see small or overlapping holes clearly while you do.
+**Logs any kind of session.** Three start buttons — **Range**, **Dryfire**,
+**Race** — each with its own icon and colour.
 
-Detection runs in two passes. The first finds roughly where each aiming mark sits,
-on a small overview of the whole photo. The second crops the original,
-full-resolution photo tightly around each one — out to its outermost scoring ring,
-not just the black, so a shot that landed on the white paper is not cropped away —
-and reads holes from those close-up views. Each hole ends up with far more real
-pixels behind it than a whole-sheet photo could ever give it at the same API
-image-size limit. Where holes overlap, the model is told to place the ones it can
-separate first, working from the edge of the group inward, then account for any
-remaining shots as a merged shape near the group's own centre — since a tight
-group overlaps on itself, not at its edges.
+- A **range session** holds as many precision and metal bouts as you shoot. Wind
+  and the clicks you dial into the rifle are logged once for the session, not
+  retyped for every bout.
+- A **dry-fire session** is minutes and a note.
+- A **race** starts from a format — sprint, individual, mass start or pursuit — and
+  lays out that format's stages in order, prone and standing, ready for hits.
 
-**Logs a metal bout.** The biathlon range itself: five falling discs, prone or
-standing. There's no photo, just how many stayed up — a metal bout has no shot
-positions to read shape from, so it can't feed the coaching findings a precision
-bout can. What it tracks instead is hit rate over time, split by position, which
-is the number a race actually turns on.
+Finishing a session ends on a short completion screen with the session's best
+score, and a way to share it.
+
+**Scores a precision bout.** You photograph the target and pick prone or
+standing. With an API key set, Claude finds the bullet holes and hands you the
+reading to confirm: the screen says how many shots it found, every marker is
+draggable, and the button reads *Confirm and score*. Nothing is scored until you
+say so. Without a key the same screen starts empty and you tap the shots in —
+pinch or use the zoom buttons to see small or overlapping holes while you do.
+
+Detection runs in two passes. The first finds where each aiming mark sits, using
+classical image processing on the photo itself (`blackLocator.ts`: threshold, find
+the largest solid dark region, fit an ellipse) — the same answer every time, no
+API call. The second crops the original, full-resolution photo tightly around each
+mark, out to its outermost scoring ring, not just the black, so a shot that landed
+on the white paper is not cropped away, and asks Claude to read the holes from
+those close-up views. Each hole ends up with far more real pixels behind it than a
+whole-sheet photo could give it at the same image-size limit. Where holes overlap,
+the model is told to place the ones it can separate first, working from the edge
+of the group inward, then account for any remaining shots as a merged shape near
+the group's own centre — since a tight group overlaps on itself, not at its edges.
 
 The green ring is the origin every shot is measured from. Drag it onto the black,
 by its centre or its edge handle, and the scores move with it. The holes stay
@@ -57,38 +65,155 @@ Shots within a millimetre of a ring line are flagged rather than quietly rounded
 because that is about all this method can resolve from a photograph. Gauge those
 on the paper.
 
-**Keeps a history.** Photos and results go into the browser's own database,
-grouped by workout. Two charts: points per shot over time, and group size as a
-percentage of the biathlon hit zone. Score says how you did; group size says
-whether the shooting or the sight was responsible, because a group can tighten
-while the score stays flat.
+**Logs a metal bout.** The biathlon range itself: five falling discs, prone or
+standing, recorded per target — which ones fell — not just a count, so a pattern
+in *which* target keeps getting missed can be found later. Repeated ski-and-shoot
+rounds can be grouped as a combo. A metal bout has no shot positions to read
+shape from, so it can't feed the coaching findings a precision bout can; what it
+tracks instead is hit rate over time, split by position.
+
+**Logs the zero.** Sight adjustments are counted by tapping arrows — up, down,
+left, right, and clips to confirm. Tapping the opposite arrow takes a click back,
+so the logged entry is the net movement.
+
+**Analyses it.** The Analysis tab has four sections, each collapsible:
+
+- **Precision** — score and group size, what your groups are saying, and a
+  two-week plan. Trend charts step through weeks, months or years and draw the
+  previous period's trend as a faint dotted line for context.
+- **Metal** — hit rate by position and by target, for training, races or both.
+- **Race performance** — this season against last (a season runs November to May),
+  split by format, prone and standing.
+- **Dry-fire** — minutes this week, this month, and in total.
 
 **Recommends training.** The app reads the shape of your precision-bout groups
 across the last 60 days and names what it finds: a vertical string, a walk across
 the bout, a group centre that moves between bouts, a first shot that misses after
 skiing in. Each finding carries the evidence it rests on and a confidence figure
 that climbs as you log more bouts. It then ranks drills against those findings.
-Metal bouts get their own, simpler number alongside this: hit rate by position,
-since there's no group shape to read a cause from.
+
+**Keeps a history.** Every workout, newest first, with each bout and its photo.
+Delete one workout or many at once, drop just the photos and keep the scores, or
+export everything as JSON.
+
+**Shares.** The Share button on a target offers *Share as image* — a graded
+trading card (Elite, Sharp, Solid or Logged) with a QR code back to the app, drawn
+in the browser and sent through the phone's share sheet or downloaded — or *Post
+to* a club's feed.
+
+**Belongs to a club.** Enter a club's or a program's join code in Profile. Before
+joining, a notice says what you're agreeing to — the club's coaches will see your
+training — and asks for consent, which matters where athletes are minors. An
+athlete is in one program at a time and can leave a program, or the club, whenever
+they like.
+
+**Reads and posts to the club feed.** Under *Start a session* is the club's feed:
+targets and workouts clubmates chose to share, marked with the same icon and colour
+as the session type, and announcements from coaches. Ring a **cowbell** for
+anything; each post shows its count, and your own total of bells earned appears
+above the feed. Nothing is posted automatically — sharing is a deliberate step,
+and notes and target photos are never included.
+
+### For coaches
+
+**Runs clubs and programs.** Create a club with a name and logo. Athletes join with
+a join code; **programs** are squads within a club ("Juniors", "Masters"), each with
+its own code. From the roster you can add an unassigned athlete to a program, take
+one out, or delete a program — its athletes stay in the club.
+
+**Manages coaches.** A separate coach invite code brings in other coaches. Every
+coach at a club can see who else coaches there. An **admin** can make another
+coach an admin, take that back, and remove coaches; a club always keeps at least
+one admin. Coach and athlete are separate identities on one account, so a coach can
+log their own training and switch between the two.
+
+**Sees the roster.** Athletes are grouped by program, with anyone not yet placed
+under *No program yet*. Open an athlete to see their analysis and history,
+read-only, and leave **notes on their workouts** that the athlete and the club's
+other coaches can read.
+
+**Talks to the club.** The megaphone beside a club's name posts a text
+**announcement** (up to 500 characters) to that club's feed. The **Combo Feed** on
+the coach home gathers what athletes in every club you coach have shared, plus
+announcements. Any coach can remove a post, and a total of bells earned on your own
+announcements sits above the feed.
+
+**Sees only what athletes agreed to share.** An athlete's training is visible to a
+coach only once they've joined the coach's club or program and accepted the notice.
+A coach assigned to one program sees just that program; admins and whole-club
+coaches see everyone. If an athlete leaves, the coach stops seeing them.
+
+## How it's built
+
+| Piece | What |
+|---|---|
+| App | React 18 + TypeScript, built with Vite; installable as a PWA (`public/sw.js` caches the app shell) |
+| Accounts | Google sign-in through Supabase Auth |
+| Data | Supabase Postgres — workouts, precision and metal bouts, click log, clubs, programs, memberships, coach assignments, coach notes, feed posts and cowbells |
+| Photos | Supabase Storage — a full image and a thumbnail per bout |
+| Access control | Postgres row-level security, plus `security definer` functions for anything a policy can't express safely |
+| Reading photos | The Anthropic API, called straight from the browser with the athlete's own key |
+| Share cards | Drawn on a `<canvas>` in the browser; QR codes from the `qrcode` package |
+| Hosting | Netlify (`netlify.toml`, with an SPA fallback in `public/_redirects`) |
+
+The data model in one paragraph: an **athlete** and a **coach** are two identities
+under one auth account. An athlete has **memberships** in clubs (one per club,
+carrying the athlete's program or none); a coach has **assignments** to a club or a
+single program, and an admin flag. Who can see whose training is decided entirely
+by those rows, in one function (`is_coach_of`), reused by every table's policy.
+
+Rules that matter are enforced in the database, not the client, and each is tested
+against the live schema as an admin, a non-admin coach, an athlete and an outsider,
+inside transactions that roll back. Feed posts are built **server-side** as
+snapshots by `post_to_feed`, so what a post can contain is decided in one place: the
+ring diagram data, score, position and date for a target; the name, date, type and
+headline numbers for a workout — never notes, coach notes, the zero log, heart rate
+or photos.
 
 ## Run it
+
+You need a Supabase project. Copy `.env.example` to `.env.local` and fill in your
+project's URL and anon key:
+
+```
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the address it prints. On a phone, use the network address on the same
-wi-fi. Camera capture needs `https` or `localhost`, so for real use at a range,
-build it and host the `dist/` directory somewhere with a certificate:
+Open the address it prints. On a phone, use the network address on the same wi-fi.
+Camera capture needs `https` or `localhost`, so for real use at a range, build it
+and host `dist/` somewhere with a certificate:
 
 ```bash
 npm run build
 ```
 
+**Database.** The schema lives in `supabase/migrations/`, one file per change, in
+order. With the Supabase CLI linked to your project:
+
+```bash
+npx supabase db push
+```
+
+**Sign-in.** Enable the Google provider in Supabase (Authentication → Providers),
+and under Authentication → URL Configuration set the Site URL to your app's address
+and add it — and `http://localhost:5180/**` for local work — to the **Redirect
+URLs**. If that list is missing your address, sign-in appears to succeed and then
+lands on a blank screen.
+
+**Hosting.** On Netlify the build command and publish directory come from
+`netlify.toml`. `public/_redirects` sends every path to `index.html`, which is what
+lets `/privacy`, `/terms` and `/features` load directly.
+
 ## Set it up
 
-Three settings decide whether the numbers are right.
+Three settings decide whether the numbers are right. They're stored in the browser
+on each device, not in your account.
 
 **Target face.** ISSF 50 m rifle or ISSF 10 m air rifle. The face sets the
 scoring rings and, through its black diameter, the ruler for everything else —
@@ -107,7 +232,7 @@ another, divide the gap by 10.
 An Anthropic API key is optional. Without one, you tap the holes in yourself and
 every other feature works unchanged. With one, each photo costs a few cents to
 read. The key is stored in this browser and sent straight to Anthropic from the
-page — there is no server in between, because there is no server.
+page — it never goes to this app's own database.
 
 **Test this key** in Settings says exactly what is wrong when a key does not
 work. It checks the shape of the key first (a paste that wrapped or got cut off
@@ -119,8 +244,9 @@ subscription — a Pro or Max plan buys you none.
 
 ## Delete things
 
-History has a **Select** button. Tick any number of bouts and delete them with
-their photos in one go. A single bout can also be deleted from its own page.
+History has a **Select** button. Tick any number of workouts and delete them with
+their bouts and photos in one go. A single workout or bout can also be deleted from
+its own page.
 
 Settings has **Delete all photos, keep the scores**. Photos are nearly all of the
 space this app uses, and once a bout is scored the shot positions are the record,
@@ -177,8 +303,11 @@ Two thresholds in the diagnostics were set by simulation rather than taste, in
 4× it flags 9% and still catches 58% of genuinely thrown shots. The drift rule
 went the same way.
 
-Metrics are derived at render time, never trusted from disk. Shot positions are
-the only real measurement, and everything else follows from them.
+For an athlete's own bouts, metrics are derived at render time, never trusted
+from disk: shot positions are the only real measurement, and everything else
+follows from them and from your settings. A coach reading an athlete's bouts, and
+a post in the club feed, use the metrics as they were when the bout was scored —
+a scored bout is not recalculated for someone else.
 
 ## Test it
 
@@ -187,24 +316,31 @@ npm test
 npm run typecheck
 ```
 
-`npm test` checks the target-plane maths, the metrics, and the diagnostic rules
-against known inputs.
-
-To look at the History and Training screens without shooting anything, paste
-[`scripts/demo-data.js`](scripts/demo-data.js) into the browser console with the
-app open, then reload. Clear it again from your browser's site data.
+`npm test` checks the target-plane maths, the metrics, the diagnostic rules, the
+metal statistics and the hole locator against known inputs.
 
 ## Layout
 
 | Path | What is in it |
 |---|---|
+| `src/App.tsx` | Sign-in, role choice, the tab shell, and the public pages' routing |
+| `src/components/WorkoutView.tsx` | Starting, running and finishing a session; the completion screen |
+| `src/components/CaptureView.tsx`, `MarkupView.tsx` | Photographing a target and the correction step |
+| `src/components/AnalysisView.tsx`, `TrendChart.tsx` | The four Analysis sections and the trend charts |
+| `src/components/HistoryView.tsx` | Workout history, deleting, sharing |
+| `src/components/CoachView.tsx` | Coach home, club pages, roster, programs, coaches and admins |
+| `src/components/FeedView.tsx`, `ShareSheet.tsx`, `AnnounceSheet.tsx` | The club feed, sharing to it, and announcements |
+| `src/components/ProfileView.tsx` | Identity, joining and leaving clubs and programs |
+| `src/components/FeaturesView.tsx`, `PrivacyPolicyView.tsx`, `TermsView.tsx` | The public pages |
 | `src/lib/geometry.ts` | Perspective correction, millimetre conversion, group metrics |
 | `src/lib/scoring.ts` | Ring radii and the inward-gauge rule |
-| `src/lib/diagnostics.ts` | Rules that turn metrics into findings |
-| `src/lib/training.ts` | Drill library and the recommender |
-| `src/lib/vision.ts` | The Claude call that reads the photo |
-| `src/lib/db.ts` | IndexedDB storage and JSON export |
-| `src/components/MarkupView.tsx` | The correction step |
+| `src/lib/diagnostics.ts`, `training.ts` | Rules that turn metrics into findings, and the drill recommender |
+| `src/lib/vision.ts`, `blackLocator.ts`, `holeLocator.ts`, `imaging.ts` | Finding the aiming mark and holes; the Claude call |
+| `src/lib/metal.ts` | Metal-bout statistics |
+| `src/lib/db.ts` | Workouts, bouts and photos in Supabase; JSON export |
+| `src/lib/coaching.ts` | Clubs, programs, roster and coaches |
+| `src/lib/feed.ts`, `share.ts` | Feed posts, cowbells and announcements; the trading-card image |
+| `supabase/migrations/` | The schema, its row-level security and its functions |
 
 ## Limits
 
@@ -222,5 +358,9 @@ app gives you is wrong by the same factor until you do.
 
 Findings from one or two bouts are hints. The confidence figure says so.
 
-Browser storage is not a backup. Clearing site data deletes every photo and every
-bout. Export to JSON from Settings if the history matters to you.
+**Saving needs a connection.** Sessions, bouts and posts are written straight to
+Supabase; there is no offline queue yet, so logging at a range with no signal will
+not save. The app shell opens offline, but the data does not.
+
+Settings, including your API key, live in the browser on each device and do not
+follow you to another. Export to JSON from Settings if the history matters to you.
