@@ -154,8 +154,8 @@ function Tally({
         {label}{sub && <small style={{ display: 'block', fontWeight: 400, color: 'var(--text-muted)', marginTop: 3 }}>{sub}</small>}
       </div>
       <div className="seg" style={{ alignItems: 'center', gap: 4 }}>
-        <button type="button" aria-label={decLabel} title={decLabel} aria-pressed={decActive || undefined} onClick={onDec} style={{ width: 40, flex: 'none' }}>{decIcon}</button>
         <span aria-live="polite" style={{ minWidth: 22, textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value}</span>
+        <button type="button" aria-label={decLabel} title={decLabel} aria-pressed={decActive || undefined} onClick={onDec} style={{ width: 40, flex: 'none' }}>{decIcon}</button>
         <button type="button" aria-label={incLabel} title={incLabel} aria-pressed={incActive || undefined} onClick={onInc} style={{ width: 40, flex: 'none' }}>{incIcon}</button>
       </div>
     </div>
