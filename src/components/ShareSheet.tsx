@@ -12,7 +12,17 @@ import { ShareIcon } from './icons'
  * choice made here — nothing reaches a feed on its own — and the sheet says
  * plainly who will see it before the athlete taps.
  */
-export function ShareSheet({ bout, workout, onClose }: { bout?: Bout; workout: Workout; onClose: () => void }) {
+export function ShareSheet({
+  bout, workout, onClose, onPostedDone,
+}: {
+  bout?: Bout
+  workout: Workout
+  onClose: () => void
+  /** Called after "Done" once something's been posted — the session-complete
+   *  screen uses it to head back to the 545 home, since posting is the last
+   *  thing left to do there. Other places just close the sheet. */
+  onPostedDone?: () => void
+}) {
   const memberships = useMemberships()
   const [busy, setBusy] = useState<string | null>(null)
   const [posted, setPosted] = useState<string | null>(null)
@@ -58,7 +68,7 @@ export function ShareSheet({ bout, workout, onClose }: { bout?: Bout; workout: W
           <>
             <p>Posted to the <strong>{posted}</strong> feed.</p>
             <p className="meta">You can take it down any time from the feed.</p>
-            <button className="primary" onClick={onClose}>Done</button>
+            <button className="primary" onClick={() => { onClose(); onPostedDone?.() }}>Done</button>
           </>
         ) : (
           <>

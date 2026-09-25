@@ -488,7 +488,7 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
           Post this workout to the club feed
         </button>
       )}
-      {sheet && <ShareSheet bout={sheet.bout} workout={workout} onClose={() => setSheet(null)} />}
+      {sheet && <ShareSheet bout={sheet.bout} workout={workout} onClose={() => setSheet(null)} onPostedDone={onDone} />}
     </div>
   )
 }
