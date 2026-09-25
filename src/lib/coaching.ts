@@ -302,6 +302,12 @@ export async function myMemberships(): Promise<Membership[]> {
   })
 }
 
+/** Leave a program but stay in the club — see leave_program. */
+export async function leaveProgram(clubId: string): Promise<void> {
+  const { error } = await supabase.rpc('leave_program', { p_club_id: clubId })
+  if (error) throw error
+}
+
 export async function leaveClub(clubId: string): Promise<void> {
   const athleteId = await currentUserId()
   const { error } = await supabase

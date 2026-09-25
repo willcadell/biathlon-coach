@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { ensureAthleteRow, getAthlete, signOut, updateDisplayName } from '../lib/auth'
 import {
   becomeCoach, findClubByJoinCode, findProgramByJoinCode, getCoach, joinClubAsAthlete, joinProgramAsAthlete,
-  leaveClub, myCoachedClubs, myMemberships, updateCoachDisplayName,
+  leaveClub, leaveProgram, myCoachedClubs, myMemberships, updateCoachDisplayName,
   type Club, type Membership,
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
@@ -413,22 +413,46 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               <p className="meta" style={{ marginTop: 0 }}>Not in a club yet.</p>
             ) : (
               memberships.map((m) => (
-                <div key={m.clubId} className="row" style={{ alignItems: 'center', marginBottom: 8, gap: 10 }}>
-                  <ClubLogo logoPath={m.logoPath} size={32} />
-                  <span style={{ flex: 1 }}>
-                    {m.clubName}
-                    {m.programName && <span className="pill" style={{ marginLeft: 6 }}>{m.programName}</span>}
-                  </span>
-                  <button
-                    className="link"
-                    onClick={async () => {
-                      if (!confirm(`Leave ${m.clubName}? Your coach there will no longer see your training.`)) return
-                      await leaveClub(m.clubId)
-                      refreshMemberships()
-                    }}
-                  >
-                    Leave
-                  </button>
+                <div key={m.clubId} style={{ marginBottom: 12 }}>
+                  <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                    <ClubLogo logoPath={m.logoPath} size={32} />
+                    <span style={{ flex: 1, minWidth: 0 }}>{m.clubName}</span>
+                    <button
+                      className="link danger" style={{ flex: 'none' }}
+                      onClick={async () => {
+                        if (!confirm(
+                          `Leave ${m.clubName}?\n\nYou'll leave the club and its program. Its coaches will no longer see your ` +
+                          `training, and anything you've posted to its feed will be removed. You can rejoin with a join code.`,
+                        )) return
+                        await leaveClub(m.clubId)
+                        refreshMemberships()
+                      }}
+                    >
+                      Leave club
+                    </button>
+                  </div>
+                  {m.programName && (
+                    <div className="row" style={{ alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 42 }}>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span className="meta">Program </span>
+                        <span className="pill">{m.programName}</span>
+                      </span>
+                      <button
+                        className="link danger" style={{ flex: 'none' }}
+                        onClick={async () => {
+                          if (!confirm(
+                            `Leave the ${m.programName} program?\n\nYou'll stay in ${m.clubName}, and its coaches who oversee the whole ` +
+                            `club can still see your training. Coaches assigned only to ${m.programName} won't. ` +
+                            `You can rejoin with the program's join code.`,
+                          )) return
+                          await leaveProgram(m.clubId)
+                          refreshMemberships()
+                        }}
+                      >
+                        Leave program
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
