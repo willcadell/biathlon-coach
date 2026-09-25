@@ -167,23 +167,22 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
 }
 
 /** Ring a cowbell for a post. Filled and orange once you've rung it; tap
- *  again to take it back. The count is always shown, including zero. */
+ *  again to take it back. The count is always shown, including zero. Every
+ *  tap gives the bell a small shake — keyed on a counter so a second tap
+ *  mid-shake restarts it instead of being ignored. */
 function CowbellButton({ count, mine, author, onToggle }: { count: number; mine: boolean; author: string; onToggle: () => void }) {
-  const [ringing, setRinging] = useState(false)
-  useEffect(() => {
-    if (!ringing) return
-    const t = setTimeout(() => setRinging(false), 650)
-    return () => clearTimeout(t)
-  }, [ringing])
+  const [shakes, setShakes] = useState(0)
   return (
     <button
-      className={`link cowbell${ringing ? ' ringing' : ''}`}
+      className="link cowbell"
       aria-pressed={mine}
       aria-label={`${mine ? 'Take back your cowbell from' : 'Ring the cowbell for'} ${author}’s post — ${count} so far`}
       title={mine ? 'Take back your cowbell' : 'Ring the cowbell'}
-      onClick={() => { if (!mine) setRinging(true); onToggle() }}
+      onClick={() => { setShakes((n) => n + 1); onToggle() }}
     >
-      <CowbellIcon filled={mine} />
+      <span key={shakes} className={shakes > 0 ? 'cowbell-icon shake' : 'cowbell-icon'}>
+        <CowbellIcon filled={mine} />
+      </span>
       <span className="count">{count}</span>
     </button>
   )
