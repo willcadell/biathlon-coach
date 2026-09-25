@@ -17,6 +17,7 @@ import { CoachView, ClubSettingsView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
 import { PrivacyPolicyView } from './components/PrivacyPolicyView'
 import { TermsView } from './components/TermsView'
+import { FeaturesView } from './components/FeaturesView'
 import { NotFoundView } from './components/NotFoundView'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -122,7 +123,7 @@ const TABS: { id: Tab; label: string; icon: JSX.Element; requiresMode?: Role }[]
   },
 ]
 
-/** Privacy and Terms need to be reachable without signing in — a coach
+/** Privacy, Terms and Features need to be reachable without signing in — a coach
  *  linking a minor's parent to them, or an app-store reviewer, shouldn't
  *  need a Google account first. Checked ahead of the auth gate below, and
  *  anything else unrecognized falls through to the 404 page rather than a
@@ -131,6 +132,7 @@ export default function App() {
   const path = window.location.pathname
   if (path === '/privacy') return <PrivacyPolicyView />
   if (path === '/terms') return <TermsView />
+  if (path === '/features') return <FeaturesView />
   if (path !== '/') return <NotFoundView />
 
   return <AuthenticatedApp />
