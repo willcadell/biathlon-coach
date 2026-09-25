@@ -405,22 +405,31 @@ function useCountUp(target: number, delayMs: number, durationMs: number): number
  *  sharing the session's best target right when it's most relevant. */
 function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout; precisionBouts: Bout[]; onDone: () => void }) {
   const [sharing, setSharing] = useState(false)
+  const [choosing, setChoosing] = useState(false)
   const [shareError, setShareError] = useState('')
   const best = bestBout(precisionBouts)
   const shownScore = useCountUp(best?.metrics.ringTotal ?? 0, 450, 600)
+  const inOrder = [...precisionBouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
 
-  async function share() {
-    if (!best) return
+  async function share(bout: Bout) {
     setSharing(true)
     setShareError('')
     try {
-      await shareTargetImage(best, workout)
+      await shareTargetImage(bout, workout)
+      setChoosing(false)
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
       setShareError(errorMessage(e, 'Could not create a shareable image.'))
     } finally {
       setSharing(false)
     }
+  }
+
+  // One target has nothing to choose between, so it shares straight away;
+  // with several, the button opens a list to pick from instead.
+  function onShareClick() {
+    if (inOrder.length === 1) void share(inOrder[0])
+    else setChoosing((c) => !c)
   }
 
   return (
@@ -435,11 +444,28 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
         </p>
       )}
       {shareError && <div className="notice error" style={{ marginBottom: 12 }}>{shareError}</div>}
+      {choosing && (
+        <div style={{ width: '100%', maxWidth: 320, marginBottom: 12, textAlign: 'left' }}>
+          <p className="meta" style={{ margin: '0 0 8px' }}>Choose a target to share</p>
+          {inOrder.map((b, i) => (
+            <button key={b.id} className="boutrow" disabled={sharing} onClick={() => void share(b)}>
+              <div className="grow">
+                <div className="title">
+                  {b.metrics.ringTotal}/{b.metrics.ringPossible} <span className="pill">{b.position}</span>
+                  {b.id === best?.id && <span className="pill">best</span>}
+                </div>
+                <div className="meta">Bout {i + 1} · {fmt(b.shotAt)}</div>
+              </div>
+              <ShareIcon />
+            </button>
+          ))}
+        </div>
+      )}
       <div className="row">
         <button className="secondary" onClick={onDone}>Back to start</button>
-        {best && (
-          <button className="primary" disabled={sharing} onClick={() => void share()}>
-            {sharing ? 'Preparing…' : 'Share this target'}
+        {inOrder.length > 0 && (
+          <button className="primary" disabled={sharing} onClick={onShareClick}>
+            {sharing ? 'Preparing…' : inOrder.length === 1 ? 'Share this target' : choosing ? 'Cancel' : 'Share a target…'}
           </button>
         )}
       </div>
