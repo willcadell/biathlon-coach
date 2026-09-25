@@ -5,10 +5,39 @@ import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
-import { CoachMark, CowbellIcon, TrashIcon } from './icons'
+import { CoachMark, CowbellIcon, DryfireIcon, RaceFlagIcon, RangeIcon, TrashIcon } from './icons'
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+/** Which kind of session a workout post is — a race is a range session shot to
+ *  a format, so it's told apart by having one. */
+function sessionKind(p: WorkoutPayload): 'race' | 'dryfire' | 'range' {
+  if (p.raceType) return 'race'
+  return p.workoutType === 'dryfire' ? 'dryfire' : 'range'
+}
+
+const SESSION_TILE = {
+  range: { label: 'Range session', colour: 'var(--series-1)', Icon: RangeIcon },
+  dryfire: { label: 'Dry-fire session', colour: 'var(--series-3)', Icon: DryfireIcon },
+  race: { label: 'Race', colour: 'var(--series-2)', Icon: RaceFlagIcon },
+} as const
+
+/** The icon tile at the left of a workout post: one look per session kind. */
+function SessionTile({ p }: { p: WorkoutPayload }) {
+  const { label, colour, Icon } = SESSION_TILE[sessionKind(p)]
+  return (
+    <div
+      role="img" aria-label={label} title={label}
+      style={{
+        flex: 'none', width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `color-mix(in srgb, ${colour} 14%, transparent)`, color: colour,
+      }}
+    >
+      <Icon />
+    </div>
+  )
+}
 
 /** An entry's last line, with the cowbell opposite its end at the right
  *  instead of on a row of its own. Bottom-aligned, so if the line wraps the
@@ -442,9 +471,12 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
             </div>
           </div>
         ) : (
-          <div key={post.id} className="card">
-            {header}
-            <WorkoutCard p={post.payload} trailing={bell} />
+          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <SessionTile p={post.payload} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {header}
+              <WorkoutCard p={post.payload} trailing={bell} />
+            </div>
           </div>
         )
       })}
