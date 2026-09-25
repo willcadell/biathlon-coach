@@ -136,45 +136,63 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   const now = new Date()
   const isCurrent = now >= rangeStart && now <= rangeEnd
 
-  const t0 = rangeStart.getTime()
-  const t1 = rangeEnd.getTime()
-  const span = Math.max(t1 - t0, 1)
-  const t = (iso: string) => (new Date(iso).getTime() - t0) / span
-  const inRange = (iso: string) => {
-    const tt = new Date(iso).getTime()
-    return tt >= t0 && tt <= t1
+  type Point = { t: number; v: number; workout: Workout; bouts: Bout[] }
+
+  /** One point per workout per position inside [start, end], with t
+   *  normalised 0..1 across that window. */
+  const buildSeries = (start: Date, end: Date) => {
+    const a = start.getTime()
+    const span = Math.max(end.getTime() - a, 1)
+    const within = (iso: string) => {
+      const tt = new Date(iso).getTime()
+      return tt >= a && tt <= end.getTime()
+    }
+    const byWorkout = new Map<string, Bout[]>()
+    for (const b of bouts) {
+      if (!within(b.shotAt)) continue
+      const list = byWorkout.get(b.workoutId)
+      if (list) list.push(b)
+      else byWorkout.set(b.workoutId, [b])
+    }
+    return (['prone', 'standing'] as Position[])
+      .map((position) => ({
+        position,
+        colour: SERIES_COLOUR[position],
+        points: workouts
+          .filter((w) => within(w.startedAt))
+          .map((w) => {
+            const own = (byWorkout.get(w.id) ?? []).filter((b) => b.position === position)
+            if (own.length === 0) return null
+            const v = own.reduce((sum, b) => sum + spec.value(b), 0) / own.length
+            return { t: (new Date(w.startedAt).getTime() - a) / span, v, workout: w, bouts: own }
+          })
+          .filter((p): p is Point => p !== null)
+          .sort((x, y) => x.t - y.t),
+      }))
+      .filter((s) => s.points.length > 0)
   }
 
-  const rangedWorkouts = workouts.filter((w) => inRange(w.startedAt))
-  const boutsByWorkout = new Map<string, Bout[]>()
-  for (const b of bouts) {
-    if (!inRange(b.shotAt)) continue
-    const list = boutsByWorkout.get(b.workoutId)
-    if (list) list.push(b)
-    else boutsByWorkout.set(b.workoutId, [b])
-  }
+  const series = buildSeries(rangeStart, rangeEnd)
 
-  const series = (['prone', 'standing'] as Position[])
-    .map((position) => ({
-      position,
-      colour: SERIES_COLOUR[position],
-      points: rangedWorkouts
-        .map((w) => {
-          const own = (boutsByWorkout.get(w.id) ?? []).filter((b) => b.position === position)
-          if (own.length === 0) return null
-          const v = own.reduce((sum, b) => sum + spec.value(b), 0) / own.length
-          return { t: t(w.startedAt), v, workout: w, bouts: own }
-        })
-        .filter((p): p is { t: number; v: number; workout: Workout; bouts: Bout[] } => p !== null)
-        .sort((a, b) => a.t - b.t),
-    }))
-    .filter((s) => s.points.length > 0)
+  // The previous period's trend, laid over this window at the same relative
+  // position — so stepping through weeks or months keeps a reference for
+  // where you were, rather than each window standing alone. Only where that
+  // period had enough points for a real slope, and drawn across its own span
+  // (never extrapolated).
+  const prevRange = rangeFor(granularity, step(granularity, anchor, -1))
+  const ghosts = buildSeries(prevRange.start, prevRange.end).flatMap((s) => {
+    const trend = linearTrend(s.points)
+    if (!trend) return []
+    const tMin = s.points[0].t
+    const tMax = s.points[s.points.length - 1].t
+    return [{ position: s.position, colour: s.colour, tMin, tMax, vMin: trend.at(tMin), vMax: trend.at(tMax) }]
+  })
 
-  const peak = Math.max(spec.axisMax, ...series.flatMap((s) => s.points.map((p) => p.v)))
+  const peak = Math.max(spec.axisMax, ...series.flatMap((s) => s.points.map((p) => p.v)), ...ghosts.flatMap((g) => [g.vMin, g.vMax]))
   const yMax = Math.ceil(peak / spec.tickStep) * spec.tickStep
 
   const sx = (tt: number) => PAD.left + Math.min(1, Math.max(0, tt)) * (W - PAD.left - PAD.right)
-  const sy = (v: number) => PAD.top + (1 - v / yMax) * (H - PAD.top - PAD.bottom)
+  const sy = (v: number) => PAD.top + (1 - Math.max(0, v) / yMax) * (H - PAD.top - PAD.bottom)
 
   const ticks = Array.from({ length: Math.round(yMax / spec.tickStep) + 1 }, (_, i) => i * spec.tickStep)
 
@@ -239,6 +257,14 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
             <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">
               {fmtDate(rangeEnd)}
             </text>
+
+            {ghosts.map((g) => (
+              <line
+                key={`ghost-${g.position}`}
+                x1={sx(g.tMin)} y1={sy(g.vMin)} x2={sx(g.tMax)} y2={sy(g.vMax)}
+                stroke={g.colour} strokeWidth={2} strokeDasharray="1 5" strokeLinecap="round" opacity={0.5}
+              />
+            ))}
 
             {series.map((s) => {
               const trend = linearTrend(s.points)
@@ -311,7 +337,10 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                 <i className="swatch" style={{ background: s.colour }} /> {s.position}
               </span>
             ))}
-            <span>{spec.caption} Dashed line is the trend.</span>
+            <span>
+              {spec.caption} Dashed line is the trend
+              {ghosts.length > 0 && `; the dotted line is the trend from the previous ${granularity}`}.
+            </span>
           </div>
         </>
       )}
