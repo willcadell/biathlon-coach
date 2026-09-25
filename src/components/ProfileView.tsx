@@ -9,7 +9,7 @@ import {
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
-import { AdminPill } from './icons'
+import { AdminPill, TrashIcon } from './icons'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
  *  them to know which, it just tries a club code, then a program code. */
@@ -419,6 +419,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                     <span style={{ flex: 1, minWidth: 0 }}>{m.clubName}</span>
                     <button
                       className="link danger" style={{ flex: 'none' }}
+                      aria-label={`Leave ${m.clubName}`} title="Leave club"
                       onClick={async () => {
                         if (!confirm(
                           `Leave ${m.clubName}?\n\nYou'll leave the club and its program. Its coaches will no longer see your ` +
@@ -428,7 +429,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                         refreshMemberships()
                       }}
                     >
-                      Leave club
+                      <TrashIcon />
                     </button>
                   </div>
                   {m.programName && (
@@ -439,6 +440,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                       </span>
                       <button
                         className="link danger" style={{ flex: 'none' }}
+                        aria-label={`Leave the ${m.programName} program`} title="Leave program"
                         onClick={async () => {
                           if (!confirm(
                             `Leave the ${m.programName} program?\n\nYou'll stay in ${m.clubName}, and its coaches who oversee the whole ` +
@@ -449,7 +451,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                           refreshMemberships()
                         }}
                       >
-                        Leave program
+                        <TrashIcon />
                       </button>
                     </div>
                   )}
