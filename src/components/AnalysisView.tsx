@@ -214,15 +214,12 @@ export function AnalysisView({
             trends once you have a few — and a coaching read once you have three or four.
           </p>
         </div>
-        <details style={{ marginTop: 20 }}>
-          <summary>History</summary>
-          <div style={{ marginTop: 12 }}>
-            <HistoryView
-              workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-              readOnly={readOnly} onAddCoachNote={onAddCoachNote}
-            />
-          </div>
-        </details>
+        <CollapsibleSection title="History" defaultOpen={false}>
+          <HistoryView
+            workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
+            readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+          />
+        </CollapsibleSection>
       </>
     )
   }
@@ -483,17 +480,14 @@ export function AnalysisView({
         </CollapsibleSection>
       )}
 
-      <details style={{ marginTop: 24 }}>
-        <summary>
-          History ({workouts.length} workout{workouts.length === 1 ? '' : 's'})
-        </summary>
-        <div style={{ marginTop: 12 }}>
-          <HistoryView
-            workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-            readOnly={readOnly} onAddCoachNote={onAddCoachNote}
-          />
-        </div>
-      </details>
+      <CollapsibleSection
+        title={`History (${workouts.length} workout${workouts.length === 1 ? '' : 's'})`} defaultOpen={false}
+      >
+        <HistoryView
+          workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
+          readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+        />
+      </CollapsibleSection>
     </>
   )
 }
