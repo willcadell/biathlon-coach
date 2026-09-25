@@ -1,3 +1,4 @@
+import { amDev, devModeOn, setDevMode } from './lib/dev'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
@@ -159,6 +160,10 @@ function AuthenticatedApp() {
 function IdentityGate({ session }: { session: Session }) {
   const [identities, setIdentities] = useState<{ athlete: boolean; coach: boolean } | undefined>(undefined)
   const [mode, setMode] = useState<Role | null>(null)
+  const [isDev, setIsDev] = useState(false)
+  useEffect(() => {
+    void amDev().then(setIsDev).catch(() => setIsDev(false))
+  }, [session.user.id])
 
   const refreshIdentities = useCallback(() => {
     void Promise.all([getAthlete(session.user.id), getCoach(session.user.id)]).then(async ([athlete, coach]) => {
@@ -213,6 +218,7 @@ function IdentityGate({ session }: { session: Session }) {
       session={session}
       identities={identities}
       mode={activeMode}
+      isDev={isDev}
       onIdentityChanged={refreshIdentities}
       onSwitchRole={
         identities.athlete && identities.coach
@@ -224,11 +230,13 @@ function IdentityGate({ session }: { session: Session }) {
 }
 
 function SignedInApp({
-  session, identities, mode, onIdentityChanged, onSwitchRole,
+  session, identities, mode, isDev, onIdentityChanged, onSwitchRole,
 }: {
   session: Session
   identities: { athlete: boolean; coach: boolean }
   mode: Role
+  /** Granted in Supabase; unlocks the dev mode switch in Profile. */
+  isDev: boolean
   onIdentityChanged: () => void
   onSwitchRole?: () => void
 }) {
@@ -315,8 +323,17 @@ function SignedInApp({
     void putWorkout(next)
   }
 
+  // Only offered to (and honoured for) accounts granted dev in Supabase.
+  const devMode = isDev && devModeOn()
+
   return (
     <div className="app">
+      {devMode && (
+        <div className="dev-banner" role="status">
+          <span><strong>Dev mode</strong> — everything you do here is test data, hidden from the club.</span>
+          <button className="link" onClick={() => setDevMode(false)}>Leave</button>
+        </div>
+      )}
       <main className="main">
         <ErrorBoundary key={tab}>
           {tab === 'shoot' && (
@@ -342,6 +359,8 @@ function SignedInApp({
               onIdentityChanged={onIdentityChanged}
               mode={mode}
               onSwitchRole={onSwitchRole}
+              isDev={isDev}
+              devMode={devMode}
               onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
             />
           )}

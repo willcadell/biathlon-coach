@@ -432,3 +432,12 @@ button.link.cowbell[aria-pressed='true'] { color: var(--series-3); }
 }
 .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
+
+/* --- Dev mode -------------------------------------------------------------- */
+.dev-banner {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 16px; background: var(--critical); color: #fff; font-size: 13px;
+}
+.dev-banner button.link { color: #fff; flex: none; font-weight: 600; }
+button.dev-switch { background: var(--critical); border-color: var(--critical); color: #fff; }

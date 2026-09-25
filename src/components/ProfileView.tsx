@@ -10,6 +10,7 @@ import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
 import { AdminPill, TrashIcon } from './icons'
+import { setDevMode } from '../lib/dev'
 import { Dropdown } from './Dropdown'
 import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
@@ -41,6 +42,10 @@ interface Props {
    *  athlete calibration fields and the Settings tab itself is hidden while
    *  coaching. */
   onOpenSettings?: () => void
+  /** Granted in Supabase. Unlocks the dev mode switch under Session. */
+  isDev?: boolean
+  /** Dev mode is on for this tab: what's created is test data. */
+  devMode?: boolean
 }
 
 function CogIcon() {
@@ -176,13 +181,17 @@ function CoachedClubsCard() {
   )
 }
 
-/** Shown only for someone with both identities — switching is the one
- *  reason a session-mode control needs to exist at all. */
-function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwitchRole?: () => void }) {
-  if (!onSwitchRole) return null
+/** Shown for someone with both identities — switching is the one reason a
+ *  session-mode control needs to exist at all — and for a dev account, which
+ *  can also enter dev mode. Dev mode is separate from athlete/coach: the
+ *  role switch still works inside it. */
+function SessionCard({
+  mode, onSwitchRole, isDev, devMode,
+}: { mode: 'athlete' | 'coach'; onSwitchRole?: () => void; isDev?: boolean; devMode?: boolean }) {
+  if (!onSwitchRole && !isDev) return null
   return (
-    <>
-      <Dropdown title="Session">
+    <Dropdown title="Session">
+      {onSwitchRole && (
         <div className="card">
           <p style={{ marginTop: 0 }}>
             Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
@@ -191,12 +200,25 @@ function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwit
             Switch to {mode === 'athlete' ? 'coach' : 'athlete'}
           </button>
         </div>
-      </Dropdown>
-    </>
+      )}
+      {isDev && (
+        <div className="card" style={{ borderColor: 'var(--critical)' }}>
+          <p style={{ marginTop: 0 }}>
+            <strong style={{ color: 'var(--critical)' }}>Dev mode</strong> is for testing.{' '}
+            {devMode
+              ? 'It is on: everything you create is test data, hidden from the club, and you see only test data.'
+              : 'While it is on, everything you create is test data, hidden from the club, and you see only test data. Athlete and coach still work inside it.'}
+          </p>
+          <button className="secondary dev-switch" onClick={() => setDevMode(!devMode)}>
+            {devMode ? 'Leave dev mode' : 'Enter dev mode'}
+          </button>
+        </div>
+      )}
+    </Dropdown>
   )
 }
 
-export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings }: Props) {
+export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings, isDev, devMode }: Props) {
   const [name, setName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [settingUp, setSettingUp] = useState(false)
@@ -304,7 +326,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     return (
       <>
         <ProfileHeader onOpenSettings={onOpenSettings} />
-        <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
+        <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
         {mode === 'coach' && <CoachedClubsCard />}
 
         <h2>Coach details</h2>
@@ -484,7 +506,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         </>
       )}
 
-      <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
+      <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
       <Dropdown title="Account">

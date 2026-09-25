@@ -257,6 +257,30 @@ chosen model. A rejected key, an Admin key, an empty credit balance and a blocke
 connection each get their own answer. API credit is separate from any Claude
 subscription — a Pro or Max plan buys you none.
 
+## Dev mode
+
+A developer account can switch into **dev mode** (Profile → Session, shown in red) to
+try things without touching the club's real data. It is a mode, not a kind of user: the
+same account is a normal athlete or coach outside it, and athlete/coach switching still
+works inside it.
+
+- Everything created in dev mode is stamped `is_test` by a database trigger, so the client
+  can't mislabel it.
+- In dev mode you see only your own test data. Outside it, test data is invisible to
+  everyone — the club feed, a coach's roster and analysis, bell counts, personal coaches —
+  so it can never reach the public.
+- The app tells the database the mode with an `x-dev-mode` header, honoured only for accounts
+  in `dev_users`. The mode lives in the browser tab (`sessionStorage`), so closing the tab
+  ends it.
+- Access is granted in Supabase, never from the app (the table has no policies):
+
+```sql
+insert into dev_users (user_id) select id from auth.users where email = 'you@example.com';
+delete from dev_users where user_id = '...';
+```
+
+To clear a developer's test data, delete the rows where `is_test` is true.
+
 ## Delete things
 
 History has a **Select** button. Tick any number of workouts and delete them with

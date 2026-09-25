@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { DEV_MODE_KEY, supabase } from './supabase'
 
 /**
  * Fires immediately with whatever session already exists (or null), then
@@ -20,6 +20,8 @@ export function signInWithGoogle() {
 }
 
 export function signOut() {
+  // Dev mode is tied to the tab, so leave it behind with the account.
+  try { sessionStorage.removeItem(DEV_MODE_KEY) } catch { /* nothing to clear */ }
   return supabase.auth.signOut()
 }
 
