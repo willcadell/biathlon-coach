@@ -235,7 +235,7 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
               onInc={() => setHNet((n) => Math.min(99, n + 1))}
             />
             <Tally
-              label="Clips" sub="To confirm" value={clips}
+              label="Clips" value={clips}
               decLabel="Fewer clips" decIcon="−"
               incLabel="More clips" incIcon="+"
               onDec={() => setClips((n) => Math.max(0, n - 1))}
