@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { errorMessage } from '../lib/errors'
-import { PencilIcon } from './icons'
+import { CloseIcon, PencilIcon } from './icons'
 
 /**
  * A name that's set once and then sits locked — "Name · Will" with an edit
  * pencil — the way the race format does, instead of an always-open text box
- * that looks unsaved. Edit opens the field with Save and Cancel; a name that
+ * that looks unsaved. Edit opens the field with Save and a cancel X; a name that
  * hasn't been set yet opens straight into the field.
  */
 export function NameField({
@@ -65,8 +65,11 @@ export function NameField({
             onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim() && !saving) void save() }}
           />
           {canCancel && (
-            <button className="link" style={{ flex: 'none' }} disabled={saving} onClick={() => setEditing(false)}>
-              Cancel
+            <button
+              className="link" style={{ flex: 'none' }} disabled={saving} aria-label="Cancel" title="Cancel"
+              onClick={() => setEditing(false)}
+            >
+              <CloseIcon />
             </button>
           )}
           <button
