@@ -1,4 +1,4 @@
-const UPDATED = 'September 20, 2026'
+const UPDATED = 'September 25, 2026'
 
 export function PrivacyPolicyView() {
   return (
@@ -32,9 +32,24 @@ export function PrivacyPolicyView() {
             one, we store that membership — which club, which program, and whether you're an admin
             coach — so the right people can see the right rosters.
           </p>
-          <p style={{ marginBottom: 0 }}>
+          <p>
             <strong>Coach notes.</strong> If a coach leaves a note on your workout, that note is stored
             and shared with every coach linked to you on that club, not just the one who wrote it.
+          </p>
+          <p>
+            <strong>Club feed posts.</strong> If you choose to post a target or a workout to your
+            club's feed, we store a copy of what you shared, with your name. For a target that's the shot
+            positions, score, position and date; for a workout it's the name, date, type and headline
+            results such as hits and best score. Your notes, coach notes, zero-click log, heart rate and
+            target photos are never part of a post.
+          </p>
+          <p>
+            <strong>Cowbells.</strong> When someone rings a cowbell for a post we record who did, so a
+            person can only ring once and can take it back. Other people see only the count.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            <strong>Announcements.</strong> If you're a coach and post an announcement to a club, we
+            store its text and your name.
           </p>
         </div>
 
@@ -47,10 +62,48 @@ export function PrivacyPolicyView() {
             club stops that coach from seeing anything new; it doesn't retroactively delete what they
             already saw.
           </p>
+          <p>
+            What a coach sees depends on how they're assigned. A coach assigned to one program sees only
+            that program's athletes; a coach who oversees the whole club, and its admins, see every
+            athlete in it.
+          </p>
           <p style={{ marginBottom: 0 }}>
             We don't sell your data, and we don't share it with advertisers. Nobody outside the app
-            sees your training data except the specific coaches you've chosen to share it with, and
-            the infrastructure providers below who store it on our behalf.
+            sees your training data except the specific coaches you've chosen to share it with, anything
+            you choose to post to your club's feed (see below), and the infrastructure providers below
+            who store it on our behalf.
+          </p>
+        </div>
+
+        <h2>The club feed</h2>
+        <div className="card">
+          <p style={{ marginTop: 0 }}>
+            <strong>Nothing is posted automatically.</strong> Posting is a separate, deliberate step
+            from the Share button, and the sheet says who will see it before you tap.
+          </p>
+          <p>
+            <strong>Who sees a post.</strong> Everyone in that club — its athletes and its coaches —
+            sees it, with your name. Athletes in your club can therefore see your targets and workouts
+            in a way they otherwise couldn't; that is different from sharing with your coaches, so it's
+            its own choice each time.
+          </p>
+          <p>
+            <strong>Announcements.</strong> Coaches can post text announcements to their club's feed.
+            Everyone in the club can see them and ring a cowbell for them. An announcement belongs to
+            the club rather than to the coach who wrote it, so it stays if that coach leaves, until a
+            coach at the club removes it.
+          </p>
+          <p>
+            <strong>Taking a post down.</strong> You can remove your own posts from the feed at any
+            time, and that deletes the copy we hold. Deleting the target or workout it came from also
+            deletes its post, and leaving a club deletes everything you posted to it. Leaving only a
+            program keeps your posts, because you're still in the club. Any coach at a club can remove
+            any post in it, including yours, to keep the feed appropriate.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            Removing a post stops anyone seeing it from then on, but can't undo what someone has
+            already seen, screenshotted or shared from their own device. Think about that before you
+            post.
           </p>
         </div>
 
@@ -82,6 +135,11 @@ export function PrivacyPolicyView() {
           of data sharing on your own in your country, a parent or guardian should review this policy
           and set up the account with you.
         </p>
+        <p>
+          The club feed is worth a specific mention for young athletes: a post shows a name, scores and
+          a target to everyone in the club, including other athletes. Posting is always the athlete's own
+          choice and can be taken back, but a parent or guardian may want to talk it through first.
+        </p>
 
         <h2>Your choices</h2>
         <div className="card" style={{ marginBottom: 0 }}>
@@ -90,7 +148,8 @@ export function PrivacyPolicyView() {
             <li style={{ marginBottom: 5 }}>Delete individual bouts, metal rounds, or whole workouts from History.</li>
             <li style={{ marginBottom: 5 }}>Delete every stored photo while keeping your scored results, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Export everything you've logged as a JSON file, from Settings.</li>
-            <li style={{ marginBottom: 5 }}>Leave a club at any time, which stops any new sharing with that club's coaches.</li>
+            <li style={{ marginBottom: 5 }}>Remove anything you've posted to a club's feed, at any time, from the feed itself.</li>
+            <li style={{ marginBottom: 5 }}>Leave just a program while staying in the club, or leave the club altogether, from Profile. Leaving a club stops any new sharing with its coaches and removes what you posted to its feed.</li>
             <li>Sign out, which ends your session without deleting your data.</li>
           </ul>
         </div>
