@@ -206,7 +206,7 @@ export function AnalysisView({
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
       <>
-        <h1>Analysis</h1>
+        {!readOnly && <h1>Analysis</h1>}
         <div className="empty">
           <p>Nothing to analyse yet.</p>
           <p className="meta">
@@ -228,7 +228,8 @@ export function AnalysisView({
 
   return (
     <>
-      <h1>Analysis</h1>
+      {/* A coach is already under the athlete's name, so "Analysis" would only repeat it. */}
+      {!readOnly && <h1>Analysis</h1>}
 
       <CollapsibleSection title="Precision">
         <div className="stats three">

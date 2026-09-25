@@ -565,11 +565,17 @@ function RosterGroup({
   )
 }
 
-function ClubRosterSection({ club }: { club: Club }) {
+function ClubRosterSection({
+  club, openAthleteId, setOpenAthleteId,
+}: {
+  club: Club
+  /** Owned by CoachView, so the club header can step aside while one athlete is open. */
+  openAthleteId: string | null
+  setOpenAthleteId: (id: string | null) => void
+}) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
   const [groupData, setGroupData] = useState<Map<string, { bouts: Bout[]; metalBouts: MetalBout[] }>>(new Map())
-  const [openAthleteId, setOpenAthleteId] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [actionError, setActionError] = useState('')
 
@@ -629,11 +635,17 @@ function ClubRosterSection({ club }: { club: Club }) {
   }, [club.id, reloadKey])
 
   const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
+  // An athlete who has left the club (or been removed) can't stay open.
+  useEffect(() => {
+    if (openAthleteId && athletes && !openAthlete) setOpenAthleteId(null)
+  }, [openAthleteId, athletes, openAthlete, setOpenAthleteId])
   if (openAthlete) {
     return (
       <>
         <button className="link" onClick={() => setOpenAthleteId(null)}>← Roster</button>
-        <h1 style={{ marginTop: 10 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
+        <hr className="detail-rule" />
+        <h1 style={{ marginTop: 14 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
+        <p className="lede">{club.name}</p>
         <AthleteDetail athlete={openAthlete} />
       </>
     )
@@ -801,6 +813,8 @@ function PersonalAthletesSection({
 export function CoachView({ session, onIdentityChanged }: Props) {
   const { coach, setCoach, clubs, loadError, refreshClubs } = useCoachAndClubs(session)
   const [openClubId, setOpenClubId] = useState<string | null>(null)
+  const [rosterAthleteId, setRosterAthleteId] = useState<string | null>(null)
+  useEffect(() => setRosterAthleteId(null), [openClubId])
   const [personal, setPersonal] = useState<PersonalAthlete[] | null>(null)
   const [openPersonalId, setOpenPersonalId] = useState<string | null>(null)
 
@@ -834,7 +848,8 @@ export function CoachView({ session, onIdentityChanged }: Props) {
     return (
       <>
         <button className="link" onClick={() => setOpenPersonalId(null)}>← All athletes</button>
-        <h1 style={{ marginTop: 10 }}>{openPersonal.displayName || 'Unnamed athlete'}</h1>
+        <hr className="detail-rule" />
+        <h1 style={{ marginTop: 14 }}>{openPersonal.displayName || 'Unnamed athlete'}</h1>
         <AthleteDetail athlete={{ athleteId: openPersonal.athleteId, displayName: openPersonal.displayName, programId: null }} />
       </>
     )
@@ -844,9 +859,14 @@ export function CoachView({ session, onIdentityChanged }: Props) {
   if (openClub) {
     return (
       <>
-        <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
-        <ClubTitle club={openClub} />
-        <ClubRosterSection club={openClub} />
+        {!rosterAthleteId && (
+          <>
+            <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
+            <hr className="detail-rule" />
+            <ClubTitle club={openClub} />
+          </>
+        )}
+        <ClubRosterSection club={openClub} openAthleteId={rosterAthleteId} setOpenAthleteId={setRosterAthleteId} />
       </>
     )
   }
@@ -889,7 +909,7 @@ function ClubTitle({ club }: { club: Club }) {
   const [shakes, setShakes] = useState(0)
   return (
     <>
-      <h1 style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <h1 style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
         <ClubLogo logoPath={club.logoPath} size={34} />
         <span style={{ minWidth: 0 }}>{club.name}</span>
         <button
@@ -1048,6 +1068,7 @@ export function ClubSettingsView({ session }: { session: Session }) {
     return (
       <>
         <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
+        <hr className="detail-rule" />
         <ClubTitle club={openClub} />
         <ClubAdminSection
           club={openClub}
