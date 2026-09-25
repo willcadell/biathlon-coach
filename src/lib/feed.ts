@@ -42,6 +42,8 @@ interface PostBase {
   clubName: string
   /** Null for a coach's announcement, which has no athlete behind it. */
   athleteId: string | null
+  /** Set only for a coach's announcement. */
+  coachId: string | null
   authorName: string
   createdAt: string
 }
@@ -72,7 +74,7 @@ export interface FeedCursor {
 export async function feedPosts(after?: FeedCursor, limit = FEED_PAGE_SIZE): Promise<FeedPost[]> {
   let query = supabase
     .from('feed_posts')
-    .select('id, club_id, athlete_id, author_name, kind, payload, created_at')
+    .select('id, club_id, athlete_id, coach_id, author_name, kind, payload, created_at')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(limit)
@@ -93,6 +95,7 @@ export async function feedPosts(after?: FeedCursor, limit = FEED_PAGE_SIZE): Pro
     clubId: p.club_id,
     clubName: nameById.get(p.club_id) ?? '',
     athleteId: p.athlete_id,
+    coachId: p.coach_id,
     authorName: p.author_name,
     createdAt: p.created_at,
     kind: p.kind,
@@ -135,7 +138,9 @@ export async function setCowbell(postId: string, on: boolean): Promise<void> {
   if (error) throw error
 }
 
-/** Bells on the athlete's own posts from other people. */
+/** Bells other people have rung on the signed-in user's own posts and
+ *  announcements — one combined total for someone who is both an athlete and
+ *  a coach. */
 export async function myCowbellTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_cowbell_total')
   if (error) throw error

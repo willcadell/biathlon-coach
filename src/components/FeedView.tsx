@@ -306,11 +306,10 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
   }, [posts, hasMore, loadingMore])
 
   useEffect(() => {
-    if (role !== 'athlete') return
     let cancelled = false
     void myCowbellTotal().then((n) => { if (!cancelled) setBellTotal(n) }).catch(() => {})
     return () => { cancelled = true }
-  }, [role])
+  }, [])
 
   // Keep the counts live: refresh every few seconds while the feed is on
   // screen, and straight away when the reader comes back to the app. Posts a
@@ -336,7 +335,7 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
           })
         })
         .catch(() => {})
-      if (role === 'athlete') void myCowbellTotal().then((n) => { if (!cancelled) setBellTotal(n) }).catch(() => {})
+      void myCowbellTotal().then((n) => { if (!cancelled) setBellTotal(n) }).catch(() => {})
     }
     const timer = setInterval(refresh, BELL_REFRESH_MS)
     document.addEventListener('visibilitychange', refresh)
@@ -345,7 +344,7 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
       clearInterval(timer)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [postIds, role])
+  }, [postIds])
 
   // An athlete in no club has no feed to show, and no reason to see a heading
   // for one.
@@ -372,10 +371,12 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
           : (clubs ?? []).map((c) => <ClubLogo key={c.id} logoPath={c.logoPath} size={28} />)}
         {role === 'athlete' ? 'Feed' : 'Combo Feed'}
       </h1>
-      {role === 'athlete' && bellTotal !== null && (bellTotal > 0 || (posts ?? []).some((p) => p.athleteId === userId)) && (
+      {bellTotal !== null && (bellTotal > 0 || (posts ?? []).some((p) => p.athleteId === userId || p.coachId === userId)) && (
         <p className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 10px' }}>
           <span style={{ color: 'var(--series-3)', display: 'inline-flex' }}><CowbellIcon filled size={16} /></span>
-          <span><strong>{bellTotal}</strong> bell{bellTotal === 1 ? '' : 's'} earned on your posts</span>
+          <span>
+            <strong>{bellTotal}</strong> bell{bellTotal === 1 ? '' : 's'} earned on your {role === 'coach' ? 'posts and announcements' : 'posts'}
+          </span>
         </p>
       )}
       {error && <div className="notice error">{error}</div>}
