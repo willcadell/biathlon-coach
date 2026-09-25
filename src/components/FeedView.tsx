@@ -10,17 +10,11 @@ import { TrashIcon } from './icons'
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
-function TargetCard({ p }: { p: TargetPayload }) {
+function TargetSummary({ p }: { p: TargetPayload }) {
   const pct = p.metrics.ringPossible > 0 ? (p.metrics.ringTotal / p.metrics.ringPossible) * 100 : 0
   const tier = tierFor(pct)
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 8px' }}>
-        <TargetPlot
-          shots={p.shots} position={p.position} metrics={p.metrics}
-          face={faceById(p.targetFaceId)} bulletDiameterMm={p.bulletDiameterMm} size={220}
-        />
-      </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
           {p.metrics.ringTotal}<span className="meta">/{p.metrics.ringPossible}</span>
@@ -35,14 +29,20 @@ function TargetCard({ p }: { p: TargetPayload }) {
   )
 }
 
-/** The same trading-card image the Share dialog produces, redrawn from the
- *  post's own snapshot. Only drawn once it scrolls into view — each one is a
- *  full-size canvas, and a long feed shouldn't render dozens up front. Falls
- *  back to the plain card if the image can't be drawn. */
-function TargetImage({ p }: { p: TargetPayload }) {
-  const box = useRef<HTMLDivElement>(null)
+const THUMB_W = 96
+const THUMB_H = 120
+
+/** A small copy of the trading card the Share dialog produces, redrawn from
+ *  the post's own snapshot; tap for the full card. Only drawn once it scrolls
+ *  near view — the card is a full-size canvas, and a long feed shouldn't draw
+ *  dozens up front — then shrunk, so a feed of these stays light. Falls back
+ *  to a plain mini target if the card can't be drawn. */
+function CardThumb({ p }: { p: TargetPayload }) {
+  const box = useRef<HTMLButtonElement>(null)
   const [visible, setVisible] = useState(false)
-  const [url, setUrl] = useState<string | null>(null)
+  const [full, setFull] = useState<Blob | null>(null)
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null)
+  const [fullUrl, setFullUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -57,7 +57,7 @@ function TargetImage({ p }: { p: TargetPayload }) {
 
   useEffect(() => {
     if (!visible) return
-    let objectUrl: string | null = null
+    let url: string | null = null
     let cancelled = false
     // The card only reads these fields; the rest of a Bout/Workout isn't
     // part of a post, so it isn't invented here.
@@ -66,29 +66,63 @@ function TargetImage({ p }: { p: TargetPayload }) {
       bulletDiameterMm: p.bulletDiameterMm, shots: p.shots, metrics: p.metrics,
     } as unknown as Bout
     const workout = { name: p.workoutName, startedAt: p.shotAt } as unknown as Workout
-    void buildTargetShareImage(bout, workout)
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setUrl(objectUrl)
-      })
-      .catch(() => { if (!cancelled) setFailed(true) })
+    void (async () => {
+      const blob = await buildTargetShareImage(bout, workout)
+      const bitmap = await createImageBitmap(blob)
+      // 2x for sharp screens; the full card is kept only as a blob until asked for.
+      const canvas = document.createElement('canvas')
+      canvas.width = THUMB_W * 2
+      canvas.height = THUMB_H * 2
+      canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+      bitmap.close()
+      const thumb = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85))
+      if (cancelled || !thumb) return
+      url = URL.createObjectURL(thumb)
+      setFull(blob)
+      setThumbUrl(url)
+    })().catch(() => { if (!cancelled) setFailed(true) })
     return () => {
       cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      if (url) URL.revokeObjectURL(url)
     }
   }, [visible, p])
 
-  if (failed) return <TargetCard p={p} />
+  // The full-size URL only exists while the card is open.
+  function open() {
+    if (full) setFullUrl(URL.createObjectURL(full))
+  }
+  function close() {
+    if (fullUrl) URL.revokeObjectURL(fullUrl)
+    setFullUrl(null)
+  }
+
+  const alt = `${p.position} target, ${p.metrics.ringTotal} out of ${p.metrics.ringPossible}`
   return (
-    <div ref={box} style={{ aspectRatio: '1080 / 1350', borderRadius: 10, overflow: 'hidden', background: 'var(--grid)' }}>
-      {url && (
-        <img
-          src={url} style={{ width: '100%', display: 'block' }}
-          alt={`${p.position} target, ${p.metrics.ringTotal} out of ${p.metrics.ringPossible}`}
-        />
+    <>
+      <button
+        ref={box} type="button" onClick={open} disabled={!thumbUrl} aria-label={`View the full card: ${alt}`}
+        style={{
+          flex: 'none', width: THUMB_W, height: THUMB_H, padding: 0, border: '1px solid var(--border)',
+          borderRadius: 8, overflow: 'hidden', background: 'var(--grid)', cursor: thumbUrl ? 'zoom-in' : 'default',
+        }}
+      >
+        {thumbUrl && <img src={thumbUrl} alt={alt} style={{ width: '100%', height: '100%', display: 'block' }} />}
+        {failed && (
+          <TargetPlot
+            shots={p.shots} position={p.position} metrics={p.metrics}
+            face={faceById(p.targetFaceId)} bulletDiameterMm={p.bulletDiameterMm} size={THUMB_W - 4}
+          />
+        )}
+      </button>
+      {fullUrl && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Target card" onClick={close}>
+          <div className="modal-card" style={{ padding: 12, maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <img src={fullUrl} alt={alt} style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', display: 'block', borderRadius: 8 }} />
+            <button className="secondary" style={{ marginTop: 10 }} onClick={close}>Close</button>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -173,9 +207,9 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
             : 'Nothing shared yet. Athletes can post targets and workouts to their club from the Share button.'}
         </p>
       )}
-      {posts?.map((post) => (
-        <div key={post.id} className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+      {posts?.map((post) => {
+        const header = (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <strong>{post.authorName || 'An athlete'}</strong>
               <span className="meta"> · {when(post.createdAt)}{multipleClubs && post.clubName ? ` · ${post.clubName}` : ''}</span>
@@ -186,9 +220,22 @@ export function FeedView({ role, clubCount }: { role: 'athlete' | 'coach'; clubC
               </button>
             )}
           </div>
-          {post.kind === 'target' ? <TargetImage p={post.payload} /> : <WorkoutCard p={post.payload} />}
-        </div>
-      ))}
+        )
+        return post.kind === 'target' ? (
+          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <CardThumb p={post.payload} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {header}
+              <TargetSummary p={post.payload} />
+            </div>
+          </div>
+        ) : (
+          <div key={post.id} className="card">
+            {header}
+            <WorkoutCard p={post.payload} />
+          </div>
+        )
+      })}
     </>
   )
 }
