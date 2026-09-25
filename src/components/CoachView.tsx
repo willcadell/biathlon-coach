@@ -798,6 +798,9 @@ export function CoachView({ session, onIdentityChanged }: Props) {
  *  posting an announcement to the club's feed. */
 function ClubTitle({ club }: { club: Club }) {
   const [announcing, setAnnouncing] = useState(false)
+  // Bumped after a post so the title's megaphone shakes: keyed, so it plays
+  // again for a second announcement.
+  const [shakes, setShakes] = useState(0)
   return (
     <>
       <h1 style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -808,10 +811,12 @@ function ClubTitle({ club }: { club: Club }) {
           aria-label={`Post an announcement to ${club.name}`} title="Announce to the club"
           onClick={() => setAnnouncing(true)}
         >
-          <MegaphoneIcon size={22} />
+          <span key={shakes} className={shakes > 0 ? 'megaphone-shake' : undefined} style={{ display: 'inline-flex' }}>
+            <MegaphoneIcon size={22} />
+          </span>
         </button>
       </h1>
-      {announcing && <AnnounceSheet club={club} onClose={() => setAnnouncing(false)} />}
+      {announcing && <AnnounceSheet club={club} onClose={() => setAnnouncing(false)} onPosted={() => setShakes((n) => n + 1)} />}
     </>
   )
 }

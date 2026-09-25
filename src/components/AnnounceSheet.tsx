@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MegaphoneIcon } from './icons'
 import { ANNOUNCEMENT_MAX, postAnnouncement } from '../lib/feed'
 import { errorMessage } from '../lib/errors'
 
@@ -7,7 +8,15 @@ import { errorMessage } from '../lib/errors'
  * other post — the club's athletes and coaches see it and can ring a cowbell
  * for it — and any coach at the club can take it down again.
  */
-export function AnnounceSheet({ club, onClose }: { club: { id: string; name: string }; onClose: () => void }) {
+export function AnnounceSheet({
+  club, onClose, onPosted,
+}: {
+  club: { id: string; name: string }
+  onClose: () => void
+  /** Called as the sheet closes after a successful post, so the page behind
+   *  can acknowledge it too. */
+  onPosted?: () => void
+}) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [posted, setPosted] = useState(false)
@@ -33,9 +42,12 @@ export function AnnounceSheet({ club, onClose }: { club: { id: string; name: str
         <h2 style={{ marginTop: 0 }}>Announce to {club.name}</h2>
         {posted ? (
           <>
-            <p>Posted to the <strong>{club.name}</strong> feed.</p>
+            <div className="megaphone-shake" style={{ color: 'var(--series-1)', marginBottom: 8 }}>
+              <MegaphoneIcon size={44} />
+            </div>
+            <p style={{ marginTop: 0 }}>Posted to the <strong>{club.name}</strong> feed.</p>
             <p className="meta">Everyone in the club will see it, and can ring a cowbell for it.</p>
-            <button className="primary" onClick={onClose}>Done</button>
+            <button className="primary" onClick={() => { onClose(); onPosted?.() }}>Done</button>
           </>
         ) : (
           <>

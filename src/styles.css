@@ -386,3 +386,16 @@ button.link.cowbell[aria-pressed='true'] { color: var(--series-3); }
   100% { transform: rotate(0); }
 }
 @media (prefers-reduced-motion: reduce) { .cowbell-icon.shake { animation: none; } }
+
+/* --- Megaphone: a short shake as the success transition after announcing --- */
+.megaphone-shake { display: inline-flex; transform-origin: 30% 60%; animation: megaphone-shake 0.6s ease-in-out; }
+@keyframes megaphone-shake {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(-14deg); }
+  30% { transform: rotate(12deg); }
+  45% { transform: rotate(-9deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+  100% { transform: rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) { .megaphone-shake { animation: none; } }
