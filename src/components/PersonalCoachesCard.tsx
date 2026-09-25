@@ -4,6 +4,7 @@ import {
   type PersonalCoach, type PersonalInvite,
 } from '../lib/personalCoach'
 import { errorMessage } from '../lib/errors'
+import { Dropdown } from './Dropdown'
 import { TrashIcon } from './icons'
 
 const mono = { fontFamily: 'var(--mono, monospace)', letterSpacing: '0.08em' } as const
@@ -102,38 +103,42 @@ export function PersonalCoachesCard() {
             </button>
           </div>
         ))}
-
-        {invite ? (
-          <div style={{ marginTop: coaches && coaches.length > 0 ? 12 : 0 }}>
-            <p style={{ margin: '0 0 6px' }}>Give this code to your personal coach:</p>
-            <div className="row" style={{ alignItems: 'center', gap: 10 }}>
-              <strong style={{ ...mono, fontSize: 22, flex: 'none' }}>{invite.code}</strong>
-              <button className="link" style={{ flex: 'none' }} onClick={() => void copy(invite.code)}>
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-              <span style={{ flex: 1 }} />
-              <button
-                className="link danger" style={{ flex: 'none' }}
-                aria-label="Cancel this invite" title="Cancel this invite" onClick={() => void cancelInvite()}
-              >
-                <TrashIcon />
-              </button>
-            </div>
-            <p className="meta" style={{ margin: '6px 0 0' }}>
-              They enter it in their own Profile, under Follow an athlete. It works once, and expires in{' '}
-              {daysLeft(invite.expiresAt)} day{daysLeft(invite.expiresAt) === 1 ? '' : 's'}.{' '}
-              <button className="link" disabled={busy} onClick={() => void makeInvite()}>Make a new code</button>
-            </p>
-          </div>
-        ) : (
-          <button
-            className="secondary" style={{ marginTop: coaches && coaches.length > 0 ? 12 : 0 }}
-            disabled={busy || coaches === null} onClick={() => void makeInvite()}
-          >
-            {busy ? 'Creating…' : 'Invite a personal coach'}
-          </button>
-        )}
       </div>
+
+      <Dropdown title="Invite a personal coach">
+        <div className="card">
+          {invite ? (
+            <div>
+              <p style={{ margin: '0 0 6px' }}>Give this code to your personal coach:</p>
+              <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                <strong style={{ ...mono, fontSize: 22, flex: 'none' }}>{invite.code}</strong>
+                <button className="link" style={{ flex: 'none' }} onClick={() => void copy(invite.code)}>
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+                <span style={{ flex: 1 }} />
+                <button
+                  className="link danger" style={{ flex: 'none' }}
+                  aria-label="Cancel this invite" title="Cancel this invite" onClick={() => void cancelInvite()}
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+              <p className="meta" style={{ margin: '6px 0 0' }}>
+                They enter it in their own Profile, under Follow an athlete. It works once, and expires in{' '}
+                {daysLeft(invite.expiresAt)} day{daysLeft(invite.expiresAt) === 1 ? '' : 's'}.{' '}
+                <button className="link" disabled={busy} onClick={() => void makeInvite()}>Make a new code</button>
+              </p>
+            </div>
+          ) : (
+            <button
+              className="secondary"
+              disabled={busy || coaches === null} onClick={() => void makeInvite()}
+            >
+              {busy ? 'Creating…' : 'Make an invite code'}
+            </button>
+          )}
+        </div>
+      </Dropdown>
     </>
   )
 }

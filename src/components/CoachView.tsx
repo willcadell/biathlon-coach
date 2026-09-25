@@ -105,7 +105,7 @@ function ClubEditCard({ club, onChanged }: { club: Club; onChanged: (patch: Part
       {logoError && <div className="notice error" style={{ marginBottom: 14 }}>{logoError}</div>}
 
       <label className="field" style={{ marginBottom: 0 }}>
-        <span>Club name</span>
+        <span>Club name<small>You'll be its admin, and get a join code to give athletes.</small></span>
         <div className="row">
           <input type="text" style={{ flex: 1 }} value={name} onChange={(e) => setName(e.target.value)} />
           <button

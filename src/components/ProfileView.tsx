@@ -11,6 +11,7 @@ import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
 import { AdminPill, TrashIcon } from './icons'
 import { Dropdown } from './Dropdown'
+import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
 
@@ -91,8 +92,7 @@ function BecomeCoachCard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <>
-      <h2>Coaching</h2>
+    <Dropdown title="Become a coach">
       <div className="card">
         <p style={{ marginTop: 0 }}>
           Set up a coaching identity too if you also want to create a club and see a roster's
@@ -110,7 +110,7 @@ function BecomeCoachCard({ onDone }: { onDone: () => void }) {
           {settingUp ? 'Setting up…' : 'Become a coach'}
         </button>
       </div>
-    </>
+    </Dropdown>
   )
 }
 
@@ -182,7 +182,7 @@ function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwit
   if (!onSwitchRole) return null
   return (
     <>
-      <Dropdown title="Session" level={2}>
+      <Dropdown title="Session">
         <div className="card">
           <p style={{ marginTop: 0 }}>
             Signed in as {mode === 'athlete' ? 'an athlete' : 'a coach'} this session.
@@ -199,14 +199,10 @@ function SessionCard({ mode, onSwitchRole }: { mode: 'athlete' | 'coach'; onSwit
 export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings }: Props) {
   const [name, setName] = useState('')
   const [loaded, setLoaded] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [settingUp, setSettingUp] = useState(false)
 
   const [coachName, setCoachName] = useState('')
   const [coachLoaded, setCoachLoaded] = useState(false)
-  const [coachSaving, setCoachSaving] = useState(false)
-  const [coachSaved, setCoachSaved] = useState(false)
 
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [membershipsError, setMembershipsError] = useState('')
@@ -244,14 +240,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       .catch((e) => console.error('Could not load coach profile', e))
   }, [session.user.id, hasCoach])
 
-  async function saveCoachName() {
-    setCoachSaving(true)
-    try {
-      await updateCoachDisplayName(session.user.id, coachName.trim())
-      setCoachSaved(true)
-    } finally {
-      setCoachSaving(false)
-    }
+  async function saveCoachName(next: string) {
+    await updateCoachDisplayName(session.user.id, next)
+    setCoachName(next)
   }
 
   async function setUpAthlete() {
@@ -304,14 +295,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     }
   }
 
-  async function save() {
-    setSaving(true)
-    try {
-      await updateDisplayName(session.user.id, name.trim())
-      setSaved(true)
-    } finally {
-      setSaving(false)
-    }
+  async function save(next: string) {
+    await updateDisplayName(session.user.id, next)
+    setName(next)
   }
 
   if (!hasAthlete) {
@@ -323,47 +309,22 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
         <h2>Coach details</h2>
         <div className="card">
-          <label className="field" style={{ marginBottom: 0 }}>
-            <span>
-              Name
-              <small>Shown to athletes and other coaches on any club you're part of.</small>
-            </span>
-            <div className="row">
-              <input
-                type="text"
-                style={{ flex: 1 }}
-                value={coachName}
-                disabled={!coachLoaded}
-                onChange={(e) => {
-                  setCoachName(e.target.value)
-                  setCoachSaved(false)
-                }}
-              />
-              <button
-                className="secondary"
-                style={{ flex: 'none', width: 'auto' }}
-                onClick={() => void saveCoachName()}
-                disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
-              >
-                {coachSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </label>
-          {coachSaved && <span className="meta">Saved.</span>}
+          <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
         </div>
 
-        <h2>Athlete details</h2>
-        <div className="card">
-          <p style={{ marginTop: 0 }}>
-            You're signed in as a coach only. Set up an athlete profile too if you also want to log
-            your own training — it doesn't replace your coaching identity, it sits alongside it.
-          </p>
-          <button className="secondary" onClick={() => void setUpAthlete()} disabled={settingUp}>
-            {settingUp ? 'Setting up…' : 'Set up an athlete profile'}
-          </button>
-        </div>
+        <Dropdown title="Set up an athlete profile">
+          <div className="card">
+            <p style={{ marginTop: 0 }}>
+              You're signed in as a coach only. Set up an athlete profile too if you also want to log
+              your own training — it doesn't replace your coaching identity, it sits alongside it.
+            </p>
+            <button className="secondary" onClick={() => void setUpAthlete()} disabled={settingUp}>
+              {settingUp ? 'Setting up…' : 'Set up an athlete profile'}
+            </button>
+          </div>
+        </Dropdown>
 
-        <Dropdown title="Account" level={2}>
+        <Dropdown title="Account">
           <div className="card">
             <p>{session.user.email}</p>
             <button className="secondary" onClick={() => void signOut()}>
@@ -390,33 +351,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Athlete details</h2>
           <div className="card">
-            <label className="field" style={{ marginBottom: 0 }}>
-              <span>
-                Name
-                <small>Shown to a coach who adds you to their club or program.</small>
-              </span>
-              <div className="row">
-                <input
-                  type="text"
-                  style={{ flex: 1 }}
-                  value={name}
-                  disabled={!loaded}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    setSaved(false)
-                  }}
-                />
-                <button
-                  className="secondary"
-                  style={{ flex: 'none', width: 'auto' }}
-                  onClick={() => void save()}
-                  disabled={!loaded || saving || name.trim().length === 0}
-                >
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </label>
-            {saved && <span className="meta">Saved.</span>}
+            <NameField hint="Shown to a coach who adds you to their club or program." value={name} loaded={loaded} onSave={save} />
           </div>
 
           <h2>Your clubs</h2>
@@ -471,38 +406,42 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                 </div>
               ))
             )}
-
-            <label className="field" style={{ marginTop: memberships.length > 0 ? 14 : 0, marginBottom: 0 }}>
-              <span>
-                Join with a code
-                <small>
-                  Get this from your coach — a program code (for a specific squad) joins its club too;
-                  a plain club code joins with no program yet.
-                </small>
-              </span>
-              <div className="row">
-                <input
-                  type="text"
-                  style={{ flex: 1 }}
-                  placeholder="e.g. 7K4RXP"
-                  autoCapitalize="characters"
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value)
-                    setMatch(null)
-                    setJoinError('')
-                  }}
-                />
-                <button
-                  className="secondary" style={{ flex: 'none', width: 'auto' }}
-                  onClick={() => void checkCode()} disabled={checking || !code.trim()}
-                >
-                  {checking ? 'Checking…' : 'Find'}
-                </button>
-              </div>
-            </label>
-            {joinError && <div className="notice error" style={{ marginTop: 10 }}>{joinError}</div>}
           </div>
+
+          <Dropdown title="Join a club or program">
+            <div className="card">
+              <label className="field" style={{ marginBottom: 0 }}>
+                <span>
+                  Join with a code
+                  <small>
+                    Get this from your coach — a program code (for a specific squad) joins its club too;
+                    a plain club code joins with no program yet.
+                  </small>
+                </span>
+                <div className="row">
+                  <input
+                    type="text"
+                    style={{ flex: 1 }}
+                    placeholder="e.g. 7K4RXP"
+                    autoCapitalize="characters"
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value)
+                      setMatch(null)
+                      setJoinError('')
+                    }}
+                  />
+                  <button
+                    className="secondary" style={{ flex: 'none', width: 'auto' }}
+                    onClick={() => void checkCode()} disabled={checking || !code.trim()}
+                  >
+                    {checking ? 'Checking…' : 'Find'}
+                  </button>
+                </div>
+              </label>
+              {joinError && <div className="notice error" style={{ marginTop: 10 }}>{joinError}</div>}
+            </div>
+          </Dropdown>
 
           {match && (
             <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -538,33 +477,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Coach details</h2>
           <div className="card">
-            <label className="field" style={{ marginBottom: 0 }}>
-              <span>
-                Name
-                <small>Shown to athletes and other coaches on any club you're part of.</small>
-              </span>
-              <div className="row">
-                <input
-                  type="text"
-                  style={{ flex: 1 }}
-                  value={coachName}
-                  disabled={!coachLoaded}
-                  onChange={(e) => {
-                    setCoachName(e.target.value)
-                    setCoachSaved(false)
-                  }}
-                />
-                <button
-                  className="secondary"
-                  style={{ flex: 'none', width: 'auto' }}
-                  onClick={() => void saveCoachName()}
-                  disabled={!coachLoaded || coachSaving || coachName.trim().length === 0}
-                >
-                  {coachSaving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </label>
-            {coachSaved && <span className="meta">Saved.</span>}
+            <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
           </div>
 
           <CoachedClubsCard />
@@ -574,7 +487,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} />
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
-      <Dropdown title="Account" level={2}>
+      <Dropdown title="Account">
         <div className="card">
           <p>{session.user.email}</p>
           <button className="secondary" onClick={() => void signOut()}>
