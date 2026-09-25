@@ -120,7 +120,7 @@ export function CoachMark({ size = 28 }: { size?: number }) {
 
 /** The three kinds of session a workout can be, told apart at a glance:
  *  a scope reticle for range, a stopwatch for dry-fire (time, no shooting),
- *  a flag for a race. */
+ *  a medal for a race. */
 export function RangeIcon({ size = 26 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
@@ -140,11 +140,12 @@ export function DryfireIcon({ size = 26 }: { size?: number }) {
   )
 }
 
-export function RaceFlagIcon({ size = 26 }: { size?: number }) {
+export function RaceMedalIcon({ size = 26 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
-      <path d="M6 21V3.5" />
-      <path d="M6 5h12.5l-2.7 4 2.7 4H6" />
+      <path d="M8.5 2.8l3.5 6.6 3.5-6.6" />
+      <circle cx="12" cy="15" r="5.6" />
+      <path d="M12 12.4l.62 1.75 1.85.05-1.47 1.12.53 1.78L12 16.05l-1.53 1.05.53-1.78-1.47-1.12 1.85-.05z" fill="currentColor" stroke="none" />
     </svg>
   )
 }

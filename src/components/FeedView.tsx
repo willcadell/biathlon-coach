@@ -5,7 +5,7 @@ import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
-import { CoachMark, CowbellIcon, DryfireIcon, RaceFlagIcon, RangeIcon, TrashIcon } from './icons'
+import { CoachMark, CowbellIcon, DryfireIcon, RaceMedalIcon, RangeIcon, TrashIcon } from './icons'
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -20,7 +20,7 @@ function sessionKind(p: WorkoutPayload): 'race' | 'dryfire' | 'range' {
 const SESSION_TILE = {
   range: { label: 'Range session', colour: 'var(--series-1)', Icon: RangeIcon },
   dryfire: { label: 'Dry-fire session', colour: 'var(--series-3)', Icon: DryfireIcon },
-  race: { label: 'Race', colour: 'var(--series-2)', Icon: RaceFlagIcon },
+  race: { label: 'Race', colour: 'var(--series-2)', Icon: RaceMedalIcon },
 } as const
 
 /** The icon tile at the left of a workout post: one look per session kind. */

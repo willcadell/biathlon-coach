@@ -11,7 +11,7 @@ import { FeedView } from './FeedView'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { MiniTargets } from './MiniTargets'
-import { GoArrow, ShareIcon, TrashIcon } from './icons'
+import { DryfireIcon, GoArrow, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
   '12': '12 · headwind',
@@ -727,13 +727,25 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         </p>
         {startError && <div className="notice error">{startError}</div>}
         <div className="row">
-          <button className="secondary" onClick={() => void handleStart('range')} disabled={starting !== null}>
+          {/* Each kind of session in its own colour, matching its tile in the
+              feed. The green and orange are deepened so white text on them is
+              still comfortably readable. */}
+          <button className="primary" onClick={() => void handleStart('range')} disabled={starting !== null}>
+            <RangeIcon size={20} />
             {starting === 'range' ? 'Starting…' : 'Range'}
           </button>
-          <button className="secondary" onClick={() => void handleStart('dryfire')} disabled={starting !== null}>
+          <button
+            className="primary" style={{ background: 'color-mix(in srgb, var(--series-3) 72%, black)' }}
+            onClick={() => void handleStart('dryfire')} disabled={starting !== null}
+          >
+            <DryfireIcon size={20} />
             {starting === 'dryfire' ? 'Starting…' : 'Dryfire'}
           </button>
-          <button className="secondary" onClick={() => void handleStart('race')} disabled={starting !== null}>
+          <button
+            className="primary" style={{ background: 'color-mix(in srgb, var(--series-2) 80%, black)' }}
+            onClick={() => void handleStart('race')} disabled={starting !== null}
+          >
+            <RaceMedalIcon size={20} />
             {starting === 'race' ? 'Starting…' : 'Race'}
           </button>
         </div>
