@@ -44,6 +44,9 @@ function TargetSummary({ p, trailing }: { p: TargetPayload; trailing?: ReactNode
   )
 }
 
+/** How often the feed re-checks its cowbell counts while it's on screen. */
+const BELL_REFRESH_MS = 10_000
+
 const THUMB_W = 96
 const THUMB_H = 120
 
@@ -226,6 +229,9 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
   const sentinel = useRef<HTMLDivElement>(null)
   const [bells, setBells] = useState<Record<string, CowbellCount>>({})
   const [bellTotal, setBellTotal] = useState<number | null>(null)
+  // Posts whose own tap is still in flight — a refresh landing meanwhile must
+  // not overwrite the count the reader just changed with an older one.
+  const pending = useRef<Set<string>>(new Set())
 
   // Counts are best-effort: a failure leaves the posts readable, just without
   // numbers, rather than blanking the feed.
@@ -239,11 +245,14 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
     const cur = bells[post.id] ?? { rings: 0, mine: false }
     const next = { rings: Math.max(0, cur.rings + (cur.mine ? -1 : 1)), mine: !cur.mine }
     setBells((prev) => ({ ...prev, [post.id]: next }))
+    pending.current.add(post.id)
     try {
       await setCowbell(post.id, next.mine)
     } catch {
       setBells((prev) => ({ ...prev, [post.id]: cur }))
       setError('Could not ring the cowbell. Check your connection and try again.')
+    } finally {
+      pending.current.delete(post.id)
     }
   }
 
@@ -303,6 +312,41 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
     return () => { cancelled = true }
   }, [role])
 
+  // Keep the counts live: refresh every few seconds while the feed is on
+  // screen, and straight away when the reader comes back to the app. Posts a
+  // refresh doesn't return have no bells left, so they go to zero rather than
+  // keeping a stale number; ones being tapped right now are left alone.
+  const postIds = (posts ?? []).map((p) => p.id).join(',')
+  useEffect(() => {
+    if (!postIds) return
+    const ids = postIds.split(',')
+    let cancelled = false
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return
+      void cowbellCounts(ids)
+        .then((fresh) => {
+          if (cancelled) return
+          setBells((prev) => {
+            const next = { ...prev }
+            for (const id of ids) {
+              if (pending.current.has(id)) continue
+              next[id] = fresh[id] ?? { rings: 0, mine: false }
+            }
+            return next
+          })
+        })
+        .catch(() => {})
+      if (role === 'athlete') void myCowbellTotal().then((n) => { if (!cancelled) setBellTotal(n) }).catch(() => {})
+    }
+    const timer = setInterval(refresh, BELL_REFRESH_MS)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [postIds, role])
+
   // An athlete in no club has no feed to show, and no reason to see a heading
   // for one.
   if (role === 'athlete' && (memberships === null || memberships.length === 0)) return null
@@ -330,7 +374,7 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
       </h1>
       {role === 'athlete' && bellTotal !== null && (bellTotal > 0 || (posts ?? []).some((p) => p.athleteId === userId)) && (
         <p className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 10px' }}>
-          <span style={{ color: 'var(--series-2)', display: 'inline-flex' }}><CowbellIcon filled size={16} /></span>
+          <span style={{ color: 'var(--series-3)', display: 'inline-flex' }}><CowbellIcon filled size={16} /></span>
           <span><strong>{bellTotal}</strong> bell{bellTotal === 1 ? '' : 's'} earned on your posts</span>
         </p>
       )}

@@ -373,7 +373,7 @@ details.help p {
 
 /* --- Cowbell ------------------------------------------------------------ */
 button.link.cowbell { display: inline-flex; align-items: center; gap: 6px; padding: 6px 4px; color: var(--text-muted); text-decoration: none; }
-button.link.cowbell[aria-pressed='true'] { color: var(--series-2); }
+button.link.cowbell[aria-pressed='true'] { color: var(--series-3); }
 .cowbell .count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .cowbell-icon { display: inline-flex; transform-origin: 50% 8%; }
 .cowbell-icon.shake { animation: cowbell-shake 0.45s ease-in-out; }
