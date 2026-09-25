@@ -336,25 +336,29 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
           </div>
         )
         return post.kind === 'target' ? (
-          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
             <CardThumb p={post.payload} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
               {header}
               <TargetSummary p={post.payload} />
-              <CowbellButton
-                count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
-                author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
-              />
+              <div style={{ marginTop: 'auto', alignSelf: 'flex-end' }}>
+                <CowbellButton
+                  count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
+                  author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
+                />
+              </div>
             </div>
           </div>
         ) : (
           <div key={post.id} className="card">
             {header}
             <WorkoutCard p={post.payload} />
-            <CowbellButton
-              count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
-              author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
-            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <CowbellButton
+                count={bells[post.id]?.rings ?? 0} mine={bells[post.id]?.mine ?? false}
+                author={post.authorName || 'this athlete'} onToggle={() => void toggleBell(post)}
+              />
+            </div>
           </div>
         )
       })}
