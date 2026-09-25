@@ -475,8 +475,15 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
             {inOrder.length === 1 ? 'Share this target' : choosing ? 'Cancel' : 'Share a target…'}
           </button>
         )}
+        {/* A dry-fire or race session has no target to share, so posting the
+            session is the share action — a proper button, not a footnote. */}
+        {inOrder.length === 0 && inClub && (
+          <button className="primary" onClick={() => setSheet({})}>
+            {workout.raceType ? 'Share this race' : 'Share this session'}
+          </button>
+        )}
       </div>
-      {inClub && (
+      {inClub && inOrder.length > 0 && (
         <button className="link" style={{ marginTop: 14 }} onClick={() => setSheet({})}>
           Post this workout to the club feed
         </button>

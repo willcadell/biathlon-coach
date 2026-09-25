@@ -24,6 +24,11 @@ export interface WorkoutPayload {
   dryfireMinutes: number
   precisionBouts: number
   metalBouts: number
+  /** Added after the first posts were made, so absent on older ones. */
+  metalShots?: number
+  metalHits?: number
+  /** A race's stages in shot order; null for anything that isn't a race. */
+  stages?: { position: Position; hits: number }[] | null
   best: { ringTotal: number; ringPossible: number } | null
 }
 

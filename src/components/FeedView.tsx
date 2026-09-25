@@ -132,7 +132,13 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
     parts.push(`${p.dryfireMinutes} min dry-fire`)
   } else {
     if (p.precisionBouts > 0) parts.push(`${p.precisionBouts} precision bout${p.precisionBouts === 1 ? '' : 's'}`)
-    if (p.metalBouts > 0) parts.push(`${p.metalBouts} metal bout${p.metalBouts === 1 ? '' : 's'}`)
+    if (p.metalBouts > 0) {
+      parts.push(
+        p.metalHits !== undefined && p.metalShots
+          ? `${p.metalHits}/${p.metalShots} metal hits`
+          : `${p.metalBouts} metal bout${p.metalBouts === 1 ? '' : 's'}`,
+      )
+    }
   }
   return (
     <>
@@ -142,6 +148,15 @@ function WorkoutCard({ p }: { p: WorkoutPayload }) {
         {p.raceType && <span className="pill" style={{ marginLeft: 8 }}>{RACE_TYPE_LABEL[p.raceType as RaceType] ?? 'Race'}</span>}
       </div>
       <div className="meta">{when(p.startedAt)}{parts.length > 0 && ` · ${parts.join(' · ')}`}</div>
+      {p.stages && p.stages.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {p.stages.map((st, i) => (
+            <span key={i} className="pill" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {st.position === 'prone' ? 'Prone' : 'Standing'} {st.hits}/5
+            </span>
+          ))}
+        </div>
+      )}
       {p.best && (
         <div style={{ marginTop: 6 }}>
           Best bout <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{p.best.ringTotal}/{p.best.ringPossible}</strong>
