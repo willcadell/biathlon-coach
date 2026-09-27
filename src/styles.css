@@ -138,6 +138,14 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
   background: var(--surface-1);
   border-top: 1px solid var(--border);
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  /* Full window width even though .app itself is capped at 720px and
+     centred — the classic in-flow full-bleed trick, since this can no
+     longer be position:fixed (that's what let the tab bar's position drift
+     with .main's own content height). */
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
 }
 .tabs button {
   flex: 1;
