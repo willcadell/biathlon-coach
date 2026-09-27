@@ -356,9 +356,11 @@ export function AnalysisView({
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Metal" defaultOpen={false}>
-        {(raceWorkoutIds.size > 0 || presentZones.length > 0) && (
-          <div className="seg" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+      <CollapsibleSection
+        title="Metal"
+        defaultOpen={false}
+        headerExtra={(raceWorkoutIds.size > 0 || presentZones.length > 0) && (
+          <div className="seg" style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {(
               [
                 'all' as const,
@@ -383,6 +385,7 @@ export function AnalysisView({
             })}
           </div>
         )}
+      >
         <div className="stats">
           <div className="stat">
             <div className="k">Prone</div>
