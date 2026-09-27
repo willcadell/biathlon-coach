@@ -148,23 +148,28 @@ export function AnalysisView({
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
-  const [metalFilter, setMetalFilter] = useState<'all' | 'training' | 'race'>('all')
+  // A zone option ('zone', 2) narrows to combo rounds shot at that target
+  // heart-rate zone — alongside, not combined with, All/Training/Race: only
+  // one lens on Metal at a time, same as today.
+  type MetalFilter = 'all' | 'training' | 'race' | { zone: number }
+  const [metalFilter, setMetalFilter] = useState<MetalFilter>('all')
 
   const prone = bouts.filter((b) => b.position === 'prone')
   const standing = bouts.filter((b) => b.position === 'standing')
   const raceWorkoutIds = new Set(workouts.filter((w) => w.raceType).map((w) => w.id))
-  const filteredMetal = metalBouts.filter((b) =>
-    metalFilter === 'all' ? true : metalFilter === 'race' ? raceWorkoutIds.has(b.workoutId) : !raceWorkoutIds.has(b.workoutId),
+  // Only offer zones the athlete has actually used — most will have one or
+  // two, not all eight.
+  const presentZones = [...new Set(metalBouts.map((b) => b.targetZone).filter((z): z is number => z !== null))].sort(
+    (a, b) => a - b,
   )
+  const filteredMetal = metalBouts.filter((b) => {
+    if (metalFilter === 'all') return true
+    if (metalFilter === 'training') return !raceWorkoutIds.has(b.workoutId)
+    if (metalFilter === 'race') return raceWorkoutIds.has(b.workoutId)
+    return b.targetZone === metalFilter.zone
+  })
   const metalProne = filteredMetal.filter((b) => b.position === 'prone')
   const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
-  // Cumulative accuracy at each target heart-rate zone a combo was actually
-  // run at — every round in a combo carries its zone, so this covers every
-  // metal bout assigned one, prone and standing together. Only zones with
-  // data show up; most athletes will only ever have used one or two.
-  const zoneGroups = ([1, 2, 3, 4, 5, 6, 7, 8] as const)
-    .map((zone) => ({ zone, bouts: filteredMetal.filter((b) => b.targetZone === zone) }))
-    .filter((z) => z.bouts.length > 0)
 
   const recent = useMemo(() => {
     const cutoff = Date.now() - WINDOW_DAYS * 86400_000
@@ -351,24 +356,33 @@ export function AnalysisView({
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Metal"
-        defaultOpen={false}
-        headerExtra={raceWorkoutIds.size > 0 && (
-          <div className="seg" style={{ flex: 'none', width: 168 }}>
-            {(['all', 'training', 'race'] as const).map((f) => (
-              <button
-                key={f}
-                aria-pressed={metalFilter === f}
-                onClick={() => setMetalFilter(f)}
-                style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
-              >
-                {f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'}
-              </button>
-            ))}
+      <CollapsibleSection title="Metal" defaultOpen={false}>
+        {(raceWorkoutIds.size > 0 || presentZones.length > 0) && (
+          <div className="seg" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+            {(
+              [
+                'all' as const,
+                ...(raceWorkoutIds.size > 0 ? (['training', 'race'] as const) : []),
+                ...presentZones.map((zone) => ({ zone })),
+              ] satisfies MetalFilter[]
+            ).map((f) => {
+              const label = typeof f === 'object' ? `Zone ${f.zone}` : f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'
+              const active = typeof f === 'object'
+                ? typeof metalFilter === 'object' && metalFilter.zone === f.zone
+                : metalFilter === f
+              return (
+                <button
+                  key={label}
+                  aria-pressed={active}
+                  onClick={() => setMetalFilter(f)}
+                  style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none' }}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
         )}
-      >
         <div className="stats">
           <div className="stat">
             <div className="k">Prone</div>
@@ -381,24 +395,6 @@ export function AnalysisView({
             <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
           </div>
         </div>
-
-        {zoneGroups.length > 0 && (
-          <>
-            <h3 style={{ marginTop: 20 }}>By target heart-rate zone</h3>
-            <p className="meta" style={{ marginTop: -6 }}>
-              Cumulative accuracy across every combo round shot at each zone, prone and standing together.
-            </p>
-            <div className="stats" style={{ gridTemplateColumns: `repeat(${Math.min(zoneGroups.length, 4)}, 1fr)` }}>
-              {zoneGroups.map((z) => (
-                <div className="stat" key={z.zone}>
-                  <div className="k">Zone {z.zone}</div>
-                  <div className="v">{metalPct(z.bouts)}</div>
-                  <div className="n">{z.bouts.length} bout{z.bouts.length === 1 ? '' : 's'}</div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
 
         {targetsProne.length > 0 && (
           <>
