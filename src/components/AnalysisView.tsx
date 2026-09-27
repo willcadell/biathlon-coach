@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL } from '../lib/types'
+import { ofWorkouts } from '../lib/scope'
 import { ChevronIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, hitsOf, missCount, targetStats } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
@@ -120,8 +121,8 @@ function CollapsibleSection({
 }
 
 export function AnalysisView({
-  bouts,
-  metalBouts,
+  bouts: suppliedBouts,
+  metalBouts: suppliedMetalBouts,
   settings,
   workouts,
   onChanged,
@@ -141,6 +142,9 @@ export function AnalysisView({
    *  through to the nested History section. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
 }) {
+  // Only bouts shot in the workouts we were given — see scope.ts.
+  const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
+  const metalBouts = useMemo(() => ofWorkouts(suppliedMetalBouts, workouts), [suppliedMetalBouts, workouts])
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)

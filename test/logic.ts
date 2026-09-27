@@ -12,6 +12,7 @@ import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../src/lib/metal.ts'
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
+import { ofWorkouts } from '../src/lib/scope.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -388,6 +389,16 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
     r !== null && Math.abs(r.cx - 100) < 2 && Math.abs(r.cy - 100) < 2 && Math.abs(r.semiMajor - 60) < 2,
     JSON.stringify(r),
   )
+}
+
+// --- Scope: analysis only sees bouts shot in the workouts it was given.
+{
+  const mine = [{ id: 'w1' }, { id: 'w2' }]
+  const items = [{ workoutId: 'w1', n: 1 }, { workoutId: 'w2', n: 2 }, { workoutId: 'someone-elses', n: 3 }]
+  const kept = ofWorkouts(items, mine)
+  ok('scope: keeps bouts from the given workouts', kept.length === 2 && kept.every((k) => k.workoutId !== 'someone-elses'))
+  ok('scope: no workouts means no bouts', ofWorkouts(items, []).length === 0)
+  ok('scope: does not mutate its input', items.length === 3)
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)
