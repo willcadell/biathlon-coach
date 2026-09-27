@@ -158,6 +158,13 @@ export function AnalysisView({
   )
   const metalProne = filteredMetal.filter((b) => b.position === 'prone')
   const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
+  // Cumulative accuracy at each target heart-rate zone a combo was actually
+  // run at — every round in a combo carries its zone, so this covers every
+  // metal bout assigned one, prone and standing together. Only zones with
+  // data show up; most athletes will only ever have used one or two.
+  const zoneGroups = ([1, 2, 3, 4, 5, 6, 7, 8] as const)
+    .map((zone) => ({ zone, bouts: filteredMetal.filter((b) => b.targetZone === zone) }))
+    .filter((z) => z.bouts.length > 0)
 
   const recent = useMemo(() => {
     const cutoff = Date.now() - WINDOW_DAYS * 86400_000
@@ -374,6 +381,24 @@ export function AnalysisView({
             <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
           </div>
         </div>
+
+        {zoneGroups.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 20 }}>By target heart-rate zone</h3>
+            <p className="meta" style={{ marginTop: -6 }}>
+              Cumulative accuracy across every combo round shot at each zone, prone and standing together.
+            </p>
+            <div className="stats" style={{ gridTemplateColumns: `repeat(${Math.min(zoneGroups.length, 4)}, 1fr)` }}>
+              {zoneGroups.map((z) => (
+                <div className="stat" key={z.zone}>
+                  <div className="k">Zone {z.zone}</div>
+                  <div className="v">{metalPct(z.bouts)}</div>
+                  <div className="n">{z.bouts.length} bout{z.bouts.length === 1 ? '' : 's'}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {targetsProne.length > 0 && (
           <>
