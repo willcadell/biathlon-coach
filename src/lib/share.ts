@@ -6,8 +6,7 @@ import { ringRadii } from './scoring'
 const WIDTH = 1080
 const HEIGHT = 1350
 
-// Will move once there's a permanent domain — see shareTargetImage's own note.
-const APP_URL = 'https://545coach.netlify.app'
+const APP_URL = 'https://545.coach'
 
 // Fixed literal colors, independent of the viewer's own light/dark theme —
 // a shared image should look the same to everyone it's shared with, not
@@ -319,10 +318,6 @@ function shareFileName(bout: Bout, workout: Workout): string {
  * Shares a precision bout's target as one image via the OS share sheet, or
  * falls back to a plain download where file sharing isn't available (mainly
  * desktop browsers without the Web Share API).
- *
- * APP_URL above is the app's current Netlify subdomain — update it if the
- * app ever moves to a permanent domain, so shared cards keep pointing
- * somewhere real.
  */
 export async function shareTargetImage(bout: Bout, workout: Workout): Promise<void> {
   const blob = await buildTargetShareImage(bout, workout)
