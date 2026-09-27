@@ -124,15 +124,24 @@ export async function putWorkout(workout: Workout): Promise<void> {
 }
 
 export async function allWorkouts(): Promise<Workout[]> {
+  // Scoped to the signed-in athlete on purpose: RLS also lets a coach read the
+  // workouts of athletes they coach, so "everything I can read" is not "my own"
+  // for anyone who is both — their coached athletes' training would land in
+  // their own history, analysis and export.
+  const athleteId = await currentAthleteId()
   const [{ data: rows, error }, { data: clicks, error: clickErr }, { data: notes, error: notesErr }] = await Promise.all([
-    supabase.from('workouts').select('*').order('started_at', { ascending: false }),
+    supabase.from('workouts').select('*').eq('athlete_id', athleteId).order('started_at', { ascending: false }),
     supabase.from('click_adjustments').select('*'),
     supabase.from('workout_coach_notes').select('*'),
   ])
   if (error) throw error
   if (clickErr) throw clickErr
   if (notesErr) throw notesErr
-  return (rows ?? []).map((r) => toWorkout(r, clicks ?? [], notes ?? []))
+  // Click logs and notes have no athlete column; keep only those on these workouts.
+  const own = new Set((rows ?? []).map((r) => r.id as string))
+  return (rows ?? []).map((r) =>
+    toWorkout(r, (clicks ?? []).filter((c) => own.has(c.workout_id)), (notes ?? []).filter((n) => own.has(n.workout_id))),
+  )
 }
 
 /** Delete a workout and everything shot under it: its precision bouts, their
@@ -182,7 +191,9 @@ export function toBout(row: BoutRow): Bout {
 }
 
 export async function allBouts(): Promise<Bout[]> {
-  const { data, error } = await supabase.from('precision_bouts').select('*').order('shot_at', { ascending: false })
+  // Own bouts only — see allWorkouts.
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('precision_bouts').select('*').eq('athlete_id', athleteId).order('shot_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(toBout)
 }
@@ -281,7 +292,8 @@ export async function boutImageUrl(imagePath: string): Promise<string | null> {
  *  of the space this app uses, and once a bout is scored the shot positions
  *  are the record — the picture is only evidence. */
 export async function clearImages(): Promise<void> {
-  const { data: bouts, error } = await supabase.from('precision_bouts').select('id, image_path')
+  const { data: bouts, error } = await supabase
+    .from('precision_bouts').select('id, image_path').eq('athlete_id', await currentAthleteId())
   if (error) throw error
   const withPhotos = (bouts ?? []).filter((b) => b.image_path !== null)
   if (withPhotos.length === 0) return
@@ -348,7 +360,9 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
 }
 
 export async function allMetalBouts(): Promise<MetalBout[]> {
-  const { data, error } = await supabase.from('metal_bouts').select('*').order('shot_at', { ascending: false })
+  // Own bouts only — see allWorkouts.
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('metal_bouts').select('*').eq('athlete_id', athleteId).order('shot_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(toMetalBout)
 }
