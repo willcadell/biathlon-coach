@@ -3,7 +3,8 @@ const UPDATED = 'September 27, 2026'
 export function TermsView() {
   return (
     <div className="app">
-      <main className="main" style={{ paddingBottom: 48 }}>
+      <main className="main">
+        <div className="main-inner" style={{ paddingBottom: 48 }}>
         <a href="/" className="link" style={{ display: 'inline-block', marginBottom: 16 }}>← 545 Coach</a>
         <h1>Terms and Conditions</h1>
         <p className="meta">Last updated {UPDATED}.</p>
@@ -92,6 +93,7 @@ export function TermsView() {
         <p style={{ marginBottom: 0 }}>
           Questions about these terms can be sent to <a href="mailto:will@sparkgeo.com">will@sparkgeo.com</a>.
         </p>
+        </div>
       </main>
     </div>
   )

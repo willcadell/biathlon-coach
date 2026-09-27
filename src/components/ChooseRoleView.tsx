@@ -39,7 +39,8 @@ export function ChooseRoleView({ session, variant, onChosen }: Props) {
 
   return (
     <div className="app">
-      <main className="main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <main className="main">
+        <div className="main-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="card" style={{ maxWidth: 380, width: '100%', textAlign: 'center' }}>
           <h1 style={{ marginTop: 0 }}>
             {variant === 'create' ? 'How are you using 545 Coaching?' : 'Continue as…'}
@@ -67,6 +68,7 @@ export function ChooseRoleView({ session, variant, onChosen }: Props) {
               {pending === 'coach' ? 'Setting up…' : variant === 'create' ? "I'm a coach" : 'Coach'}
             </button>
           </div>
+        </div>
         </div>
       </main>
     </div>

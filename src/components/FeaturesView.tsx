@@ -221,7 +221,8 @@ export function FeaturesView() {
 
   return (
     <div className="app">
-      <main className="main" style={{ paddingBottom: 48 }}>
+      <main className="main">
+        <div className="main-inner" style={{ paddingBottom: 48 }}>
         <a href="/" className="link" style={{ display: 'inline-block', marginBottom: 16 }}>← 545 Coach</a>
         <h1>What 545 Coach does</h1>
         <p className="lede">
@@ -256,6 +257,7 @@ export function FeaturesView() {
           {' · '}
           <a href="/terms" className="link" style={{ color: 'inherit' }}>Terms and Conditions</a>
         </p>
+        </div>
       </main>
     </div>
   )

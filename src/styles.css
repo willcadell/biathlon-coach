@@ -81,8 +81,23 @@ body {
      switching between a short page (e.g. Shoot with no active workout) and a
      tall one (e.g. Analysis) popping .main's own scrollbar in or out never
      shifts its content. A mobile PWA's overlay scrollbar takes no layout
-     space either way, so this mainly matters for a desktop browser tab. */
-  scrollbar-gutter: stable;
+     space either way, so this mainly matters for a desktop browser tab.
+     both-edges, not just stable: .main is full window width now, so a
+     one-sided gutter would nudge .main-inner's centred content off true
+     centre by half its width — reserving it on both sides keeps it centred. */
+  scrollbar-gutter: stable both-edges;
+  /* Full window width, same trick as .tabs — not so .main's own content
+     stretches edge to edge (.main-inner below still caps that at 720px),
+     but so the browser's native scrollbar it owns renders pinned to the
+     true right edge of the window instead of at .app's 720px cap. */
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
+}
+.main-inner {
+  max-width: 720px;
+  margin: 0 auto;
   /* .tabs no longer needs clearing (it's a real flex sibling below, not an
      overlay), but .to-top and .selectbar are still fixed-position widgets
      that float over the bottom of .main's own content, so this still needs
