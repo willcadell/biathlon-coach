@@ -766,7 +766,13 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
           className={`to-top${startOffscreen ? ' show' : ''}`}
           aria-label="Back to the top to start a session" title="Start a session"
           aria-hidden={!startOffscreen} tabIndex={startOffscreen ? 0 : -1}
-          onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}
+          onClick={() => {
+            // .main is the scrolling element now, not the document — see styles.css.
+            document.querySelector('.main')?.scrollTo({
+              top: 0,
+              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            })
+          }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" aria-hidden="true">
             <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" />
