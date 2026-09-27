@@ -101,15 +101,18 @@ trading card (Elite, Sharp, Solid or Logged) with a QR code back to the app, dra
 in the browser and sent through the phone's share sheet or downloaded — or *Post
 to* a club's feed.
 
-**Contributes targets anonymously.** From a scored target's page in History, an
-athlete can contribute it to improve hole detection. The browser re-encodes the photo
-at up to 1400 px (which drops camera and location metadata) and sends it with the
-confirmed hole positions and calibration through `submit_training_target`, which
-stores them in `training_targets` with no account, bout, workout or timestamp — only
-the month. That table has no policies and no client grants, so it can only be read
-from the SQL editor or CLI. Because nothing identifies the contributor, a submission
-can't be withdrawn later, and the app says so before it's sent. Dev-mode (test) data
-is refused, and a duplicate photo is dropped by hash. Export for training with
+**Contributes targets anonymously.** The athlete is asked once, at first sign-in (and
+once for existing athletes), whether to contribute the targets they score to improve hole
+detection; neither answer is preselected, and the choice is changeable in Settings. It's stored
+in `athlete_preferences` (own row only, so no coach or club can read it), with the time they
+said yes. From then on, each target scored after that time is sent in the background: the browser
+re-encodes the photo at up to 1400 px (which drops camera and location metadata) and calls
+`submit_training_target`, which itself refuses anyone who hasn't said yes and stores the photo,
+confirmed holes and calibration in `training_targets` with no account, bout, workout or
+timestamp — only the month. That table has no policies and no client grants, so it can only be
+read from the SQL editor or CLI. Because nothing identifies the contributor, a submission can't
+be withdrawn, and the prompt says so. Dev-mode (test) data is refused, and a duplicate photo is
+dropped by hash. Export for training with
 `select id, encode(photo,'base64'), shots ... from training_targets`.
 
 **Belongs to a club.** Enter a club's or a program's join code in Profile. Before

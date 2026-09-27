@@ -1,3 +1,5 @@
+import { contributePending, getContribution, type Contribution } from './lib/contribute'
+import { ContributePrompt } from './components/ContributeChoice'
 import { amDev, devModeOn, setDevMode } from './lib/dev'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
@@ -247,6 +249,17 @@ function SignedInApp({
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(loadActiveWorkoutId)
   const [settings, setSettings] = useState<Settings>(loadSettings)
 
+  // The athlete's choice about contributing targets anonymously. undefined until
+  // loaded (or if it can't be), so nothing is asked or sent on a guess.
+  const [contribution, setContribution] = useState<Contribution | undefined>(undefined)
+  useEffect(() => {
+    if (!identities.athlete) {
+      setContribution(undefined)
+      return
+    }
+    void getContribution().then(setContribution).catch(() => setContribution(undefined))
+  }, [identities.athlete, session.user.id])
+
   const refresh = useCallback(() => {
     // Logged rather than silently dropped — a rejection here used to vanish
     // entirely, leaving stale state with no clue why (e.g. a table a new
@@ -266,6 +279,11 @@ function SignedInApp({
     () => stored.map((b) => ({ ...b, metrics: computeMetrics(b.shots, b.position, scoringContext(b, settings)) })),
     [stored, settings],
   )
+
+  // Once they've said yes, targets scored since then go in the background.
+  useEffect(() => {
+    if (contribution?.choice === true && contribution.since) void contributePending(bouts, contribution.since)
+  }, [bouts, contribution])
 
   const updateSettings = (next: Settings) => {
     setSettings(next)
@@ -334,6 +352,9 @@ function SignedInApp({
           <button className="link" onClick={() => setDevMode(false)}>Leave</button>
         </div>
       )}
+      {identities.athlete && mode === 'athlete' && contribution?.choice === null && (
+        <ContributePrompt onChosen={setContribution} />
+      )}
       <main className="main">
         <ErrorBoundary key={tab}>
           {tab === 'shoot' && (
@@ -373,6 +394,8 @@ function SignedInApp({
               boutCount={bouts.length}
               onDataChanged={refresh}
               onBack={() => setTab('profile')}
+              contribution={contribution}
+              onContributionChange={setContribution}
             />
           )}
         </ErrorBoundary>

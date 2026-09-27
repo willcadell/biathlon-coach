@@ -101,10 +101,11 @@ function AthleteFeatures() {
       </Feature>
       <Feature icon={<DataIcon />} title="Help improve hole detection">
         <p {...p}>
-          If you like, contribute a scored target anonymously from its page in History. The app sends a
-          smaller copy of the photo, with camera and location details removed, and your confirmed hole
-          positions — no name, account, club or date. It's your choice each time, and because it can't be
-          traced back to you it can't be withdrawn later. Your own copy stays private.
+          The app asks you once whether you'd like to contribute your scored targets anonymously, and
+          nothing is sent until you say yes. If you do, each target you score afterwards goes in the
+          background: a smaller copy of the photo with camera and location details removed, and your
+          confirmed hole positions — no name, account, club or date. You can turn it off any time in
+          Settings. Because it can't be traced back to you, anything already sent can't be withdrawn.
         </p>
       </Feature>
       <Feature title="Join a club or a program">

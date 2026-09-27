@@ -5,6 +5,8 @@ import { ringRadii } from '../lib/scoring'
 import { COST_PER_IMAGE, testApiKey, type KeyCheck } from '../lib/vision'
 import { clearImages, exportAll } from '../lib/db'
 import { DRILLS } from '../lib/training'
+import type { Contribution } from '../lib/contribute'
+import { ContributeCard } from './ContributeChoice'
 
 interface Props {
   settings: Settings
@@ -12,9 +14,12 @@ interface Props {
   boutCount: number
   onDataChanged: () => void
   onBack: () => void
+  /** The athlete's choice about contributing targets; undefined until loaded. */
+  contribution: Contribution | undefined
+  onContributionChange: (next: Contribution) => void
 }
 
-export function SettingsView({ settings, onChange, boutCount, onDataChanged, onBack }: Props) {
+export function SettingsView({ settings, onChange, boutCount, onDataChanged, onBack, contribution, onContributionChange }: Props) {
   const [check, setCheck] = useState<KeyCheck | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -221,6 +226,8 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
           a merged group with one flagged marker instead of splitting it. Check every marker closely.
         </small>
       </div>
+
+      <ContributeCard value={contribution} onChange={onContributionChange} />
 
       <h2>Your data</h2>
       <div className="card">

@@ -1,21 +1,26 @@
 import type { Bout } from './types'
 import { boutPhotoBlob } from './db'
+import { devModeOn } from './dev'
 import { supabase } from './supabase'
 
 /**
  * Anonymous target contributions, to improve automatic hole detection.
  *
  * What's sent is a smaller copy of the photo and the confirmed hole positions,
- * and nothing that says whose it is — see the training_targets migration. The
- * database function can't be given an account, so a submission can't be traced
- * back or withdrawn later; the app says so before sending.
+ * and nothing that says whose it is — see the training_targets migration. A
+ * submission can't be traced back or withdrawn later; the athlete is told that
+ * when they choose.
+ *
+ * It's the athlete's choice, made once (asked at first sign-in, changeable in
+ * Settings). When it's on, each target scored from then on is contributed in the
+ * background. The server enforces the choice as well, so this can't run without it.
  */
 
 const CONTRIBUTED_KEY = 'biathlon-coach:contributed'
 /** Enough resolution to find a hole, small enough to keep the upload light. */
 const MAX_EDGE = 1400
 
-/** Which bouts this device has already contributed, so the button doesn't offer it twice.
+/** Which bouts this device has already contributed, so none is sent twice.
  *  Kept only on the device: the server deliberately can't say. */
 export function wasContributed(boutId: string): boolean {
   try {
@@ -31,7 +36,7 @@ function markContributed(boutId: string): void {
     ids.add(boutId)
     localStorage.setItem(CONTRIBUTED_KEY, JSON.stringify([...ids]))
   } catch {
-    // Offering it again is harmless: the server drops a duplicate photo.
+    // Sending it again is harmless: the server drops a duplicate photo.
   }
 }
 
@@ -73,4 +78,66 @@ export async function contributeBout(bout: Bout): Promise<boolean> {
   if (error) throw error
   markContributed(bout.id)
   return data === true
+}
+
+export interface Contribution {
+  /** null = not asked yet. */
+  choice: boolean | null
+  /** Only targets shot after this are contributed. */
+  since: string | null
+}
+
+async function currentUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) throw new Error('Not signed in')
+  return data.user.id
+}
+
+export async function getContribution(): Promise<Contribution> {
+  const { data, error } = await supabase
+    .from('athlete_preferences').select('contribute_targets, contribute_since').maybeSingle()
+  if (error) throw error
+  return { choice: data?.contribute_targets ?? null, since: data?.contribute_since ?? null }
+}
+
+/** Saying yes starts from now: targets already logged aren't swept up. */
+export async function setContribution(yes: boolean): Promise<Contribution> {
+  const next: Contribution = { choice: yes, since: yes ? new Date().toISOString() : null }
+  const { error } = await supabase.from('athlete_preferences').upsert({
+    athlete_id: await currentUserId(),
+    contribute_targets: next.choice,
+    contribute_since: next.since,
+  })
+  if (error) throw error
+  return next
+}
+
+const inFlight = new Set<string>()
+const failed = new Set<string>()
+/** A pass at a time is plenty: scoring a target is not a burst. */
+const PER_PASS = 4
+
+/**
+ * Contributes any target scored since the athlete said yes that hasn't gone yet.
+ * Quiet by design: a failure (offline, a photo already dropped) leaves the target
+ * for a later pass, and never interrupts the athlete.
+ */
+export async function contributePending(bouts: Bout[], since: string): Promise<void> {
+  if (devModeOn()) return
+  const cutoff = new Date(since).getTime()
+  const due = bouts.filter(
+    (b) =>
+      b.imagePath && new Date(b.shotAt).getTime() >= cutoff &&
+      !wasContributed(b.id) && !inFlight.has(b.id) && !failed.has(b.id),
+  ).slice(0, PER_PASS)
+  for (const bout of due) {
+    inFlight.add(bout.id)
+    try {
+      await contributeBout(bout)
+    } catch {
+      failed.add(bout.id)
+    } finally {
+      inFlight.delete(bout.id)
+    }
+  }
 }

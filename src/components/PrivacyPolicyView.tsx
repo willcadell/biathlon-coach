@@ -1,4 +1,4 @@
-const UPDATED = 'September 26, 2026'
+const UPDATED = 'September 27, 2026'
 
 export function PrivacyPolicyView() {
   return (
@@ -57,9 +57,10 @@ export function PrivacyPolicyView() {
             store its text and your name.
           </p>
           <p style={{ marginBottom: 0 }}>
-            <strong>Anonymous target contributions.</strong> If you choose to contribute a target, we
-            store a smaller copy of its photo and your confirmed hole positions, with nothing that
-            says whose it is. See "Contributing targets anonymously" below.
+            <strong>Anonymous target contributions.</strong> If you choose to contribute, we store a
+            smaller copy of each target's photo and your confirmed hole positions, with nothing that
+            says whose it is. We also store your yes-or-no choice, and when you said yes, visible only
+            to you. See "Contributing targets anonymously" below.
           </p>
         </div>
 
@@ -139,10 +140,12 @@ export function PrivacyPolicyView() {
         <h2>Contributing targets anonymously</h2>
         <div className="card">
           <p style={{ marginTop: 0 }}>
-            You can help improve the app's automatic hole detection by contributing a scored target. It
-            is entirely optional, it happens one target at a time, and only when you tap{' '}
-            <strong>Contribute</strong> on that target in History and confirm. Nothing is ever
-            contributed automatically, and targets logged in test mode are never accepted.
+            You can help improve the app's automatic hole detection by contributing the targets you
+            score. It's entirely optional. You're asked once, the first time you sign in as an athlete
+            (and once if you were already using the app), with no answer preselected, and you can change
+            your mind at any time in Settings. Until you say yes, nothing is contributed. If you say yes,
+            each target you score from then on is contributed automatically in the background. Targets
+            logged in test mode are never accepted.
           </p>
           <p>
             <strong>What we receive:</strong> a smaller copy of the target photo, re-encoded on your
@@ -153,14 +156,16 @@ export function PrivacyPolicyView() {
           <p>
             <strong>What we don't receive:</strong> your name, email, account, club, program, coaches,
             workout, notes, or the exact date and time. A contribution isn't linked to your account in
-            our database, and nothing in it identifies you.
+            our database, and nothing in it identifies you. Your yes-or-no choice is stored against your
+            account, separately, and can't be seen by coaches, clubs or other athletes.
           </p>
           <p>
             <strong>Because it's anonymous, we can't find it again.</strong> We can't tell which
-            contribution is yours, so we can't remove or withdraw one later. Your own copy of the
-            target stays private and you can still delete it, as usual. Please only contribute a target
-            whose photo shows nothing you wouldn't want kept: no names written on the target, and no
-            people or other identifying detail in the picture.
+            contribution is yours, so we can't remove or withdraw one later. Turning contributing off
+            stops any further ones; it can't recall those already sent. Your own copy of each target
+            stays private and you can still delete it, as usual. Because targets are sent automatically
+            once you opt in, please make sure your target photos show nothing you wouldn't want kept: no
+            names written on the target, and no people or other identifying detail in the picture.
           </p>
           <p>
             <strong>Who can see it:</strong> only the person who runs the app. Not coaches, clubs, other
@@ -173,7 +178,7 @@ export function PrivacyPolicyView() {
             <strong>What it's used for:</strong> testing, and improving the way the app finds holes in
             target photos, including training detection models that then run on people's devices. We
             don't sell contributions or share them with clubs or coaches. If you're under 18, please
-            check with a parent or guardian before contributing.
+            check with a parent or guardian before saying yes.
           </p>
         </div>
 
@@ -214,7 +219,7 @@ export function PrivacyPolicyView() {
             <li style={{ marginBottom: 5 }}>Export everything you've logged as a JSON file, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Invite a personal coach, cancel an unused invite, or remove a personal coach at any time, from Profile.</li>
             <li style={{ marginBottom: 5 }}>Remove anything you've posted to a club's feed, at any time, from the feed itself.</li>
-            <li style={{ marginBottom: 5 }}>Decide, target by target, whether to contribute one anonymously. It's never automatic, and a contribution can't be withdrawn later because it isn't linked to you.</li>
+            <li style={{ marginBottom: 5 }}>Turn contributing your targets anonymously on or off in Settings. Turning it off stops further contributions, but it can't recall ones already sent, because they aren't linked to you.</li>
             <li style={{ marginBottom: 5 }}>Leave just a program while staying in the club, or leave the club altogether, from Profile. Leaving a club stops any new sharing with its coaches and removes what you posted to its feed.</li>
             <li>Sign out, which ends your session without deleting your data.</li>
           </ul>

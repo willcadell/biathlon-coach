@@ -3,13 +3,12 @@ import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
-import { contributeBout, wasContributed } from '../lib/contribute'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
-import { DataIcon, GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
+import { GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -96,39 +95,6 @@ interface Props {
    *  feedback on a specific workout, the one write allowed in read-only
    *  mode. Omitted entirely for an athlete looking at their own history. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
-}
-
-/** Contribute this target's photo and confirmed holes, anonymously, to improve
- *  automatic hole detection. Never offered for test data (dev mode). */
-function ContributeButton({ bout }: { bout: Bout }) {
-  const [state, setState] = useState<'idle' | 'sending' | 'done'>(() => (wasContributed(bout.id) ? 'done' : 'idle'))
-  if (!bout.imagePath || devModeOn()) return null
-  return (
-    <button
-      className="secondary"
-      disabled={state !== 'idle'}
-      onClick={async () => {
-        if (!confirm(
-          'Contribute this target anonymously?\n\n' +
-          'We\'ll receive a smaller copy of the photo, with camera and location details removed, and your confirmed hole ' +
-          'positions. No name, account, club, workout or date goes with it, and it can\'t be traced back to you. ' +
-          'It\'s used to improve automatic hole detection.\n\n' +
-          'Because it\'s anonymous, it can\'t be withdrawn later. Your own copy stays private. ' +
-          'Only send a target with no names or people visible in the photo. If you\'re under 18, check with a parent first.',
-        )) return
-        setState('sending')
-        try {
-          await contributeBout(bout)
-          setState('done')
-        } catch (e) {
-          setState('idle')
-          alert(errorMessage(e, 'Could not send that target. Check your connection and try again.'))
-        }
-      }}
-    >
-      <DataIcon /> {state === 'done' ? 'Contributed' : state === 'sending' ? 'Sending…' : 'Contribute'}
-    </button>
-  )
 }
 
 /** Dev mode only: promote this test workout to live data, next to the bin. */
@@ -239,7 +205,6 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             >
               <ShareIcon /> Share
             </button>
-            <ContributeButton bout={openBout} />
             <button
               className="secondary danger"
               onClick={async () => {

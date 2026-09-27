@@ -1,4 +1,4 @@
-const UPDATED = 'September 26, 2026'
+const UPDATED = 'September 27, 2026'
 
 export function TermsView() {
   return (
@@ -49,14 +49,17 @@ export function TermsView() {
 
         <h2>Contributing targets</h2>
         <p>
-          You can choose to contribute a scored target to help improve the app's hole detection. It's
-          optional and happens one target at a time. What you send is a reduced copy of the photo and
-          your confirmed hole positions, with no account or personal details attached (see the Privacy
-          Policy for exactly what). By contributing a target you confirm it's a photo of your own target
-          that shows no one else's information, and you give us a worldwide, permanent, royalty-free
-          licence to use that anonymous submission to develop, test and improve the app, including
-          training detection models. This is separate from the permission in "Your content" above.
-          Because a contribution can't be linked back to you, it can't be withdrawn once sent.
+          You can choose to contribute the targets you score to help improve the app's hole detection.
+          It's optional: you're asked once, nothing is contributed until you say yes, and you can turn it
+          off at any time in Settings. If you turn it on, each target you score afterwards is sent
+          automatically: a reduced copy of the photo and your confirmed hole positions, with no account
+          or personal details attached (see the Privacy Policy for exactly what). By turning it on you
+          confirm that the target photos you take are of your own targets and show no one else's
+          information, and you give us a worldwide, permanent, royalty-free licence to use those
+          anonymous submissions to develop, test and improve the app, including training detection
+          models. This is separate from the permission in "Your content" above. Because a contribution
+          can't be linked back to you, it can't be withdrawn once sent; turning the setting off stops
+          further ones.
         </p>
 
         <h2>No warranty</h2>
