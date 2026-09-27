@@ -326,6 +326,7 @@ export interface MetalRow {
   hit_echo: boolean
   heart_rate: number
   combo_id: string | null
+  target_zone: number | null
 }
 
 export function toMetalBout(row: MetalRow): MetalBout {
@@ -344,6 +345,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
     },
     heartRate: row.heart_rate,
     comboId: row.combo_id,
+    targetZone: row.target_zone,
   }
 }
 
@@ -362,6 +364,7 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     hit_echo: bout.hits.echo,
     heart_rate: bout.heartRate,
     combo_id: bout.comboId,
+    target_zone: bout.targetZone,
   })
   if (error) throw error
 }

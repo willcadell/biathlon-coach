@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, hitCount, hitsOf } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, comboLabel, groupEntries, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { errorMessage } from '../lib/errors'
@@ -314,8 +314,37 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
         <h2>Entries</h2>
         {entries.length === 0 && <p className="meta">Nothing was added to this workout.</p>}
-        {entries.map((e) =>
-          e.kind === 'precision' ? (
+        {groupEntries(entries).map((e) =>
+          'rounds' in e ? (
+            <div key={e.comboId} className="card">
+              <div className="title" style={{ marginBottom: 8 }}>
+                {comboLabel(e.targetZone)} · {e.rounds.length} round{e.rounds.length === 1 ? '' : 's'} ·{' '}
+                {e.rounds.reduce((n, r) => n + hitCount(hitsOf(r)), 0)}/{e.rounds.length * DISCS_PER_METAL_BOUT} hits
+              </div>
+              {e.rounds.map((r, i) => (
+                <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
+                  <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MiniTargets hits={hitsOf(r)} />
+                    Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
+                    {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
+                  </span>
+                  {!readOnly && (
+                    <button
+                      className="link danger"
+                      aria-label="Remove"
+                      onClick={async () => {
+                        if (!confirm('Delete this round?')) return
+                        await deleteMetalBout(r.id)
+                        onChanged()
+                      }}
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : e.kind === 'precision' ? (
             <div key={e.id} className="boutrow" style={{ cursor: 'default' }}>
               <button
                 onClick={() => setOpenBoutId(e.id)}

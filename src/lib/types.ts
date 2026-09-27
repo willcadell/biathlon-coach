@@ -206,6 +206,13 @@ export interface MetalBout {
    *  together as one round-by-round set instead of loose entries. Null for
    *  a standalone metal bout. */
   comboId: string | null
+  /** The combo's target heart-rate zone, 1-8, chosen once when the combo
+   *  starts and copied onto every round added to it. Whatever the athlete's
+   *  own zones mean to them — this app doesn't know their bpm boundaries,
+   *  so it only ever stores and shows the number, never checks heartRate
+   *  against it. Null for a standalone metal bout, or a combo with no target
+   *  set. */
+  targetZone: number | null
 }
 
 /** Either kind of bout a workout can hold. */

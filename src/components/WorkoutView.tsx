@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, hitCount, hitsOf, missCount } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, comboLabel, groupEntries, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
@@ -11,7 +11,7 @@ import { FeedView } from './FeedView'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { MiniTargets } from './MiniTargets'
-import { DryfireIcon, GoArrow, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
+import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
   '12': '12 · headwind',
@@ -299,7 +299,7 @@ function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; on
 }
 
 function MetalForm({
-  workoutId, initial, comboId, presetPosition, stageLabel, onSaved, onCancel,
+  workoutId, initial, comboId, comboZone, presetPosition, stageLabel, onSaved, onCancel,
 }: {
   workoutId: string
   /** Present when editing an existing metal bout rather than adding a new one. */
@@ -307,6 +307,9 @@ function MetalForm({
   /** The active combo to attach a NEW bout to, if any. Ignored when editing —
    *  an existing bout keeps whatever combo it was already part of. */
   comboId?: string | null
+  /** The active combo's target zone, copied onto a NEW bout the same way as
+   *  comboId. Ignored when editing, for the same reason. */
+  comboZone?: number | null
   /** For a race stage, fixed by the format rather than chosen — the position
    *  toggle is hidden in favour of stageLabel. Ignored when editing. */
   presetPosition?: Position
@@ -330,6 +333,7 @@ function MetalForm({
       shotAt: initial?.shotAt ?? new Date().toISOString(),
       position, hits, heartRate,
       comboId: initial ? initial.comboId : (comboId ?? null),
+      targetZone: initial ? initial.targetZone : (comboZone ?? null),
     }
     try {
       await putMetalBout(bout)
@@ -342,7 +346,7 @@ function MetalForm({
 
   return (
     <>
-      <h1>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? 'Combo round' : 'Metal bout')}</h1>
+      <h1>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? `${comboLabel(comboZone ?? null)} round` : 'Metal bout')}</h1>
       <p className="lede">Five targets, prone or standing. Tap the ones that fell.</p>
       <div className="card">
         {!initial && presetPosition ? (
@@ -558,9 +562,47 @@ function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => 
   )
 }
 
+/** Asked once, when a combo starts — a target heart-rate zone applies to
+ *  every round in it, not chosen per round. Optional: the athlete's own
+ *  zones aren't something this app knows, so skipping it is a first-class
+ *  option, not a lesser one. */
+function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null) => void; onCancel: () => void }) {
+  const [zone, setZone] = useState<number | null>(null)
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <h2 style={{ marginTop: 0 }}>Start a combo</h2>
+        <p className="meta">
+          Every metal bout you add from here joins this combo, until you end it.
+        </p>
+        <span style={{ display: 'block', marginBottom: 6 }}>Target Heart Rate Zone</span>
+        <p className="meta" style={{ marginTop: 0 }}>
+          Optional — it's just a number for your own reference, so pick whatever your own zones mean to
+          you.
+        </p>
+        <div className="seg" style={{ flexWrap: 'wrap' }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((z) => (
+            <button key={z} aria-pressed={zone === z} onClick={() => setZone(z)} style={{ minWidth: '22%' }}>
+              {z}
+            </button>
+          ))}
+        </div>
+        {zone !== null && (
+          <button className="link" style={{ marginTop: 8 }} onClick={() => setZone(null)}>No target zone</button>
+        )}
+        <div className="row" style={{ marginTop: 14 }}>
+          <button className="secondary" onClick={onCancel}>Cancel</button>
+          <button className="primary" onClick={() => onStart(zone)}>Start</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ComboRow({
-  rounds, onEditRound, onDeleted,
+  targetZone, rounds, onEditRound, onDeleted,
 }: {
+  targetZone: number | null
   rounds: MetalBout[]
   onEditRound: (bout: MetalBout) => void
   onDeleted: () => void
@@ -570,7 +612,7 @@ function ComboRow({
   return (
     <div className="card">
       <div className="title" style={{ marginBottom: 8 }}>
-        Combo · {rounds.length} round{rounds.length === 1 ? '' : 's'} · {shots - misses}/{shots} hits
+        {comboLabel(targetZone)} · {rounds.length} round{rounds.length === 1 ? '' : 's'} · {shots - misses}/{shots} hits
       </div>
       {rounds.map((r, i) => (
         <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
@@ -580,7 +622,9 @@ function ComboRow({
             {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
           </span>
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
-            <button className="link" onClick={() => onEditRound(r)}>Edit</button>
+            <button className="link" aria-label="Edit this round" title="Edit this round" onClick={() => onEditRound(r)}>
+              <PencilIcon />
+            </button>
             <button
               className="link danger"
               aria-label="Remove"
@@ -597,26 +641,6 @@ function ComboRow({
       ))}
     </div>
   )
-}
-
-/** A precision bout, a standalone metal bout, or every metal bout sharing one
- *  combo — grouped so a ski-shoot interval session reads as one set of
- *  rounds instead of loose entries, while everything else stays chronological. */
-type EntryGroup = Bout | MetalBout | { comboId: string; rounds: MetalBout[] }
-
-function groupEntries(entries: WorkoutEntry[]): EntryGroup[] {
-  const seen = new Set<string>()
-  const out: EntryGroup[] = []
-  for (const e of entries) {
-    if (e.kind === 'metal' && e.comboId) {
-      if (seen.has(e.comboId)) continue
-      seen.add(e.comboId)
-      out.push({ comboId: e.comboId, rounds: entries.filter((x): x is MetalBout => x.kind === 'metal' && x.comboId === e.comboId) })
-    } else {
-      out.push(e)
-    }
-  }
-  return out
 }
 
 /**
@@ -678,6 +702,8 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
+  const [activeComboZone, setActiveComboZone] = useState<number | null>(null)
+  const [startingCombo, setStartingCombo] = useState(false)
   const [pendingStage, setPendingStage] = useState<{ index: number; position: Position } | null>(null)
   const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
@@ -847,6 +873,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         workoutId={workout.id}
         initial={editingMetal ?? undefined}
         comboId={activeComboId}
+        comboZone={activeComboZone}
         presetPosition={pendingStage?.position}
         stageLabel={pendingStage ? `Stage ${pendingStage.index + 1} — ${pendingStage.position === 'prone' ? 'Prone' : 'Standing'}` : undefined}
         onSaved={() => { onDataChanged(); setEditingMetal(null); setPendingStage(null); setMode('entries') }}
@@ -913,6 +940,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
             'rounds' in item ? (
               <ComboRow
                 key={item.comboId}
+                targetZone={item.targetZone}
                 rounds={item.rounds}
                 onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
                 onDeleted={onDataChanged}
@@ -938,21 +966,34 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
             <div className="card" style={{ marginTop: 10 }}>
               <div className="row" style={{ alignItems: 'center' }}>
                 <span style={{ flex: 1, fontSize: 14 }}>
-                  Combo in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
+                  {comboLabel(activeComboZone)} in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
                 </span>
-                <button className="link" onClick={() => setActiveComboId(null)}>End combo</button>
+                <button
+                  className="link" style={{ flex: 'none' }}
+                  onClick={() => { setActiveComboId(null); setActiveComboZone(null) }}
+                >
+                  End combo
+                </button>
               </div>
               <p className="meta" style={{ marginTop: 4, marginBottom: 0 }}>
                 Every metal bout you add now joins this combo, until you end it.
               </p>
             </div>
           ) : (
-            <button
-              className="link" style={{ marginTop: 10 }}
-              onClick={() => setActiveComboId(uuid())}
-            >
+            <button className="link" style={{ marginTop: 10 }} onClick={() => setStartingCombo(true)}>
               + Start a combo (repeated ski-and-shoot rounds)
             </button>
+          )}
+
+          {startingCombo && (
+            <StartComboDialog
+              onCancel={() => setStartingCombo(false)}
+              onStart={(zone) => {
+                setActiveComboId(uuid())
+                setActiveComboZone(zone)
+                setStartingCombo(false)
+              }}
+            />
           )}
         </>
       )}
