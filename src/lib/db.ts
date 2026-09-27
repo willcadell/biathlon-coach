@@ -282,6 +282,13 @@ export async function boutThumbUrls(imagePaths: string[]): Promise<Record<string
 /** Signed URL for one bout's full-size photo, for reviewing a single bout in
  *  detail — unlike boutThumbUrls' small previews for a whole list. Null once
  *  the athlete has deleted the photos but kept the scored bout. */
+/** The stored full-size photo, for the athlete's own use (e.g. contributing it). */
+export async function boutPhotoBlob(imagePath: string): Promise<Blob> {
+  const { data, error } = await supabase.storage.from(BUCKET).download(`${imagePath}.jpg`)
+  if (error || !data) throw error ?? new Error('Could not read the photo')
+  return data
+}
+
 export async function boutImageUrl(imagePath: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(`${imagePath}.jpg`, 3600)
   if (error) throw error

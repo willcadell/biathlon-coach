@@ -1,4 +1,4 @@
-const UPDATED = 'September 20, 2026'
+const UPDATED = 'September 26, 2026'
 
 export function TermsView() {
   return (
@@ -45,6 +45,18 @@ export function TermsView() {
           with — nothing more. You're responsible for making sure you have the right to share anything
           you upload (a photo of your own target is fine; a photo of someone else's paperwork without
           asking probably isn't).
+        </p>
+
+        <h2>Contributing targets</h2>
+        <p>
+          You can choose to contribute a scored target to help improve the app's hole detection. It's
+          optional and happens one target at a time. What you send is a reduced copy of the photo and
+          your confirmed hole positions, with no account or personal details attached (see the Privacy
+          Policy for exactly what). By contributing a target you confirm it's a photo of your own target
+          that shows no one else's information, and you give us a worldwide, permanent, royalty-free
+          licence to use that anonymous submission to develop, test and improve the app, including
+          training detection models. This is separate from the permission in "Your content" above.
+          Because a contribution can't be linked back to you, it can't be withdrawn once sent.
         </p>
 
         <h2>No warranty</h2>

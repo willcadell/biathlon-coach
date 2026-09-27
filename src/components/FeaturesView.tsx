@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { CowbellIcon, DryfireIcon, MegaphoneIcon, RaceMedalIcon, RangeIcon } from './icons'
+import { CowbellIcon, DataIcon, DryfireIcon, MegaphoneIcon, RaceMedalIcon, RangeIcon } from './icons'
 
 type Who = 'athlete' | 'coach'
 
@@ -97,6 +97,14 @@ function AthleteFeatures() {
         <p {...p}>
           Turn a target into a graded card — Elite, Sharp, Solid or Logged — with a QR code back to the
           app, and share it from your phone's share sheet.
+        </p>
+      </Feature>
+      <Feature icon={<DataIcon />} title="Help improve hole detection">
+        <p {...p}>
+          If you like, contribute a scored target anonymously from its page in History. The app sends a
+          smaller copy of the photo, with camera and location details removed, and your confirmed hole
+          positions — no name, account, club or date. It's your choice each time, and because it can't be
+          traced back to you it can't be withdrawn later. Your own copy stays private.
         </p>
       </Feature>
       <Feature title="Join a club or a program">

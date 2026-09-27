@@ -1,4 +1,4 @@
-const UPDATED = 'September 25, 2026'
+const UPDATED = 'September 26, 2026'
 
 export function PrivacyPolicyView() {
   return (
@@ -52,9 +52,14 @@ export function PrivacyPolicyView() {
             <strong>Cowbells.</strong> When someone rings a cowbell for a post we record who did, so a
             person can only ring once and can take it back. Other people see only the count.
           </p>
-          <p style={{ marginBottom: 0 }}>
+          <p>
             <strong>Announcements.</strong> If you're a coach and post an announcement to a club, we
             store its text and your name.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            <strong>Anonymous target contributions.</strong> If you choose to contribute a target, we
+            store a smaller copy of its photo and your confirmed hole positions, with nothing that
+            says whose it is. See "Contributing targets anonymously" below.
           </p>
         </div>
 
@@ -131,10 +136,52 @@ export function PrivacyPolicyView() {
           </p>
         </div>
 
+        <h2>Contributing targets anonymously</h2>
+        <div className="card">
+          <p style={{ marginTop: 0 }}>
+            You can help improve the app's automatic hole detection by contributing a scored target. It
+            is entirely optional, it happens one target at a time, and only when you tap{' '}
+            <strong>Contribute</strong> on that target in History and confirm. Nothing is ever
+            contributed automatically, and targets logged in test mode are never accepted.
+          </p>
+          <p>
+            <strong>What we receive:</strong> a smaller copy of the target photo, re-encoded on your
+            device so the camera and location details (such as where and when it was taken) are removed;
+            the hole positions you confirmed; the target type, bullet size and the calibration figures
+            needed to place the holes on the photo; and the month it was submitted.
+          </p>
+          <p>
+            <strong>What we don't receive:</strong> your name, email, account, club, program, coaches,
+            workout, notes, or the exact date and time. A contribution isn't linked to your account in
+            our database, and nothing in it identifies you.
+          </p>
+          <p>
+            <strong>Because it's anonymous, we can't find it again.</strong> We can't tell which
+            contribution is yours, so we can't remove or withdraw one later. Your own copy of the
+            target stays private and you can still delete it, as usual. Please only contribute a target
+            whose photo shows nothing you wouldn't want kept: no names written on the target, and no
+            people or other identifying detail in the picture.
+          </p>
+          <p>
+            <strong>Who can see it:</strong> only the person who runs the app. Not coaches, clubs, other
+            athletes or personal coaches. Like any request made over the internet, a submission passes
+            through our hosting provider, whose routine technical logs may record that your account
+            made a request. We don't use them to connect a contribution to a person, and the
+            contribution itself carries no account information.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            <strong>What it's used for:</strong> testing, and improving the way the app finds holes in
+            target photos, including training detection models that then run on people's devices. We
+            don't sell contributions or share them with clubs or coaches. If you're under 18, please
+            check with a parent or guardian before contributing.
+          </p>
+        </div>
+
         <h2>Where it's stored</h2>
         <p>
           Account data, training records, and target photos are stored with Supabase (Postgres
-          database and file storage). Some settings — like your calibration values and whether
+          database and file storage), including anonymous contributions, which are kept in a
+          separate table that no coach, club or athlete can read. Some settings — like your calibration values and whether
           automatic scoring is on — are kept only in your browser's local storage and aren't sent to
           us at all.
         </p>
@@ -167,6 +214,7 @@ export function PrivacyPolicyView() {
             <li style={{ marginBottom: 5 }}>Export everything you've logged as a JSON file, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Invite a personal coach, cancel an unused invite, or remove a personal coach at any time, from Profile.</li>
             <li style={{ marginBottom: 5 }}>Remove anything you've posted to a club's feed, at any time, from the feed itself.</li>
+            <li style={{ marginBottom: 5 }}>Decide, target by target, whether to contribute one anonymously. It's never automatic, and a contribution can't be withdrawn later because it isn't linked to you.</li>
             <li style={{ marginBottom: 5 }}>Leave just a program while staying in the club, or leave the club altogether, from Profile. Leaving a club stops any new sharing with its coaches and removes what you posted to its feed.</li>
             <li>Sign out, which ends your session without deleting your data.</li>
           </ul>

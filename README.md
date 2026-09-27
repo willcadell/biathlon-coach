@@ -101,6 +101,17 @@ trading card (Elite, Sharp, Solid or Logged) with a QR code back to the app, dra
 in the browser and sent through the phone's share sheet or downloaded — or *Post
 to* a club's feed.
 
+**Contributes targets anonymously.** From a scored target's page in History, an
+athlete can contribute it to improve hole detection. The browser re-encodes the photo
+at up to 1400 px (which drops camera and location metadata) and sends it with the
+confirmed hole positions and calibration through `submit_training_target`, which
+stores them in `training_targets` with no account, bout, workout or timestamp — only
+the month. That table has no policies and no client grants, so it can only be read
+from the SQL editor or CLI. Because nothing identifies the contributor, a submission
+can't be withdrawn later, and the app says so before it's sent. Dev-mode (test) data
+is refused, and a duplicate photo is dropped by hash. Export for training with
+`select id, encode(photo,'base64'), shots ... from training_targets`.
+
 **Belongs to a club.** Enter a club's or a program's join code in Profile. Before
 joining, a notice says what you're agreeing to — the club's coaches will see your
 training — and asks for consent, which matters where athletes are minors. An
