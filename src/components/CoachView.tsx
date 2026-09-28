@@ -463,6 +463,47 @@ function RosterGroup({
         <p className="meta">No athletes here yet.</p>
       ) : (
         <>
+          <div className="stats">
+            <div className="stat">
+              <div className="k">Precision</div>
+              <div className="v">{precisionPct(group.bouts)}</div>
+              <div className="n">{group.bouts.length} bout{group.bouts.length === 1 ? '' : 's'}</div>
+            </div>
+            <div className="stat">
+              <div className="k">Metal</div>
+              <div className="v">{metalPct(group.metalBouts)}</div>
+              <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+
+          {metal.length > 0 && (
+            <div className="stats" style={{ marginTop: 8 }}>
+              {metal.map((s) => (
+                <div className="stat" key={s.position}>
+                  <div className="k">{s.position}</div>
+                  <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
+                  <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {targets.length > 0 && (
+            <>
+              <p className="meta" style={{ marginTop: 8, marginBottom: 4 }}>Which targets get missed</p>
+              <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                {targets.map((t) => (
+                  <div className="stat" key={t.target}>
+                    <div className="k">{t.target}</div>
+                    <div className="v">{t.missRatePct}<small>%</small></div>
+                    <div className="n">{t.misses}/{t.bouts}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <p className="meta" style={{ marginTop: 16, marginBottom: 4 }}>Athletes</p>
           {group.athletes.map((a) => (
             <div key={a.athleteId} className="boutrow" style={{ cursor: 'default' }}>
               <button
@@ -518,46 +559,6 @@ function RosterGroup({
               )}
             </div>
           ))}
-
-          <div className="stats" style={{ marginTop: 10 }}>
-            <div className="stat">
-              <div className="k">Precision</div>
-              <div className="v">{precisionPct(group.bouts)}</div>
-              <div className="n">{group.bouts.length} bout{group.bouts.length === 1 ? '' : 's'}</div>
-            </div>
-            <div className="stat">
-              <div className="k">Metal</div>
-              <div className="v">{metalPct(group.metalBouts)}</div>
-              <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
-            </div>
-          </div>
-
-          {metal.length > 0 && (
-            <div className="stats" style={{ marginTop: 8 }}>
-              {metal.map((s) => (
-                <div className="stat" key={s.position}>
-                  <div className="k">{s.position}</div>
-                  <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
-                  <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {targets.length > 0 && (
-            <>
-              <p className="meta" style={{ marginTop: 8, marginBottom: 4 }}>Which targets get missed</p>
-              <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                {targets.map((t) => (
-                  <div className="stat" key={t.target}>
-                    <div className="k">{t.target}</div>
-                    <div className="v">{t.missRatePct}<small>%</small></div>
-                    <div className="n">{t.misses}/{t.bouts}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </>
       )}
     </>
@@ -651,20 +652,10 @@ function ClubRosterSection({
   }
 
   if (athletes === null) {
-    return (
-      <>
-        <h2>Roster</h2>
-        <p className="meta">Loading…</p>
-      </>
-    )
+    return <p className="meta">Loading…</p>
   }
   if (athletes.length === 0) {
-    return (
-      <>
-        <h2>Roster</h2>
-        <p className="meta">Nobody's joined with this club's code yet.</p>
-      </>
-    )
+    return <p className="meta">Nobody's joined with this club's code yet.</p>
   }
 
   const byProgram = new Map<string, RosterAthlete[]>()
@@ -678,13 +669,10 @@ function ClubRosterSection({
   // as the roster looked before programs existed.
   if (programs.length === 0) {
     return (
-      <>
-        <h2>Roster</h2>
-        <RosterGroup
-          group={{ key: NO_PROGRAM_KEY, label: '', athletes, ...(groupData.get(NO_PROGRAM_KEY) ?? emptyData) }}
-          onOpenAthlete={setOpenAthleteId}
-        />
-      </>
+      <RosterGroup
+        group={{ key: NO_PROGRAM_KEY, label: '', athletes, ...(groupData.get(NO_PROGRAM_KEY) ?? emptyData) }}
+        onOpenAthlete={setOpenAthleteId}
+      />
     )
   }
 
@@ -707,7 +695,6 @@ function ClubRosterSection({
 
   return (
     <>
-      <h2>Roster</h2>
       {actionError && <div className="notice error">{actionError}</div>}
       {groups.map((g) => (
         <CollapsibleSection
@@ -866,7 +853,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
           <>
             <button className="link" onClick={() => setOpenClubId(null)}>← All clubs</button>
             <hr className="detail-rule" />
-            <ClubTitle club={openClub} />
+            <ClubTitle club={openClub} suffix="Roster" />
           </>
         )}
         <ClubRosterSection club={openClub} openAthleteId={rosterAthleteId} setOpenAthleteId={setRosterAthleteId} />
@@ -905,7 +892,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
 
 /** A club page's title: the club's logo, its name, and a megaphone for
  *  posting an announcement to the club's feed. */
-function ClubTitle({ club }: { club: Club }) {
+function ClubTitle({ club, suffix }: { club: Club; suffix?: string }) {
   const [announcing, setAnnouncing] = useState(false)
   // Bumped after a post so the title's megaphone shakes: keyed, so it plays
   // again for a second announcement.
@@ -914,7 +901,7 @@ function ClubTitle({ club }: { club: Club }) {
     <>
       <h1 style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
         <ClubLogo logoPath={club.logoPath} size={34} />
-        <span style={{ minWidth: 0 }}>{club.name}</span>
+        <span style={{ minWidth: 0 }}>{club.name}{suffix && ` ${suffix}`}</span>
         <button
           className="link" style={{ flex: 'none', display: 'inline-flex' }}
           aria-label={`Post an announcement to ${club.name}`} title="Announce to the club"
