@@ -490,13 +490,16 @@ function RosterGroup({
 
           {targets.length > 0 && (
             <>
-              <p className="meta" style={{ marginTop: 8, marginBottom: 4 }}>Which targets get missed</p>
+              <h3 style={{ marginTop: 16, marginBottom: 4 }}>Which targets get hit</h3>
+              <p className="meta" style={{ marginTop: 0 }}>
+                Hit rate per target across the whole group, alpha to echo, left to right downrange.
+              </p>
               <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
                 {targets.map((t) => (
                   <div className="stat" key={t.target}>
                     <div className="k">{t.target}</div>
-                    <div className="v">{t.missRatePct}<small>%</small></div>
-                    <div className="n">{t.misses}/{t.bouts}</div>
+                    <div className="v">{t.hitRatePct}<small>%</small></div>
+                    <div className="n">{t.hits}/{t.bouts}</div>
                   </div>
                 ))}
               </div>
