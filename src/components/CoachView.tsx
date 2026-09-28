@@ -10,7 +10,7 @@ import {
   type Club, type ClubMatch, type CoCoach, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
-import { AnalysisView } from './AnalysisView'
+import { AnalysisView, CollapsibleSection } from './AnalysisView'
 import { ClubLogo } from './ClubLogo'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
@@ -459,7 +459,6 @@ function RosterGroup({
 
   return (
     <>
-      {group.label && <h3 style={{ marginTop: 20 }}>{group.label}</h3>}
       {group.athletes.length === 0 ? (
         <p className="meta">No athletes here yet.</p>
       ) : (
@@ -711,12 +710,16 @@ function ClubRosterSection({
       <h2>Roster</h2>
       {actionError && <div className="notice error">{actionError}</div>}
       {groups.map((g) => (
-        <RosterGroup
-          key={g.key} group={g} onOpenAthlete={setOpenAthleteId}
-          onRemove={g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
-          programs={g.key === NO_PROGRAM_KEY ? programs : undefined}
-          onAssign={g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
-        />
+        <CollapsibleSection
+          key={g.key} title={`${g.label} (${g.athletes.length})`} defaultOpen={false}
+        >
+          <RosterGroup
+            group={g} onOpenAthlete={setOpenAthleteId}
+            onRemove={g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
+            programs={g.key === NO_PROGRAM_KEY ? programs : undefined}
+            onAssign={g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
+          />
+        </CollapsibleSection>
       ))}
     </>
   )

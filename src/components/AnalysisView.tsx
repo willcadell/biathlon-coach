@@ -90,7 +90,7 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  itself stays plain text, not link-styled. headerExtra (a filter, a
  *  window selector) only shows while the section is open — it has nothing
  *  to act on once its content is hidden. */
-function CollapsibleSection({
+export function CollapsibleSection({
   title, defaultOpen = true, headerExtra, children,
 }: {
   title: string
