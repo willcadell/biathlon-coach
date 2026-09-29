@@ -42,15 +42,17 @@ function metalPct(bouts: MetalBout[]): string {
 }
 
 /** Cumulative across every athlete a group's workouts were fetched for —
- *  the present calendar month only, in whoever's device is looking. */
-function dryfireMinutesThisMonth(workouts: Workout[]): number {
+ *  the present calendar month only, in whoever's device is looking. Names
+ *  that month too, so "so far" reads against something concrete. */
+function dryfireMinutesThisMonth(workouts: Workout[]): { minutes: number; month: string } {
   const now = new Date()
-  return workouts
+  const minutes = workouts
     .filter((w) => {
       const d = new Date(w.startedAt)
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     })
     .reduce((n, w) => n + w.dryfireMinutes, 0)
+  return { minutes, month: now.toLocaleDateString(undefined, { month: 'long' }) }
 }
 
 /** The club's own name and branding — shown to everyone on the club,
@@ -468,6 +470,7 @@ function RosterGroup({
 }) {
   const targets = targetStats(group.metalBouts)
   const metal = metalStats(group.metalBouts)
+  const dryfire = dryfireMinutesThisMonth(group.workouts)
   const [pickingId, setPickingId] = useState<string | null>(null)
 
   return (
@@ -489,8 +492,8 @@ function RosterGroup({
             </div>
             <div className="stat">
               <div className="k">Dry-fire</div>
-              <div className="v">{dryfireMinutesThisMonth(group.workouts)}<small>min</small></div>
-              <div className="n">this month, whole group</div>
+              <div className="v">{dryfire.minutes}<small>min</small></div>
+              <div className="n">{dryfire.month}, so far</div>
             </div>
           </div>
 
