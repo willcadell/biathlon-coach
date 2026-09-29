@@ -5,6 +5,7 @@ import {
 } from '../lib/personalCoach'
 import { errorMessage } from '../lib/errors'
 import { Dropdown } from './Dropdown'
+import { Help } from './Help'
 import { TrashIcon } from './icons'
 
 const mono = { fontFamily: 'var(--mono, monospace)', letterSpacing: '0.08em' } as const
@@ -80,30 +81,33 @@ export function PersonalCoachesCard() {
 
   return (
     <>
-      <h2>Personal coaches</h2>
-      <div className="card">
-        <p className="meta" style={{ marginTop: 0 }}>
+      <h2>
+        Personal coaches
+        <Help>
           A personal coach is one person who follows you — a parent, or a coach outside your club. They
           can see your sessions, analysis and posts, and announcements from your club's coaches. They
           can't see the rest of your club's feed, or your target photos. You choose who, and you can
           remove them at any time.
-        </p>
+        </Help>
+      </h2>
+      {error && <div className="notice error">{error}</div>}
 
-        {error && <div className="notice error">{error}</div>}
-
-        {(coaches ?? []).map((c) => (
-          <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ flex: 1, minWidth: 0 }}>{c.displayName || 'Unnamed coach'}</span>
-            <button
-              className="link danger" style={{ flex: 'none' }}
-              aria-label={`Remove ${c.displayName || 'this coach'} as a personal coach`} title="Remove personal coach"
-              onClick={() => void remove(c)}
-            >
-              <TrashIcon />
-            </button>
-          </div>
-        ))}
-      </div>
+      {coaches && coaches.length > 0 && (
+        <div className="card">
+          {coaches.map((c) => (
+            <div key={c.coachId} className="row" style={{ alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ flex: 1, minWidth: 0 }}>{c.displayName || 'Unnamed coach'}</span>
+              <button
+                className="link danger" style={{ flex: 'none' }}
+                aria-label={`Remove ${c.displayName || 'this coach'} as a personal coach`} title="Remove personal coach"
+                onClick={() => void remove(c)}
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Dropdown title="Invite a personal coach">
         <div className="card">

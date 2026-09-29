@@ -11,6 +11,7 @@ import {
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
 import { AnalysisView, CollapsibleSection } from './AnalysisView'
+import { Help } from './Help'
 import { ClubLogo } from './ClubLogo'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
@@ -511,10 +512,10 @@ function RosterGroup({
 
           {targets.length > 0 && (
             <>
-              <h3 style={{ marginTop: 16, marginBottom: 4 }}>Which targets get hit</h3>
-              <p className="meta" style={{ marginTop: 0 }}>
-                Hit rate per target across the whole group, alpha to echo, left to right downrange.
-              </p>
+              <h3 style={{ marginTop: 16, marginBottom: 4 }}>
+                Which targets get hit
+                <Help>Hit rate per target across the whole group, alpha to echo, left to right downrange.</Help>
+              </h3>
               <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
                 {targets.map((t) => (
                   <div className="stat" key={t.target}>
@@ -999,8 +1000,8 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
       <div className="card">
         <p style={{ margin: 0 }}>
           Join code <strong style={{ fontFamily: 'var(--mono, monospace)', letterSpacing: '0.05em' }}>{club.joinCode}</strong>
+          <Help>Give this to an athlete — they enter it in their own Profile to join.</Help>
         </p>
-        <p className="meta" style={{ marginBottom: 0 }}>Give this to an athlete — they enter it in their own Profile to join.</p>
       </div>
 
       <h2>Coaches</h2>

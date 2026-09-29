@@ -367,7 +367,10 @@ details:not(.help) > summary::after {
 }
 details:not(.help)[open] > summary::after { transform: rotate(180deg); }
 
-details.help { display: inline-block; margin-left: 6px; vertical-align: text-top; }
+/* A "?" that reveals its text as a floating card anchored underneath it —
+   an overlay, like the rest of the app's popovers and modals, rather than
+   pushing the page's own layout down the way a plain <details> would. */
+details.help { position: relative; display: inline-block; margin-left: 6px; vertical-align: text-top; }
 details.help summary {
   list-style: none; cursor: pointer; font-weight: 700; font-size: 11px; line-height: 1;
   width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border);
@@ -375,10 +378,13 @@ details.help summary {
 }
 details.help summary::-webkit-details-marker { display: none; }
 details.help summary::marker { content: ''; }
-details.help[open] summary { color: var(--text-primary); border-color: var(--text-muted); }
+details.help[open] summary { color: var(--raised); background: var(--text-primary); border-color: var(--text-primary); }
 details.help p {
-  font-size: 12px; color: var(--text-secondary); margin: 8px 0 0; max-width: 340px;
-  font-weight: 400;
+  position: absolute; z-index: 25; top: calc(100% + 6px); left: 0;
+  background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 10px 12px;
+  width: max-content; max-width: min(280px, calc(100vw - 64px));
+  font-size: 12px; line-height: 1.4; color: var(--text-secondary); font-weight: 400;
 }
 .spinner {
   width: 18px; height: 18px; border-radius: 50%;

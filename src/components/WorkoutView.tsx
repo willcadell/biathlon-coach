@@ -10,6 +10,7 @@ import { CaptureView } from './CaptureView'
 import { FeedView } from './FeedView'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
+import { Help } from './Help'
 import { MiniTargets } from './MiniTargets'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
@@ -571,15 +572,14 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card">
-        <h2 style={{ marginTop: 0 }}>Start a combo</h2>
-        <p className="meta">
-          Every metal bout you add from here joins this combo, until you end it.
-        </p>
-        <span style={{ display: 'block', marginBottom: 6 }}>Target Heart Rate Zone</span>
-        <p className="meta" style={{ marginTop: 0 }}>
-          Optional — it's just a number for your own reference, so pick whatever your own zones mean to
-          you.
-        </p>
+        <h2 style={{ marginTop: 0 }}>
+          Start a combo
+          <Help>Every metal bout you add from here joins this combo, until you end it.</Help>
+        </h2>
+        <span style={{ display: 'block', marginBottom: 6 }}>
+          Target Heart Rate Zone
+          <Help>Optional — it's just a number for your own reference, so pick whatever your own zones mean to you.</Help>
+        </span>
         <div className="seg">
           {ZONES.map((z) => {
             const active = zone === z
@@ -588,7 +588,8 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
               <button
                 key={z}
                 aria-pressed={active}
-                onClick={() => setZone(z)}
+                aria-label={active ? `Zone ${z}, tap to remove` : `Zone ${z}`}
+                onClick={() => setZone(active ? null : z)}
                 style={active
                   ? { background: color, borderColor: color, color: '#fff', fontWeight: 600 }
                   : { borderColor: color, color }}
@@ -598,9 +599,6 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
             )
           })}
         </div>
-        {zone !== null && (
-          <button className="link" style={{ marginTop: 8 }} onClick={() => setZone(null)}>No target zone</button>
-        )}
         <div className="row" style={{ marginTop: 14 }}>
           <button className="secondary" onClick={onCancel}>Cancel</button>
           <button className="primary" onClick={() => onStart(zone)}>Start</button>
@@ -665,10 +663,12 @@ function WorkoutAnalysis({ bouts, workout, settings }: { bouts: Bout[]; workout:
 
   return (
     <>
-      <h2>Workout analysis</h2>
+      <h2>
+        Workout analysis
+        <Help>It's a running read, not a verdict — it sharpens as you log more.</Help>
+      </h2>
       <p className="meta" style={{ marginTop: -6 }}>
-        From the {bouts.length} precision bout{bouts.length === 1 ? '' : 's'} logged this session — a
-        running read, not a verdict. It sharpens as you log more.
+        From the {bouts.length} precision bout{bouts.length === 1 ? '' : 's'} logged this session.
       </p>
       {findings.length === 0 ? (
         <p className="meta">Nothing stands out yet.</p>
@@ -978,6 +978,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
               <div className="row" style={{ alignItems: 'center' }}>
                 <span style={{ flex: 1, fontSize: 14 }}>
                   {comboLabel(activeComboZone)} in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
+                  <Help>Every metal bout you add now joins this combo, until you end it.</Help>
                 </span>
                 <button
                   className="link" style={{ flex: 'none' }}
@@ -986,9 +987,6 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
                   End combo
                 </button>
               </div>
-              <p className="meta" style={{ marginTop: 4, marginBottom: 0 }}>
-                Every metal bout you add now joins this combo, until you end it.
-              </p>
             </div>
           ) : (
             <button className="link" style={{ marginTop: 10 }} onClick={() => setStartingCombo(true)}>

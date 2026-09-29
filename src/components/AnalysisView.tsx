@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
+import { Help } from './Help'
 import { ChevronIcon } from './icons'
-import { DISCS_PER_METAL_BOUT, hitsOf, missCount, targetStats } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetStats } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
@@ -273,7 +274,16 @@ export function AnalysisView({
           </div>
         )}
 
-        {recent.length > 0 && <h3 style={{ marginTop: 20 }}>What your groups are saying</h3>}
+        {recent.length > 0 && (
+          <h3 style={{ marginTop: 20 }}>
+            What your groups are saying
+            <Help>
+              This reads your target photos and nothing else. It cannot see your position, your
+              breathing or your skis, and it is no substitute for a coach watching you shoot — but it
+              will tell you which question to ask one.
+            </Help>
+          </h3>
+        )}
         {recent.length > 0 && (
           <p className="lede" style={{ marginTop: -6 }}>
             Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'} —
@@ -298,17 +308,17 @@ export function AnalysisView({
 
         {plan.length > 0 && (
           <>
-            <h3 style={{ marginTop: 20 }}>Your next two weeks</h3>
-            <p className="lede">
-              In order. The first one or two matter most — doing all six badly is worse than doing two
-              properly.
-            </p>
-            <p className="meta" style={{ marginTop: -10 }}>
-              Keep a session to 15–30 minutes and five to seven variations with one clear focus, not a
-              long list. Run each rep until it holds steady — usually well under a minute — and if it
-              never settles after a few tries, it's too hard today; back off rather than force it. Close
-              every session with a couple of calm dry-fire clips under normal conditions.
-            </p>
+            <h3 style={{ marginTop: 20 }}>
+              Your next two weeks
+              <Help>
+                In order — the first one or two matter most, doing all six badly is worse than doing two
+                properly. Keep a session to 15–30 minutes and five to seven variations with one clear
+                focus, not a long list. Run each rep until it holds steady — usually well under a minute
+                — and if it never settles after a few tries, it's too hard today; back off rather than
+                force it. Close every session with a couple of calm dry-fire clips under normal
+                conditions.
+              </Help>
+            </h3>
             {plan.map(({ drill, reason }, i) => (
               <div key={drill.id} className="card">
                 <div className="badge" style={{ marginBottom: 4 }}>
@@ -330,27 +340,21 @@ export function AnalysisView({
           </>
         )}
 
-        {recent.length > 0 && (
-          <p className="meta" style={{ marginTop: 20 }}>
-            This reads your target photos and nothing else. It cannot see your position, your breathing
-            or your skis, and it is no substitute for a coach watching you shoot — but it will tell you
-            which question to ask one.
-          </p>
-        )}
-
-        <h3 style={{ marginTop: 20 }}>Score over time</h3>
-        <p className="lede">
-          Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.
-        </p>
+        <h3 style={{ marginTop: 20 }}>
+          Score over time
+          <Help>Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.</Help>
+        </h3>
         <div className="card">
           <TrendChart bouts={bouts} workouts={workouts} metric="score" />
         </div>
 
-        <h3>Group size over time</h3>
-        <p className="lede">
-          Score says how you did. Group size says whether the shooting or the sight was
-          responsible, because a group can tighten while the score stays flat.
-        </p>
+        <h3>
+          Group size over time
+          <Help>
+            Score says how you did. Group size says whether the shooting or the sight was responsible,
+            because a group can tighten while the score stays flat.
+          </Help>
+        </h3>
         <div className="card">
           <TrendChart bouts={bouts} workouts={workouts} metric="group" />
         </div>
@@ -372,12 +376,22 @@ export function AnalysisView({
               const active = typeof f === 'object'
                 ? typeof metalFilter === 'object' && metalFilter.zone === f.zone
                 : metalFilter === f
+              // Same colour as that zone's button in the "Start a combo" dialog, so a
+              // zone reads as the same thing wherever it shows up.
+              const color = typeof f === 'object' ? ZONE_COLOR[f.zone] : undefined
               return (
                 <button
                   key={label}
                   aria-pressed={active}
                   onClick={() => setMetalFilter(f)}
-                  style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none' }}
+                  style={{
+                    padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none',
+                    ...(color
+                      ? active
+                        ? { background: color, borderColor: color, color: '#fff' }
+                        : { borderColor: color, color }
+                      : {}),
+                  }}
                 >
                   {label}
                 </button>

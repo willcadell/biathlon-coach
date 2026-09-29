@@ -7,6 +7,7 @@ import { clearImages, exportAll } from '../lib/db'
 import { DRILLS } from '../lib/training'
 import type { Contribution } from '../lib/contribute'
 import { ContributeCard } from './ContributeChoice'
+import { Help } from './Help'
 
 interface Props {
   settings: Settings
@@ -229,7 +230,14 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
 
       <ContributeCard value={contribution} onChange={onContributionChange} />
 
-      <h2>Your data</h2>
+      <h2>
+        Your data
+        <Help>
+          Photos are nearly all of the space used. Once a bout is scored the shot positions are the
+          record, so deleting the pictures costs you nothing but the evidence. Delete individual bouts
+          from History with the Select button.
+        </Help>
+      </h2>
       <div className="card">
         <p>
           {boutCount} bout{boutCount === 1 ? '' : 's'} and their photos are stored in your account, not
@@ -249,11 +257,6 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
         >
           Delete all photos, keep the scores
         </button>
-        <p className="meta" style={{ marginTop: 8, marginBottom: 0 }}>
-          Photos are nearly all of the space used. Once a bout is scored the shot positions are the
-          record, so deleting the pictures costs you nothing but the evidence. Delete individual
-          bouts from History with the Select button.
-        </p>
       </div>
     </>
   )
