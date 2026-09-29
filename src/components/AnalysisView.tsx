@@ -372,7 +372,10 @@ export function AnalysisView({
                 ...presentZones.map((zone) => ({ zone })),
               ] satisfies MetalFilter[]
             ).map((f) => {
-              const label = typeof f === 'object' ? `Zone ${f.zone}` : f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'
+              // Short label on the button itself (room is tight with a zone chip per
+              // zone in use), full word for anyone using a screen reader.
+              const fullLabel = typeof f === 'object' ? `Zone ${f.zone}` : f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'
+              const label = typeof f === 'object' ? `Z${f.zone}` : fullLabel
               const active = typeof f === 'object'
                 ? typeof metalFilter === 'object' && metalFilter.zone === f.zone
                 : metalFilter === f
@@ -381,8 +384,9 @@ export function AnalysisView({
               const color = typeof f === 'object' ? ZONE_COLOR[f.zone] : undefined
               return (
                 <button
-                  key={label}
+                  key={fullLabel}
                   aria-pressed={active}
+                  aria-label={fullLabel}
                   onClick={() => setMetalFilter(f)}
                   style={{
                     padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none',
