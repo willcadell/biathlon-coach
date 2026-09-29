@@ -9,7 +9,8 @@
     "preview": "vite preview --host",
     "test": "esbuild test/logic.ts --bundle --format=esm --platform=node --log-level=error --outfile=node_modules/.cache/logic.mjs && node node_modules/.cache/logic.mjs",
     "typecheck": "tsc -b",
-    "cv-check": "esbuild test/cv-check.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-check.mjs && node node_modules/.cache/cv-check.mjs"
+    "cv-check": "esbuild test/cv-check.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-check.mjs && node node_modules/.cache/cv-check.mjs",
+    "cv-progress": "esbuild test/cv-progress.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-progress.mjs && node node_modules/.cache/cv-progress.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
