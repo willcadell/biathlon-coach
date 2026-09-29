@@ -41,6 +41,18 @@ function metalPct(bouts: MetalBout[]): string {
   return `${Math.round(((shots - misses) / shots) * 100)}%`
 }
 
+/** Cumulative across every athlete a group's workouts were fetched for —
+ *  the present calendar month only, in whoever's device is looking. */
+function dryfireMinutesThisMonth(workouts: Workout[]): number {
+  const now = new Date()
+  return workouts
+    .filter((w) => {
+      const d = new Date(w.startedAt)
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    })
+    .reduce((n, w) => n + w.dryfireMinutes, 0)
+}
+
 /** The club's own name and branding — shown to everyone on the club,
  *  editable only by its admin coach. A logo is resized client-side before
  *  it ever reaches storage; a rename goes through rename_club so a
@@ -438,6 +450,7 @@ interface RosterGroupData {
   athletes: RosterAthlete[]
   bouts: Bout[]
   metalBouts: MetalBout[]
+  workouts: Workout[]
 }
 
 function RosterGroup({
@@ -463,7 +476,7 @@ function RosterGroup({
         <p className="meta">No athletes here yet.</p>
       ) : (
         <>
-          <div className="stats">
+          <div className="stats three">
             <div className="stat">
               <div className="k">Precision</div>
               <div className="v">{precisionPct(group.bouts)}</div>
@@ -473,6 +486,11 @@ function RosterGroup({
               <div className="k">Metal</div>
               <div className="v">{metalPct(group.metalBouts)}</div>
               <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
+            </div>
+            <div className="stat">
+              <div className="k">Dry-fire</div>
+              <div className="v">{dryfireMinutesThisMonth(group.workouts)}<small>min</small></div>
+              <div className="n">this month, whole group</div>
             </div>
           </div>
 
@@ -578,7 +596,7 @@ function ClubRosterSection({
 }) {
   const [athletes, setAthletes] = useState<RosterAthlete[] | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
-  const [groupData, setGroupData] = useState<Map<string, { bouts: Bout[]; metalBouts: MetalBout[] }>>(new Map())
+  const [groupData, setGroupData] = useState<Map<string, { bouts: Bout[]; metalBouts: MetalBout[]; workouts: Workout[] }>>(new Map())
   const [reloadKey, setReloadKey] = useState(0)
   const [actionError, setActionError] = useState('')
 
@@ -626,8 +644,8 @@ function ClubRosterSection({
 
         const entries = await Promise.all(
           [...idsByKey.entries()].map(async ([key, ids]) => {
-            const [b, m] = await Promise.all([rosterBouts(ids), rosterMetalBouts(ids)])
-            return [key, { bouts: b, metalBouts: m }] as const
+            const [b, m, w] = await Promise.all([rosterBouts(ids), rosterMetalBouts(ids), rosterWorkouts(ids)])
+            return [key, { bouts: b, metalBouts: m, workouts: w }] as const
           }),
         )
         if (cancelled) return
@@ -666,7 +684,7 @@ function ClubRosterSection({
     const key = a.programId ?? NO_PROGRAM_KEY
     byProgram.set(key, [...(byProgram.get(key) ?? []), a])
   }
-  const emptyData = { bouts: [] as Bout[], metalBouts: [] as MetalBout[] }
+  const emptyData = { bouts: [] as Bout[], metalBouts: [] as MetalBout[], workouts: [] as Workout[] }
 
   // No programs at this club at all yet — one flat, unlabelled group, same
   // as the roster looked before programs existed.
