@@ -354,6 +354,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             </button>
           </div>
         </Dropdown>
+        <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '24px 0 20px' }} />
         <p className="meta" style={{ textAlign: 'center' }}>
           <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
           {' · '}
@@ -517,6 +518,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           </button>
         </div>
       </Dropdown>
+      <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '24px 0 20px' }} />
       <p className="meta" style={{ textAlign: 'center' }}>
         <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
         {' · '}
