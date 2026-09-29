@@ -108,3 +108,20 @@ export function groupEntries(entries: WorkoutEntry[]): EntryGroup[] {
 
 /** "Zone 2 Combo" once a target zone was set when it started, else "Combo". */
 export const comboLabel = (targetZone: number | null): string => (targetZone ? `Zone ${targetZone} Combo` : 'Combo')
+
+/** A combo's target heart-rate zone: five choices, not the wider 1-8 the
+ *  database still allows (older data, or a value set outside the app, may
+ *  still hold one — comboLabel and the zone filters handle that fine, this
+ *  is only the set the "Start a combo" dialog offers). */
+export const ZONES = [1, 2, 3, 4, 5] as const
+
+/** One colour per zone, low (calm) to high (hardest) — reuses the app's
+ *  existing theme-aware tokens rather than fixed hex, so this still reads
+ *  correctly in dark mode. */
+export const ZONE_COLOR: Record<number, string> = {
+  1: 'var(--text-muted)', // grey
+  2: 'var(--series-1)', // blue
+  3: 'var(--series-3)', // green
+  4: 'var(--series-2)', // orange
+  5: 'var(--critical)', // red
+}

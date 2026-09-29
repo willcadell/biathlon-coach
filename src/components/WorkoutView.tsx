@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, METAL_TARGETS, allMissed, comboLabel, groupEntries, hitCount, hitsOf, missCount } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, groupEntries, hitCount, hitsOf, missCount } from '../lib/metal'
 import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
@@ -580,12 +580,23 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
           Optional — it's just a number for your own reference, so pick whatever your own zones mean to
           you.
         </p>
-        <div className="seg" style={{ flexWrap: 'wrap' }}>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((z) => (
-            <button key={z} aria-pressed={zone === z} onClick={() => setZone(z)} style={{ minWidth: '22%' }}>
-              {z}
-            </button>
-          ))}
+        <div className="seg">
+          {ZONES.map((z) => {
+            const active = zone === z
+            const color = ZONE_COLOR[z]
+            return (
+              <button
+                key={z}
+                aria-pressed={active}
+                onClick={() => setZone(z)}
+                style={active
+                  ? { background: color, borderColor: color, color: '#fff', fontWeight: 600 }
+                  : { borderColor: color, color }}
+              >
+                {z}
+              </button>
+            )
+          })}
         </div>
         {zone !== null && (
           <button className="link" style={{ marginTop: 8 }} onClick={() => setZone(null)}>No target zone</button>
