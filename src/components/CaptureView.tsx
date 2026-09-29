@@ -62,8 +62,20 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
 
   async function onFile(picked: File) {
     setError('')
-    const stored = await forStorage(picked)
-    const ratio = await aspectOf(stored)
+    // Everything from here through the initial decode used to run with no
+    // error handling at all — an undecodable photo (HEIC that didn't convert,
+    // a corrupt file) threw an uncaught InvalidStateError from
+    // createImageBitmap() and just left the screen sitting there looking like
+    // nothing had happened, with nothing in the UI to say why.
+    let stored: Blob
+    let ratio: number
+    try {
+      stored = await forStorage(picked)
+      ratio = await aspectOf(stored)
+    } catch {
+      setError("That photo couldn't be read. Try taking a new one instead of choosing an existing one, or pick a different photo.")
+      return
+    }
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     urlRef.current = URL.createObjectURL(stored)
     setFile(stored)
@@ -75,14 +87,20 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       // No API key means no automatic hole-reading, but the ring itself
       // doesn't need one — it's found with plain image processing, not
       // Claude, so the athlete still gets it placed correctly for free.
-      const located = await locateBlackInBlob(stored)
-      setBulls([located ?? seedBull(ratio)])
-      setRingDetected(located !== null)
-      setNotes(
-        located
-          ? 'No API key set, so shots were not read automatically. The ring was still found — tap in your shots.'
-          : 'No API key set, and no aiming mark was found automatically. Place the ring and tap in your shots.',
-      )
+      try {
+        const located = await locateBlackInBlob(stored)
+        setBulls([located ?? seedBull(ratio)])
+        setRingDetected(located !== null)
+        setNotes(
+          located
+            ? 'No API key set, so shots were not read automatically. The ring was still found — tap in your shots.'
+            : 'No API key set, and no aiming mark was found automatically. Place the ring and tap in your shots.',
+        )
+      } catch {
+        setBulls([seedBull(ratio)])
+        setRingDetected(false)
+        setNotes('Place the ring and tap in your shots.')
+      }
       setStage('markup')
       return
     }
@@ -288,6 +306,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
         />
       </label>
+      {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
 
       <p className="meta" style={{ marginTop: 10, textAlign: 'center' }}>
         {settings.apiKey

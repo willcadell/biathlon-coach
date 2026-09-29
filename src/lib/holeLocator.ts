@@ -59,6 +59,20 @@ const NMS_RADIUS_FACTOR = 1.3
  *  hole radius, it's wider than one hole and almost certainly an overlap. */
 const AMBIGUOUS_RADIUS_FACTOR = 2.0
 const AMBIGUOUS_DENSITY = 0.3
+
+/** The hand-set thresholds above, pulled out so test/cv-tune.ts can score
+ *  candidate values against real, athlete-confirmed contributions instead of
+ *  them only ever being guessed at. Every field is optional and defaults to
+ *  the shipped value, so calling locateHoles() with no params behaves
+ *  exactly as before — this changes nothing for the app itself. */
+export interface HoleParams {
+  minDensity?: number
+  nmsRadiusFactor?: number
+  ambiguousRadiusFactor?: number
+  ambiguousDensity?: number
+  blackMargin?: number
+  whiteMargin?: number
+}
 /** A precision bout is never more than PRECISION_SHOTS (types.ts) shots, so
  *  once there are more candidates than that, the excess is leftover noise,
  *  not real holes — cut it rather than hand the athlete a screen full of
@@ -189,7 +203,14 @@ export function locateHoles(
    *  from `ringRadii(face)` divided by `face.blackMm / 2`. Optional: pass
    *  nothing to skip the ring-label check entirely. */
   ringRadiiFrac: number[] = [],
+  params: HoleParams = {},
 ): HoleCandidate[] {
+  const minDensity = params.minDensity ?? MIN_DENSITY
+  const nmsRadiusFactor = params.nmsRadiusFactor ?? NMS_RADIUS_FACTOR
+  const ambiguousRadiusFactor = params.ambiguousRadiusFactor ?? AMBIGUOUS_RADIUS_FACTOR
+  const ambiguousDensity = params.ambiguousDensity ?? AMBIGUOUS_DENSITY
+  const blackMargin = params.blackMargin ?? BLACK_MARGIN
+  const whiteMargin = params.whiteMargin ?? WHITE_MARGIN
   const { width, height } = image
   const gray = toGray(image.data, width, height)
   const insideBlack = makeInsideBlackTest(bull)
@@ -244,17 +265,17 @@ export function locateHoles(
     for (let x = 0; x < width; x++, i++) {
       if (isBlackSide[i]) {
         const localBg = localMean(blackCountI, blackSumI, x, y, blackFallback)
-        anomaly[i] = gray[i] > localBg + BLACK_MARGIN ? 1 : 0
+        anomaly[i] = gray[i] > localBg + blackMargin ? 1 : 0
       } else {
         const localBg = localMean(whiteCountI, whiteSumI, x, y, whiteFallback)
-        anomaly[i] = gray[i] < localBg - WHITE_MARGIN ? 1 : 0
+        anomaly[i] = gray[i] < localBg - whiteMargin ? 1 : 0
       }
     }
   }
 
   const integral = buildIntegral(anomaly, width, height)
   const coreR = expectedHoleRadiusPx * 0.9
-  const wideR = expectedHoleRadiusPx * AMBIGUOUS_RADIUS_FACTOR
+  const wideR = expectedHoleRadiusPx * ambiguousRadiusFactor
 
   const density = (x: number, y: number, r: number) => {
     const { sum, area } = boxQuery(integral, width, height, x, y, r)
@@ -271,14 +292,14 @@ export function locateHoles(
     for (let x = 0; x < width; x += step) {
       if (looksLikeRingLabel(x, y)) continue
       const d = density(x, y, coreR)
-      if (d >= MIN_DENSITY) peaks.push({ x, y, d })
+      if (d >= minDensity) peaks.push({ x, y, d })
     }
   }
 
   // Greedy non-max suppression: strongest peaks win, anything too close to
   // an already-accepted one is the same hole found again.
   peaks.sort((a, b) => b.d - a.d)
-  const nmsR = expectedHoleRadiusPx * NMS_RADIUS_FACTOR
+  const nmsR = expectedHoleRadiusPx * nmsRadiusFactor
   const accepted: Peak[] = []
   for (const p of peaks) {
     if (accepted.every((a) => Math.hypot(a.x - p.x, a.y - p.y) > nmsR)) accepted.push(p)
@@ -298,6 +319,6 @@ export function locateHoles(
   return ranked.map((p) => ({
     cx: p.x,
     cy: p.y,
-    ambiguous: density(p.x, p.y, wideR) >= AMBIGUOUS_DENSITY,
+    ambiguous: density(p.x, p.y, wideR) >= ambiguousDensity,
   }))
 }

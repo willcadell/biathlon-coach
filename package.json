@@ -10,7 +10,8 @@
     "test": "esbuild test/logic.ts --bundle --format=esm --platform=node --log-level=error --outfile=node_modules/.cache/logic.mjs && node node_modules/.cache/logic.mjs",
     "typecheck": "tsc -b",
     "cv-check": "esbuild test/cv-check.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-check.mjs && node node_modules/.cache/cv-check.mjs",
-    "cv-progress": "esbuild test/cv-progress.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-progress.mjs && node node_modules/.cache/cv-progress.mjs"
+    "cv-progress": "esbuild test/cv-progress.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-progress.mjs && node node_modules/.cache/cv-progress.mjs",
+    "cv-tune": "esbuild test/cv-tune.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-tune.mjs && node node_modules/.cache/cv-tune.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
