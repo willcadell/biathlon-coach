@@ -117,7 +117,7 @@ export function ShieldMinusIcon() {
 
 /** Solid shield with a person cut out of it — a filled glyph stays legible at
  *  tag size where an outline shield doesn't. */
-function AdminShield({ size }: { size: number }) {
+export function AdminShield({ size }: { size: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" width={size} height={size} aria-hidden="true">
       <path d="M12 2.5l8 3.2v5.6c0 4.8-3.3 8.6-8 10.2-4.7-1.6-8-5.4-8-10.2V5.7z M12 6.9a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z M7.3 17.2c.6-2.4 2.5-3.6 4.7-3.6s4.1 1.2 4.7 3.6z" />

@@ -9,7 +9,7 @@ import {
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
 import { CreateClub, JoinClubAsCoach } from './CoachView'
-import { AdminPill, TrashIcon } from './icons'
+import { AdminPill, AdminShield, TrashIcon } from './icons'
 import { setDevMode } from '../lib/dev'
 import { Dropdown } from './Dropdown'
 import { GoalsCard } from './GoalsCard'
@@ -421,16 +421,22 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                     </button>
                   </div>
                   {clubCoaches.some((c) => c.clubId === m.clubId) && (
-                    <p className="meta" style={{ margin: '6px 0 0', paddingLeft: 42 }}>
-                      Coaches:{' '}
-                      {clubCoaches.filter((c) => c.clubId === m.clubId).map((c, i) => (
-                        <span key={c.coachId}>
-                          {i > 0 && ', '}
+                    <div style={{ margin: '6px 0 0', paddingLeft: 42, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                      <span className="meta">Coaches </span>
+                      {clubCoaches.filter((c) => c.clubId === m.clubId).map((c) => (
+                        <span
+                          key={c.coachId} className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          title={c.isAdmin ? 'Club admin' : undefined}
+                        >
+                          {c.isAdmin && (
+                            <span role="img" aria-label="Club admin" style={{ color: 'var(--series-1)', display: 'inline-flex' }}>
+                              <AdminShield size={12} />
+                            </span>
+                          )}
                           {c.displayName || 'Unnamed coach'}
-                          {c.isAdmin && ' (admin)'}
                         </span>
                       ))}
-                    </p>
+                    </div>
                   )}
                   {m.programName && (
                     <div className="row" style={{ alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 42 }}>
