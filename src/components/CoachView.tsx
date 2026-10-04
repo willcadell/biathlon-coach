@@ -520,7 +520,7 @@ function RosterGroup({
               <div className="v">{metalPct(group.metalBouts)}</div>
               <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
             </div>
-            <div className="stat">
+            <div className="stat dryfire">
               <div className="k">Dry-fire</div>
               <div className="v">{dryfire.minutes}<small>min</small></div>
               <div className="n">{dryfire.month}, so far</div>
