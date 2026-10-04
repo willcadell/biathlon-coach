@@ -380,7 +380,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Athlete details</h2>
           <div className="card">
-            <NameField hint="Shown to a coach who adds you to their club or program." value={name} loaded={loaded} onSave={save} />
+            <NameField value={name} loaded={loaded} onSave={save} />
           </div>
 
           <h2>Your clubs</h2>

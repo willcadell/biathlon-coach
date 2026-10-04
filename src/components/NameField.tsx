@@ -11,7 +11,8 @@ import { CloseIcon, PencilIcon } from './icons'
 export function NameField({
   hint, value, loaded, onSave,
 }: {
-  hint: string
+  /** A line of explanation under the name; leave it out when the name explains itself. */
+  hint?: string
   value: string
   loaded: boolean
   onSave: (name: string) => Promise<void>
@@ -48,7 +49,7 @@ export function NameField({
             <PencilIcon />
           </button>
         </div>
-        <div className="meta" style={{ fontSize: 12, marginTop: 4 }}>{hint}</div>
+        {hint && <div className="meta" style={{ fontSize: 12, marginTop: 4 }}>{hint}</div>}
       </>
     )
   }
@@ -57,7 +58,7 @@ export function NameField({
   return (
     <>
       <label className="field" style={{ marginBottom: 0 }}>
-        <span>Name<small>{hint}</small></span>
+        <span>Name{hint && <small>{hint}</small>}</span>
         <div className="row">
           <input
             type="text" style={{ flex: 1 }} value={draft} disabled={!loaded} autoFocus={editing}
