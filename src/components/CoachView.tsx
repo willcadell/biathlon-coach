@@ -516,12 +516,12 @@ function RosterGroup({
       ) : (
         <>
           <div className="stats three">
-            <div className="stat">
+            <div className="stat range">
               <div className="k">Precision</div>
               <div className="v">{precisionPct(group.bouts)}</div>
               <div className="n">{group.bouts.length} bout{group.bouts.length === 1 ? '' : 's'}</div>
             </div>
-            <div className="stat">
+            <div className="stat range">
               <div className="k">Metal</div>
               <div className="v">{metalPct(group.metalBouts)}</div>
               <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>

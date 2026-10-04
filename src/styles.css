@@ -264,14 +264,14 @@ label.check input { width: 18px; height: 18px; accent-color: var(--series-1); }
   border-radius: 10px;
   padding: 10px 12px;
 }
-/* The dry-fire tile in the green of the Dryfire session button, so it reads as
-   the same thing wherever it shows up. */
-.stat.dryfire {
-  background: color-mix(in srgb, var(--series-3) 72%, black);
-  border-color: transparent;
-}
+/* Tiles in the colour of their session button — the blue of Range for precision
+   and metal, the green of Dryfire — so each reads as the same thing wherever
+   it shows up. */
+.stat.range { background: var(--series-1); border-color: transparent; }
+.stat.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); border-color: transparent; }
+.stat.range .k, .stat.range .v, .stat.range .v small, .stat.range .n,
 .stat.dryfire .k, .stat.dryfire .v, .stat.dryfire .v small, .stat.dryfire .n { color: #fff; }
-.stat.dryfire .k, .stat.dryfire .n { opacity: 0.85; }
+.stat.range .k, .stat.range .n, .stat.dryfire .k, .stat.dryfire .n { opacity: 0.85; }
 .stat .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .stat .v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
 .stat .v small { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
