@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Position, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount } from '../lib/metal'
 import {
   addCoachNote, assignAthleteToProgram, becomeCoach, clubCoachRequests, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, respondToCoachJoinRequest, setCoachAdmin, rosterBouts,
@@ -10,7 +10,7 @@ import {
   type Club, type ClubMatch, type CoCoach, type CoachJoinRequest, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
-import { AnalysisView, CollapsibleSection } from './AnalysisView'
+import { AnalysisView, CollapsibleSection, MetalPositionStats, seasonLabel, seasonStartYear } from './AnalysisView'
 import { Help } from './Help'
 import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
@@ -497,9 +497,15 @@ function RosterGroup({
    *  program to take someone out of. */
   onRemove?: (athlete: RosterAthlete, programName: string) => void
 }) {
-  const targets = targetStats(group.metalBouts)
   const metal = metalStats(group.metalBouts)
   const precisionPos = precisionByPosition(group.bouts)
+  // Metal shot in races this season, by the same season definition as an
+  // athlete's own Race performance, so the two read against each other.
+  const thisSeason = seasonStartYear(new Date())
+  const seasonRaceWorkouts = new Set(
+    group.workouts.filter((w) => w.raceType && seasonStartYear(new Date(w.startedAt)) === thisSeason).map((w) => w.id),
+  )
+  const seasonRaceBouts = group.metalBouts.filter((b) => seasonRaceWorkouts.has(b.workoutId))
   const dryfire = dryfireMinutesThisMonth(group.workouts)
   const [pickingId, setPickingId] = useState<string | null>(null)
 
@@ -534,7 +540,7 @@ function RosterGroup({
               {[
                 { label: 'Metal', tiles: metal.map((m) => ({ position: m.position, rate: Math.round(m.hitRatePct), bouts: m.bouts })) },
                 { label: 'Precision', tiles: precisionPos },
-              ].map((pair) => (
+              ].filter((pair) => pair.tiles.length > 0).map((pair) => (
                 <div key={pair.label} style={{ minWidth: 0 }}>
                   <p className="meta" style={{ margin: '0 0 4px' }}>{pair.label}</p>
                   <div className="stats">
@@ -551,21 +557,14 @@ function RosterGroup({
             </div>
           )}
 
-          {targets.length > 0 && (
+          {seasonRaceBouts.length > 0 && (
             <>
-              <h3 style={{ marginTop: 16, marginBottom: 4 }}>
-                Which targets get hit
-                <Help>Hit rate per target across the whole group, alpha to echo, left to right downrange.</Help>
-              </h3>
-              <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                {targets.map((t) => (
-                  <div className="stat" key={t.target}>
-                    <div className="k">{t.target}</div>
-                    <div className="v">{t.hitRatePct}<small>%</small></div>
-                    <div className="n">{t.hits}/{t.bouts}</div>
-                  </div>
-                ))}
-              </div>
+              <p className="meta" style={{ margin: '16px 0 4px' }}>Season race performance ({seasonLabel(thisSeason)})</p>
+              <MetalPositionStats
+                bouts={seasonRaceBouts}
+                races={new Set(seasonRaceBouts.map((b) => b.workoutId)).size}
+                raceWord="athlete race"
+              />
             </>
           )}
 

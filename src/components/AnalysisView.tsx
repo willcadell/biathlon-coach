@@ -38,17 +38,17 @@ function metalPct(bouts: MetalBout[]): string {
  *  October (the off-season) counts toward the upcoming season rather than
  *  the one just finished, so checking in mid-summer already reads as "this
  *  season" for the winter ahead. */
-function seasonStartYear(date: Date): number {
+export function seasonStartYear(date: Date): number {
   const month = date.getMonth() + 1
   return month <= 5 ? date.getFullYear() - 1 : date.getFullYear()
 }
 
-const seasonLabel = (startYear: number): string => `${String(startYear).slice(-2)}/${String(startYear + 1).slice(-2)}`
+export const seasonLabel = (startYear: number): string => `${String(startYear).slice(-2)}/${String(startYear + 1).slice(-2)}`
 
 /** Overall/prone/standing hit rate for one group of metal bouts — reused
  *  for the season comparison and the by-format breakdown below it, so both
  *  read identically. */
-function MetalPositionStats({ bouts, races }: { bouts: MetalBout[]; races: number }) {
+export function MetalPositionStats({ bouts, races, raceWord = 'race' }: { bouts: MetalBout[]; races: number; raceWord?: string }) {
   const prone = bouts.filter((b) => b.position === 'prone')
   const standing = bouts.filter((b) => b.position === 'standing')
   return (
@@ -56,7 +56,7 @@ function MetalPositionStats({ bouts, races }: { bouts: MetalBout[]; races: numbe
       <div className="stat">
         <div className="k">Overall</div>
         <div className="v">{metalPct(bouts)}</div>
-        <div className="n">{races} race{races === 1 ? '' : 's'}</div>
+        <div className="n">{races} {raceWord}{races === 1 ? '' : 's'}</div>
       </div>
       <div className="stat">
         <div className="k">Prone</div>
