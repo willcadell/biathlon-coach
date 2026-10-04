@@ -97,15 +97,21 @@ const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
 /** The five discs' hit rates as tiles, alpha to echo. `tone="race"` gives them
  *  the Race colour, for everything in the Race performance section. */
 function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
+  // Discs are round, so the tiles are circles. minmax(0, 1fr) and small type so
+  // five of them fit a phone's width instead of running off the right edge.
   return (
-    // minmax(0, 1fr) and tighter tiles so five of them fit a phone's width
-    // instead of running off the right edge.
     <div className="stats" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
       {stats.map((t) => (
-        <div className={`stat${tone ? ` ${tone}` : ''}`} key={t.target} style={{ padding: '8px 6px', minWidth: 0 }}>
-          <div className="k" style={{ fontSize: 10, letterSpacing: 0.02 + 'em' }}>{t.target}</div>
-          <div className="v" style={{ fontSize: 18 }}>{t.hitRatePct}<small>%</small></div>
-          <div className="n">{t.hits}/{t.bouts}</div>
+        <div
+          className={`stat${tone ? ` ${tone}` : ''}`} key={t.target}
+          style={{
+            aspectRatio: '1', borderRadius: '50%', padding: 0, minWidth: 0, textAlign: 'center',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div className="k" style={{ fontSize: 9, letterSpacing: '0.02em' }}>{t.target}</div>
+          <div className="v" style={{ fontSize: 17, marginTop: 0 }}>{t.hitRatePct}<small>%</small></div>
+          <div className="n" style={{ fontSize: 10 }}>{t.hits}/{t.bouts}</div>
         </div>
       ))}
     </div>
