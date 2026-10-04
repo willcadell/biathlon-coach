@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { CowbellIcon, DataIcon, DryfireIcon, MegaphoneIcon, RaceMedalIcon, RangeIcon } from './icons'
+import { CowbellIcon, DataIcon, DryfireIcon, MegaphoneIcon, RaceMedalIcon, RangeIcon, TrophyIcon } from './icons'
 
 type Who = 'athlete' | 'coach'
 
@@ -91,6 +91,15 @@ function AthleteFeatures() {
           photos and keep the scores, or export everything as JSON. Open a range or race workout and the
           download button beside the bin and Share saves a smaller file for other apps — that one
           workout's metal results, zero clicks and wind. Coaches can save it from an athlete's workout too.
+        </p>
+      </Feature>
+      <Feature icon={<TrophyIcon size={22} />} title="Goals">
+        <p {...p}>
+          Set a goal in your Profile: a metal hit rate, a precision score or minutes of dry-fire, and the
+          date you want to reach it by. Your progress shows on your home screen, worked out from the
+          training you log. When you hit a goal you get the confetti, and you can archive it once it's
+          finished — Live shows what's current, All goals brings the rest back. Goals are private unless
+          you share them with your coaches, and you can post an achieved goal to your club's feed.
         </p>
       </Feature>
 

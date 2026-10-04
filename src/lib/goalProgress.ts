@@ -31,6 +31,10 @@ export interface Goal {
   shared: boolean
   achievedAt: string | null
   achievedValue: number | null
+  /** Set when the athlete tidies a finished goal away; it stays in "All goals". */
+  archivedAt: string | null
+  /** Set once the athlete has been shown the confetti for achieving it. */
+  celebratedAt: string | null
 }
 
 export interface NewGoal {
@@ -110,17 +114,19 @@ export function evaluateGoal(goal: Goal, data: GoalData, today: Date = new Date(
   }
 }
 
-/** Home shows what's live, plus a finished goal for a fortnight — long enough
- *  to enjoy (or shrug off) the result, short enough not to pile up. Older ones
- *  stay in Profile, where goals are managed. */
-export function showOnHome(goal: Goal, p: GoalProgress, today: Date = new Date()): boolean {
-  if (p.status === 'active') return true
-  const FORTNIGHT = 14 * 86_400_000
-  const since = p.status === 'achieved'
-    ? (goal.achievedAt ? new Date(goal.achievedAt) : today)
-    : new Date(`${goal.endsOn}T23:59:59`) // no zone: read as the athlete's local end of day
-  return today.getTime() - since.getTime() < FORTNIGHT
-}
+/** Live goals are everything not archived: still being worked on, or finished
+ *  and not yet tidied away. "All" adds the archived ones back. */
+export type GoalFilter = 'live' | 'all'
+
+export const goalsFor = <T extends { g: Goal }>(rows: T[], filter: GoalFilter): T[] =>
+  filter === 'all' ? rows : rows.filter(({ g }) => !g.archivedAt)
+
+/** Only a finished goal — met, or past its end date — can be archived. */
+export const canArchive = (p: GoalProgress) => p.status !== 'active'
+
+/** Achieved, and the athlete hasn't yet been shown the celebration for it. */
+export const needsCelebration = (goal: Goal, p: GoalProgress) =>
+  p.status === 'achieved' && !goal.celebratedAt && !goal.archivedAt
 
 /** Has this goal just been met, and not yet recorded as such? */
 export const newlyAchieved = (goal: Goal, p: GoalProgress) => !goal.achievedAt && p.status === 'achieved'
@@ -137,7 +143,7 @@ export function formatValue(metric: GoalMetric, value: number | null): string {
 const POSITION_LABEL: Record<Position, string> = { prone: 'prone', standing: 'standing' }
 
 /** "Metal hit rate 80% · prone", "Dry-fire 300 min". */
-export function goalTitle(g: Goal): string {
+export function goalTitle(g: Pick<Goal, 'metric' | 'position' | 'target'>): string {
   const name = g.metric === 'dryfire_minutes' ? 'Dry-fire' : g.metric === 'metal_hit_rate' ? 'Metal hit rate' : 'Precision score'
   const pos = g.position ? ` · ${POSITION_LABEL[g.position]}` : ''
   return `${name} ${g.target}${unit(g.metric)}${pos}`

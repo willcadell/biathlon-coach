@@ -104,7 +104,7 @@ export function GoalsCard() {
             <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
               <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>{goalTitle(g)}</span>
-                <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}</span>
+                <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}{g.archivedAt ? ' · archived' : ''}</span>
                 <button
                   className="link danger" style={{ flex: 'none' }}
                   aria-label={`Delete the goal ${goalTitle(g)}`} title="Delete this goal"

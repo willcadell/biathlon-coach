@@ -107,6 +107,16 @@ wind is a strength band plus the clock position it blew from (no speed is record
 `sessionDate` is the local calendar date. Additive fields beyond the spec: `targetZone`,
 `race`, and a `conventions` block saying what each number means.
 
+**Sets goals.** In Profile an athlete sets a goal on one measure (metal hit rate, precision
+score or dry-fire minutes, optionally by position) with an end date they choose. Progress is
+never typed in: it's computed from logged training in `src/lib/goalProgress.ts` (a rate or
+score only counts as met after a minimum number of bouts), and shown on the home between Start a
+session and the feed in a collapsible section. A goal is private unless shared with coaches; an
+achieved goal can be posted to the club feed (`post_goal`). The first time the home is shown after a
+goal is met there's a confetti and success message, once per goal (`celebrated_at`). Finished goals
+can be archived (`archived_at`); the home filter defaults to Live, with All goals to bring them back.
+The `goals` table already carries `scope`, `program_id` and `club_id` for program and club goals.
+
 **Shares.** The Share button on a target offers *Share as image* — a graded
 trading card (Elite, Sharp, Solid or Logged) with a QR code back to the app, drawn
 in the browser and sent through the phone's share sheet or downloaded — or *Post

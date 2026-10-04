@@ -16,6 +16,8 @@ interface GoalRow {
   shared: boolean
   achieved_at: string | null
   achieved_value: number | null
+  archived_at: string | null
+  celebrated_at: string | null
 }
 
 const toGoal = (r: GoalRow): Goal => ({
@@ -28,9 +30,11 @@ const toGoal = (r: GoalRow): Goal => ({
   shared: r.shared,
   achievedAt: r.achieved_at,
   achievedValue: r.achieved_value === null ? null : Number(r.achieved_value),
+  archivedAt: r.archived_at,
+  celebratedAt: r.celebrated_at,
 })
 
-const COLUMNS = 'id, metric, position, target, starts_on, ends_on, shared, achieved_at, achieved_value'
+const COLUMNS = 'id, metric, position, target, starts_on, ends_on, shared, achieved_at, achieved_value, archived_at, celebrated_at'
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser()
@@ -78,11 +82,25 @@ export async function markGoalAchieved(id: string, value: number): Promise<void>
   if (error) throw error
 }
 
+/** Tidies a finished goal off the home, or brings it back. */
+export async function setGoalArchived(id: string, archived: boolean): Promise<void> {
+  const { error } = await supabase.from('goals').update({ archived_at: archived ? new Date().toISOString() : null }).eq('id', id)
+  if (error) throw error
+}
+
+/** Records that the athlete has been shown the celebration, so it's once per goal. */
+export async function markGoalsCelebrated(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('goals').update({ celebrated_at: new Date().toISOString() }).in('id', ids).is('celebrated_at', null)
+  if (error) throw error
+}
+
 /** The goals an athlete has shared with the coaches who see their training —
  *  what a coach reading that athlete's page can see; the database enforces it. */
 export async function sharedGoalsOf(athleteId: string): Promise<Goal[]> {
   const { data, error } = await supabase
-    .from('goals').select(COLUMNS).eq('athlete_id', athleteId).eq('shared', true).order('ends_on')
+    .from('goals').select(COLUMNS).eq('athlete_id', athleteId).eq('shared', true).is('archived_at', null).order('ends_on')
   if (error) throw error
   return (data as GoalRow[]).map(toGoal)
 }

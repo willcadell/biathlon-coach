@@ -43,6 +43,12 @@ export function PrivacyPolicyView() {
             and shared with every coach linked to you on that club, not just the one who wrote it.
           </p>
           <p>
+            <strong>Goals.</strong> A goal you set is stored with its target, end date and, once met, the
+            date and result. It is private to you unless you tick Share with my coaches, and then it is
+            visible only to the coaches who already see your training. If you choose to post an achieved
+            goal to your club's feed, everyone in that club sees the goal and your result, with your name.
+          </p>
+          <p>
             <strong>Club feed posts.</strong> If you choose to post a target or a workout to your
             club's feed, we store a copy of what you shared, with your name. For a target that's the shot
             positions, score, position and date; for a workout it's the name, date, type and headline

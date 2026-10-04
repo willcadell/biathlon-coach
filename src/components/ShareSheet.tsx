@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import type { Goal } from '../lib/goalProgress'
 import type { Bout, Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
-import { postToFeed, useMemberships } from '../lib/feed'
+import { postGoal, postToFeed, useMemberships } from '../lib/feed'
 import { shareTargetImage } from '../lib/share'
 import { ShareIcon } from './icons'
 
@@ -13,10 +14,13 @@ import { ShareIcon } from './icons'
  * plainly who will see it before the athlete taps.
  */
 export function ShareSheet({
-  bout, workout, onClose, onPostedDone,
+  bout, workout, goal, onClose, onPostedDone,
 }: {
   bout?: Bout
-  workout: Workout
+  /** Required for a target or a workout; a goal stands on its own. */
+  workout?: Workout
+  /** An achieved goal to post — only ever posted, there's no image of one. */
+  goal?: Goal
   onClose: () => void
   /** Called after "Done" once something's been posted — the session-complete
    *  screen uses it to head back to the 545 home, since posting is the last
@@ -29,7 +33,7 @@ export function ShareSheet({
   const [error, setError] = useState('')
 
   async function shareImage() {
-    if (!bout) return
+    if (!bout || !workout) return
     setBusy('image')
     setError('')
     try {
@@ -48,7 +52,9 @@ export function ShareSheet({
     setBusy(clubId)
     setError('')
     try {
-      await postToFeed(clubId, bout ? { boutId: bout.id } : { workoutId: workout.id })
+      if (goal) await postGoal(clubId, goal.id)
+      else if (bout) await postToFeed(clubId, { boutId: bout.id })
+      else if (workout) await postToFeed(clubId, { workoutId: workout.id })
       setPosted(clubName)
     } catch (e) {
       setError(errorMessage(e, 'Could not post to the club feed. Check your connection and try again.'))
@@ -65,7 +71,7 @@ export function ShareSheet({
     return () => clearTimeout(t)
   }, [posted])
 
-  const noun = bout ? 'target' : 'workout'
+  const noun = goal ? 'goal' : bout ? 'target' : 'workout'
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={`Share this ${noun}`}>
@@ -101,13 +107,14 @@ export function ShareSheet({
                   </button>
                 ))}
                 <p className="meta" style={{ marginTop: 0 }}>
-                  Everyone in the club — athletes and coaches — will see it, with your name. Your notes and
-                  target photos are never shared.
+                  {goal
+                    ? 'Everyone in the club — athletes and coaches — will see the goal and what you finished at, with your name.'
+                    : 'Everyone in the club — athletes and coaches — will see it, with your name. Your notes and target photos are never shared.'}
                 </p>
               </>
             )}
             {memberships !== null && memberships.length === 0 && !bout && (
-              <p className="meta">Join a club from your Profile to post workouts to its feed.</p>
+              <p className="meta">Join a club from your Profile to post {goal ? 'goals' : 'workouts'} to its feed.</p>
             )}
 
             <button className="secondary" onClick={onClose} disabled={busy !== null}>Cancel</button>

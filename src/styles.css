@@ -141,6 +141,15 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
 }
 
+/* --- Goal achieved: the success message that sits under the confetti --- */
+.goal-celebration { text-align: center; animation: rise-in 0.35s ease both; }
+.goal-medal {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px; color: var(--good);
+  display: flex; align-items: center; justify-content: center; background: var(--good-wash);
+  animation: check-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+@media (prefers-reduced-motion: reduce) { .goal-celebration, .goal-medal { animation: none; } }
+
 /* --- Bottom tab bar ------------------------------------------------- */
 /* A normal flex sibling of .main within .app, not an overlay: since .app is
    exactly the viewport's height, this still always sits at the very bottom

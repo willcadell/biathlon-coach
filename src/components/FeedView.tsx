@@ -5,7 +5,8 @@ import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
-import { CoachMark, CowbellIcon, DryfireIcon, RaceMedalIcon, RangeIcon, TrashIcon } from './icons'
+import { formatValue, goalTitle } from '../lib/goalProgress'
+import { CoachMark, CowbellIcon, DryfireIcon, RaceMedalIcon, RangeIcon, TrashIcon, TrophyIcon } from './icons'
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -457,6 +458,35 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
                 <span className="pill" style={{ color: 'var(--series-1)' }}>Announcement</span>
                 <LastLine trailing={bell}>
                   <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{post.payload.text}</p>
+                </LastLine>
+              </div>
+            </div>
+          )
+        }
+        if (post.kind === 'goal') {
+          const g = post.payload
+          return (
+            <div
+              key={post.id} className="card"
+              style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: 'color-mix(in srgb, var(--good) 7%, var(--surface-1))' }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  flex: 'none', width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'color-mix(in srgb, var(--good) 16%, transparent)', color: 'var(--good)',
+                }}
+              >
+                <TrophyIcon size={28} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {header}
+                <span className="pill" style={{ color: 'var(--good)' }}>Goal achieved</span>
+                <LastLine trailing={bell}>
+                  <p style={{ margin: '8px 0 0' }}>
+                    <strong>{goalTitle(g)}</strong>
+                    {g.achievedValue !== null && ` — finished at ${formatValue(g.metric, g.achievedValue)}`}
+                  </p>
                 </LastLine>
               </div>
             </div>

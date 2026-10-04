@@ -14,7 +14,7 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
-import { evaluateGoal, goalTitle, newlyAchieved, showOnHome, type Goal } from '../src/lib/goalProgress.ts'
+import { canArchive, evaluateGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -452,7 +452,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const day = (d: number, h = 12) => new Date(2026, 8, d, h).toISOString()
   const goal = (over: Partial<Goal>): Goal => ({
     id: 'g', metric: 'metal_hit_rate', position: null, target: 80,
-    startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, ...over,
+    startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, archivedAt: null, celebratedAt: null, ...over,
   })
   const metalAt = (d: number, position: Position, missed: MetalTarget[]): MetalBout => ({
     kind: 'metal', id: `m${d}${position}${missed.join('')}`, workoutId: 'w', shotAt: day(d), position, heartRate: 0,
@@ -499,13 +499,16 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const kept = evaluateGoal(goal({ achievedAt: day(14), achievedValue: 90, endsOn: '2026-09-15' }), none, today)
   ok('goal: once achieved it stays achieved, at the value it was met', kept.status === 'achieved' && kept.value === 90)
   ok('goal: only a freshly met goal needs recording', newlyAchieved(goal({}), metalGoal) && !newlyAchieved(goal({ achievedAt: day(14), achievedValue: 90 }), metalGoal))
-  // What home shows
-  const stillOn = (over: Partial<Goal>, at: Date) => { const g = goal(over); return showOnHome(g, evaluateGoal(g, none, at), at) }
-  ok('goal: a live goal shows on home', stillOn({}, today))
-  ok('goal: a goal achieved recently shows for a fortnight', stillOn({ achievedAt: day(18), achievedValue: 90 }, today))
-  ok('goal: an old achievement leaves home', !stillOn({ achievedAt: new Date(2026, 7, 1).toISOString(), achievedValue: 90, endsOn: '2026-08-31' }, today))
-  ok('goal: a goal that just ended unmet still shows', stillOn({ endsOn: '2026-09-17' }, today))
-  ok('goal: a long-ended unmet goal leaves home', !stillOn({ endsOn: '2026-08-20' }, today))
+  // Archive, filter and celebration
+  const rowOf = (over: Partial<Goal>) => { const g = goal(over); return { g, p: evaluateGoal(g, none, today) } }
+  const rows = [rowOf({}), rowOf({ endsOn: '2026-09-15' }), rowOf({ endsOn: '2026-09-15', archivedAt: day(16) })]
+  ok('goal: live filter hides archived goals only', goalsFor(rows, 'live').length === 2 && goalsFor(rows, 'live').every(({ g }) => !g.archivedAt))
+  ok('goal: all filter shows archived goals too', goalsFor(rows, 'all').length === 3)
+  ok('goal: only a finished goal can be archived', !canArchive(rows[0].p) && canArchive(rows[1].p))
+  const won = rowOf({ achievedAt: day(14), achievedValue: 90 })
+  ok('goal: an achieved goal not yet celebrated is celebrated', needsCelebration(won.g, won.p))
+  ok('goal: it is celebrated only once', !needsCelebration(...((r) => [r.g, r.p] as const)(rowOf({ achievedAt: day(14), achievedValue: 90, celebratedAt: day(15) }))))
+  ok('goal: a missed or live goal is not celebrated', !needsCelebration(rows[0].g, rows[0].p) && !needsCelebration(rows[1].g, rows[1].p))
   ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
 }
 

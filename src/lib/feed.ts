@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import { myMemberships, type Membership } from './coaching'
+import type { GoalMetric } from './goalProgress'
 import type { Bout, Position, Shot } from './types'
 
 /** What a target post carries — a snapshot built by post_to_feed, so it can't
@@ -36,6 +37,17 @@ export interface AnnouncementPayload {
   text: string
 }
 
+/** A goal an athlete reached and chose to share: a snapshot built by post_goal. */
+export interface GoalPayload {
+  metric: GoalMetric
+  position: Position | null
+  target: number
+  /** What they finished at when it was first met; null if it wasn't recorded. */
+  achievedValue: number | null
+  endsOn: string
+  achievedAt: string
+}
+
 interface PostBase {
   id: string
   clubId: string
@@ -52,6 +64,7 @@ export type FeedPost =
   | (PostBase & { kind: 'target'; payload: TargetPayload })
   | (PostBase & { kind: 'workout'; payload: WorkoutPayload })
   | (PostBase & { kind: 'announcement'; payload: AnnouncementPayload })
+  | (PostBase & { kind: 'goal'; payload: GoalPayload })
 
 export const FEED_PAGE_SIZE = 20
 
@@ -110,6 +123,11 @@ export async function postToFeed(clubId: string, source: { boutId: string } | { 
     p_bout_id: 'boutId' in source ? source.boutId : null,
     p_workout_id: 'workoutId' in source ? source.workoutId : null,
   })
+  if (error) throw error
+}
+
+export async function postGoal(clubId: string, goalId: string): Promise<void> {
+  const { error } = await supabase.rpc('post_goal', { p_club_id: clubId, p_goal_id: goalId })
   if (error) throw error
 }
 

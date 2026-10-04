@@ -5,7 +5,7 @@ import { CheckIcon } from './icons'
 /** One goal and how it's going: its name, deadline, a progress bar and a line
  *  of status. `action` is whatever sits at the end of the status line — Share
  *  on the athlete's own home, nothing on a coach's read-only view. */
-export function GoalRow({ goal, progress, action }: { goal: Goal; progress: GoalProgress; action?: ReactNode }) {
+export function GoalRow({ goal, progress, action, archived }: { goal: Goal; progress: GoalProgress; action?: ReactNode; archived?: boolean }) {
   const done = progress.status === 'achieved'
   const missed = progress.status === 'missed'
   return (
@@ -26,7 +26,7 @@ export function GoalRow({ goal, progress, action }: { goal: Goal; progress: Goal
         <i style={{ width: `${Math.round(progress.fraction * 100)}%` }} />
       </div>
       <div className="row" style={{ alignItems: 'center' }}>
-        <span className="meta" style={{ flex: 1, margin: 0 }}>{goalStatusText(goal, progress)}</span>
+        <span className="meta" style={{ flex: 1, margin: 0 }}>{goalStatusText(goal, progress)}{archived ? ' · Archived' : ''}</span>
         {action}
       </div>
     </div>
