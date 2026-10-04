@@ -114,29 +114,27 @@ export function GoalsProgress({ data }: { data: GoalData }) {
           {shown.length === 0 ? (
             <p className="meta">No live goals. Set one in your Profile, or choose All goals to see the ones you've archived.</p>
           ) : (
-            <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
-              {shown.map(({ g, p }, i) => (
-                <div key={g.id} style={{ ...(i > 0 ? { borderTop: '1px solid var(--border)' } : {}), ...(g.archivedAt ? { opacity: 0.7 } : {}) }}>
-                  <GoalRow
-                    goal={g} progress={p} archived={Boolean(g.archivedAt)}
-                    action={
-                      <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
-                        {p.status === 'achieved' && !g.archivedAt && (
-                          <button className="link" style={{ flex: 'none' }} aria-label={`Share the goal ${goalTitle(g)}`} title="Share this goal" onClick={() => setSharing(g)}>
-                            <ShareIcon />
-                          </button>
-                        )}
-                        {g.archivedAt ? (
-                          <button className="link" style={{ flex: 'none' }} onClick={() => void archive(g, false)}>Restore</button>
-                        ) : canArchive(p) && (
-                          <button className="link" style={{ flex: 'none' }} aria-label={`Archive the goal ${goalTitle(g)}`} title="Archive this goal" onClick={() => void archive(g, true)}>
-                            <ArchiveIcon />
-                          </button>
-                        )}
-                      </span>
-                    }
-                  />
-                </div>
+            <div>
+              {shown.map(({ g, p }) => (
+                <GoalRow
+                  key={g.id} goal={g} progress={p} archived={Boolean(g.archivedAt)}
+                  action={
+                    <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
+                      {p.status === 'achieved' && !g.archivedAt && (
+                        <button className="link" style={{ flex: 'none' }} aria-label={`Share the goal ${goalTitle(g)}`} title="Share this goal" onClick={() => setSharing(g)}>
+                          <ShareIcon />
+                        </button>
+                      )}
+                      {g.archivedAt ? (
+                        <button className="link" style={{ flex: 'none' }} onClick={() => void archive(g, false)}>Restore</button>
+                      ) : canArchive(p) && (
+                        <button className="link" style={{ flex: 'none' }} aria-label={`Archive the goal ${goalTitle(g)}`} title="Archive this goal" onClick={() => void archive(g, true)}>
+                          <ArchiveIcon />
+                        </button>
+                      )}
+                    </span>
+                  }
+                />
               ))}
             </div>
           )}
@@ -197,11 +195,9 @@ export function SharedGoals({ athleteId, data }: { athleteId: string; data: Goal
   return (
     <>
       <h2>Goals</h2>
-      <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
-        {goals.map((g, i) => (
-          <div key={g.id} style={i > 0 ? { borderTop: '1px solid var(--border)' } : undefined}>
-            <GoalRow goal={g} progress={evaluateGoal(g, data)} />
-          </div>
+      <div>
+        {goals.map((g) => (
+          <GoalRow key={g.id} goal={g} progress={evaluateGoal(g, data)} />
         ))}
       </div>
     </>
