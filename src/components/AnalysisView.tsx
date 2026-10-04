@@ -4,7 +4,7 @@ import { RACE_TYPE_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
 import { ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
-import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetStats } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
@@ -91,6 +91,54 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  itself stays plain text, not link-styled. headerExtra (a filter, a
  *  window selector) only shows while the section is open — it has nothing
  *  to act on once its content is hidden. */
+/** "Which targets get hit": the hit rate of each of the five discs for one
+ *  position, from the most recent 5, 10 or 20 bouts. Used for range metal and,
+ *  separately, for race metal. */
+function TargetHitRates({
+  position, kind, stats, windowSize, onWindowChange,
+}: {
+  position: 'prone' | 'standing'
+  /** What the bouts are, for the caption: "metal" or "race". */
+  kind: string
+  stats: TargetStat[]
+  windowSize: 5 | 10 | 20
+  onWindowChange: (n: 5 | 10 | 20) => void
+}) {
+  if (stats.length === 0) return null
+  const bouts = stats[0]?.bouts ?? 0
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+        <h3 style={{ margin: 0 }}>Which targets get hit — {position}</h3>
+        <div className="seg" style={{ flex: 'none', width: 96 }}>
+          {([5, 10, 20] as const).map((n) => (
+            <button
+              key={n}
+              aria-pressed={windowSize === n}
+              onClick={() => onWindowChange(n)}
+              style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="meta" style={{ marginTop: -6 }}>
+        Hit rate per target, alpha to echo, left to right downrange — last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
+      </p>
+      <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+        {stats.map((t) => (
+          <div className="stat" key={t.target}>
+            <div className="k">{t.target}</div>
+            <div className="v">{t.hitRatePct}<small>%</small></div>
+            <div className="n">{t.hits}/{t.bouts}</div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 /** The icon for a kind of session, in that kind's colour — the same pairing as
  *  the session chooser and the feed's tiles. Precision and metal are both range
  *  shooting, so they share the range icon. */
@@ -166,10 +214,12 @@ export function AnalysisView({
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
-  // A zone option ('zone', 2) narrows to combo rounds shot at that target
-  // heart-rate zone — alongside, not combined with, All/Training/Race: only
-  // one lens on Metal at a time, same as today.
-  type MetalFilter = 'all' | 'training' | 'race' | { zone: number }
+  const [raceProneWindow, setRaceProneWindow] = useState<5 | 10 | 20>(10)
+  const [raceStandingWindow, setRaceStandingWindow] = useState<5 | 10 | 20>(10)
+  // Metal here is range-session shooting only; race bouts have their own section
+  // below. A zone option ('zone', 2) narrows to combo rounds shot at that target
+  // heart-rate zone: one lens on Metal at a time.
+  type MetalFilter = 'all' | { zone: number }
   const [metalFilter, setMetalFilter] = useState<MetalFilter>('all')
 
   const prone = bouts.filter((b) => b.position === 'prone')
@@ -177,15 +227,11 @@ export function AnalysisView({
   const raceWorkoutIds = new Set(workouts.filter((w) => w.raceType).map((w) => w.id))
   // Only offer zones the athlete has actually used — most will have one or
   // two, not all eight.
-  const presentZones = [...new Set(metalBouts.map((b) => b.targetZone).filter((z): z is number => z !== null))].sort(
+  const rangeMetal = metalBouts.filter((b) => !raceWorkoutIds.has(b.workoutId))
+  const presentZones = [...new Set(rangeMetal.map((b) => b.targetZone).filter((z): z is number => z !== null))].sort(
     (a, b) => a - b,
   )
-  const filteredMetal = metalBouts.filter((b) => {
-    if (metalFilter === 'all') return true
-    if (metalFilter === 'training') return !raceWorkoutIds.has(b.workoutId)
-    if (metalFilter === 'race') return raceWorkoutIds.has(b.workoutId)
-    return b.targetZone === metalFilter.zone
-  })
+  const filteredMetal = metalFilter === 'all' ? rangeMetal : rangeMetal.filter((b) => b.targetZone === metalFilter.zone)
   const metalProne = filteredMetal.filter((b) => b.position === 'prone')
   const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
 
@@ -236,6 +282,16 @@ export function AnalysisView({
     const sorted = [...metalStanding].sort((a, b) => b.shotAt.localeCompare(a.shotAt))
     return targetStats(sorted.slice(0, standingWindow))
   }, [metalStanding, standingWindow])
+
+  // The same per-target read for race shooting, shown with the race results.
+  const targetsRaceProne = useMemo(() => {
+    const sorted = raceMetal.filter((b) => b.position === 'prone').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    return targetStats(sorted.slice(0, raceProneWindow))
+  }, [raceMetal, raceProneWindow])
+  const targetsRaceStanding = useMemo(() => {
+    const sorted = raceMetal.filter((b) => b.position === 'standing').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    return targetStats(sorted.slice(0, raceStandingWindow))
+  }, [raceMetal, raceStandingWindow])
 
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
@@ -381,18 +437,17 @@ export function AnalysisView({
         title="Metal"
         icon={sessionIcon('range')}
         defaultOpen={false}
-        headerExtra={(raceWorkoutIds.size > 0 || presentZones.length > 0) && (
+        headerExtra={presentZones.length > 0 && (
           <div className="seg" style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {(
               [
                 'all' as const,
-                ...(raceWorkoutIds.size > 0 ? (['training', 'race'] as const) : []),
                 ...presentZones.map((zone) => ({ zone })),
               ] satisfies MetalFilter[]
             ).map((f) => {
               // Short label on the button itself (room is tight with a zone chip per
               // zone in use), full word for anyone using a screen reader.
-              const fullLabel = typeof f === 'object' ? `Zone ${f.zone}` : f === 'all' ? 'All' : f === 'training' ? 'Training' : 'Race'
+              const fullLabel = typeof f === 'object' ? `Zone ${f.zone}` : 'All'
               const label = typeof f === 'object' ? `Z${f.zone}` : fullLabel
               const active = typeof f === 'object'
                 ? typeof metalFilter === 'object' && metalFilter.zone === f.zone
@@ -435,71 +490,8 @@ export function AnalysisView({
           </div>
         </div>
 
-        {targetsProne.length > 0 && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0 }}>Which targets get hit — prone</h3>
-              <div className="seg" style={{ flex: 'none', width: 96 }}>
-                {([5, 10, 20] as const).map((n) => (
-                  <button
-                    key={n}
-                    aria-pressed={proneWindow === n}
-                    onClick={() => setProneWindow(n)}
-                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="meta" style={{ marginTop: -6 }}>
-              Hit rate per target, alpha to echo, left to right downrange — last {targetsProne[0]?.bouts ?? 0}{' '}
-              prone metal bout{targetsProne[0]?.bouts === 1 ? '' : 's'}.
-            </p>
-            <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-              {targetsProne.map((t) => (
-                <div className="stat" key={t.target}>
-                  <div className="k">{t.target}</div>
-                  <div className="v">{t.hitRatePct}<small>%</small></div>
-                  <div className="n">{t.hits}/{t.bouts}</div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {targetsStanding.length > 0 && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0 }}>Which targets get hit — standing</h3>
-              <div className="seg" style={{ flex: 'none', width: 96 }}>
-                {([5, 10, 20] as const).map((n) => (
-                  <button
-                    key={n}
-                    aria-pressed={standingWindow === n}
-                    onClick={() => setStandingWindow(n)}
-                    style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="meta" style={{ marginTop: -6 }}>
-              Hit rate per target, alpha to echo, left to right downrange — last {targetsStanding[0]?.bouts ?? 0}{' '}
-              standing metal bout{targetsStanding[0]?.bouts === 1 ? '' : 's'}.
-            </p>
-            <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-              {targetsStanding.map((t) => (
-                <div className="stat" key={t.target}>
-                  <div className="k">{t.target}</div>
-                  <div className="v">{t.hitRatePct}<small>%</small></div>
-                  <div className="n">{t.hits}/{t.bouts}</div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <TargetHitRates position="prone" kind="metal" stats={targetsProne} windowSize={proneWindow} onWindowChange={setProneWindow} />
+        <TargetHitRates position="standing" kind="metal" stats={targetsStanding} windowSize={standingWindow} onWindowChange={setStandingWindow} />
       </CollapsibleSection>
 
       {raceCount > 0 && (
@@ -523,6 +515,9 @@ export function AnalysisView({
               <MetalPositionStats bouts={bs} races={raceCountByType.get(type) ?? 0} />
             </div>
           ))}
+
+          <TargetHitRates position="prone" kind="race" stats={targetsRaceProne} windowSize={raceProneWindow} onWindowChange={setRaceProneWindow} />
+          <TargetHitRates position="standing" kind="race" stats={targetsRaceStanding} windowSize={raceStandingWindow} onWindowChange={setRaceStandingWindow} />
         </CollapsibleSection>
       )}
 
