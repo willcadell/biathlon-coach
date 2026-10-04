@@ -9,7 +9,7 @@ import { supabase } from './supabase'
  * Keep VERSION in step with required_coach_ack_version() in the database.
  * Raise both when the wording changes materially, and every coach agrees again.
  */
-export const RESPONSIBILITIES_VERSION = 1
+export const RESPONSIBILITIES_VERSION = 2
 
 /** Where the Universal Code of Conduct to Prevent and Address Maltreatment in
  *  Sport (UCCMS) is published: the master copy, on Sport Integrity Canada's
@@ -17,9 +17,10 @@ export const RESPONSIBILITIES_VERSION = 1
  *  breaks too, check sportintegrity.ca for the current document. */
 export const UCCMS_URL = 'https://sportintegrity.ca/media/567'
 
-/** The Responsible Coaching Movement (RCM) and its pledge, from the Coaching
- *  Association of Canada: the Rule of Two, background screening and ethics training. */
-export const RCM_URL = 'https://coach.ca/sport-safety/responsible-coaching-movement'
+/** Where a coach takes the Responsible Coaching Movement (RCM) Pledge, from the
+ *  Coaching Association of Canada: the Rule of Two, background screening and
+ *  ethics training. */
+export const RCM_URL = 'https://coach.ca/sport-safety/responsible-coaching-movement/take-rcm-pledge'
 
 export async function hasAcknowledgedResponsibilities(coachId: string): Promise<boolean> {
   const { data, error } = await supabase

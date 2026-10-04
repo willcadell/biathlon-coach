@@ -3,6 +3,7 @@ import {
   RCM_URL, UCCMS_URL, acknowledgeResponsibilities, hasAcknowledgedResponsibilities,
 } from '../lib/coachResponsibilities'
 import { errorMessage } from '../lib/errors'
+import { CheckIcon } from './icons'
 
 /**
  * What a coach agrees to before they have any authority over anyone. Leads with
@@ -47,12 +48,12 @@ export function CoachResponsibilities({ onAgreed }: { onAgreed: () => void }) {
           <a href={UCCMS_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>Read the UCCMS</a>
         </p>
         <p style={{ marginBottom: 8 }}>
-          It also means supporting the <strong>Responsible Coaching Movement (RCM) Pledge</strong>, which
+          It also means taking the <strong>Responsible Coaching Movement (RCM) Pledge</strong>, which
           rests on three pillars: the <strong>Rule of Two</strong>, <strong>background screening</strong> and{' '}
           <strong>ethics training</strong>.
         </p>
         <p style={{ margin: 0 }}>
-          <a href={RCM_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>About the RCM Pledge</a>
+          <a href={RCM_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>Take the RCM Pledge</a>
         </p>
       </div>
 
@@ -85,7 +86,7 @@ export function CoachResponsibilities({ onAgreed }: { onAgreed: () => void }) {
 
       <label className="check" style={{ marginBottom: 12 }}>
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-        I've read this, and I agree to follow the Canadian Safe Sport Program's code of conduct and to support the RCM Pledge.
+        I've read this, and I took the RCM Pledge, and I agree to follow the Canadian Safe Sport Program's code of conduct.
       </label>
       {error && <div className="notice error">{error}</div>}
       <button className="primary" disabled={!agreed || saving} onClick={() => void submit()}>
@@ -120,4 +121,29 @@ export function ResponsibilitiesGate({ coachId, enabled, children }: { coachId: 
   if (agreed === null) return null
   if (!agreed) return <CoachResponsibilities onAgreed={() => setAgreed(true)} />
   return <>{children}</>
+}
+
+/**
+ * The line under a coach's name saying they've taken the RCM Pledge, with a
+ * link to it. It appears only once they've agreed to the responsibilities,
+ * since that agreement is where they confirm it. Says nothing before then.
+ */
+export function RcmPledgeStatus({ coachId }: { coachId: string }) {
+  const [agreed, setAgreed] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void hasAcknowledgedResponsibilities(coachId).then((a) => { if (!cancelled) setAgreed(a) }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [coachId])
+
+  if (!agreed) return null
+  return (
+    <p className="meta" style={{ margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ color: 'var(--good)', display: 'inline-flex' }}><CheckIcon /></span>
+      <span>
+        I took the RCM Pledge.{' '}
+        <a href={RCM_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>RCM Pledge</a>
+      </span>
+    </p>
+  )
 }

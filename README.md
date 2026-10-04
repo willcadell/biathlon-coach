@@ -162,7 +162,8 @@ note on an athlete's workout, they must have agreed to the coach responsibilitie
 Universal Code of Conduct (UCCMS), and the Responsible Coaching Movement's RCM Pledge (Rule of
 Two, background screening, ethics training). The agreement is recorded server-side
 (`coach_acknowledgements`, written only by `accept_coach_responsibilities`) and enforced in the
-database functions and the notes policy, not just the screen. Bump
+database functions and the notes policy, not just the screen. A coach's Profile shows "I took the RCM Pledge" with a link under their name once they've
+agreed (version 2 is where the pledge is confirmed). Bump
 `required_coach_ack_version()` and `RESPONSIBILITIES_VERSION` together to make everyone agree
 again.
 

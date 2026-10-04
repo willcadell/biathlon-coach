@@ -15,7 +15,7 @@ import { Dropdown } from './Dropdown'
 import { GoalsCard } from './GoalsCard'
 import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
-import { ResponsibilitiesGate } from './CoachResponsibilities'
+import { RcmPledgeStatus, ResponsibilitiesGate } from './CoachResponsibilities'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
@@ -335,6 +335,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <h2>Coach details</h2>
         <div className="card">
           <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
+            <RcmPledgeStatus coachId={session.user.id} />
         </div>
 
         <Dropdown title="Set up an athlete profile">
@@ -506,6 +507,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           <h2>Coach details</h2>
           <div className="card">
             <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
+            <RcmPledgeStatus coachId={session.user.id} />
           </div>
 
           <ResponsibilitiesGate coachId={session.user.id} enabled={hasCoach}>
