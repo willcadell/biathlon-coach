@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, Workout } from '../lib/types'
+import type { Bout, MetalBout, Position, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
@@ -29,11 +29,25 @@ interface Props {
 
 /** Ring points scored as a percentage of what was possible, the same
  *  conversion HistoryView uses — puts precision and metal on one scale. */
-function precisionPct(bouts: Bout[]): string {
+function precisionRate(bouts: Bout[]): number | null {
   const shots = bouts.reduce((n, b) => n + b.shots.length, 0)
-  if (!shots) return '—'
+  if (!shots) return null
   const avg = bouts.reduce((n, b) => n + b.metrics.ringTotal, 0) / shots
-  return `${Math.round((avg / 10) * 100)}%`
+  return Math.round((avg / 10) * 100)
+}
+
+const precisionPct = (bouts: Bout[]): string => {
+  const rate = precisionRate(bouts)
+  return rate === null ? '—' : `${rate}%`
+}
+
+/** Precision by position, prone and standing, only for those with bouts. */
+function precisionByPosition(bouts: Bout[]): { position: Position; rate: number; bouts: number }[] {
+  return (['prone', 'standing'] as Position[]).flatMap((position) => {
+    const set = bouts.filter((b) => b.position === position)
+    const rate = precisionRate(set)
+    return rate === null ? [] : [{ position, rate, bouts: set.length }]
+  })
 }
 
 function metalPct(bouts: MetalBout[]): string {
@@ -485,6 +499,7 @@ function RosterGroup({
 }) {
   const targets = targetStats(group.metalBouts)
   const metal = metalStats(group.metalBouts)
+  const precisionPos = precisionByPosition(group.bouts)
   const dryfire = dryfireMinutesThisMonth(group.workouts)
   const [pickingId, setPickingId] = useState<string | null>(null)
 
@@ -512,13 +527,25 @@ function RosterGroup({
             </div>
           </div>
 
-          {metal.length > 0 && (
-            <div className="stats" style={{ marginTop: 8 }}>
-              {metal.map((s) => (
-                <div className="stat" key={s.position}>
-                  <div className="k">{s.position}</div>
-                  <div className="v">{s.hitRatePct.toFixed(0)}<small>%</small></div>
-                  <div className="n">{s.bouts} bout{s.bouts === 1 ? '' : 's'}</div>
+          {/* Metal's prone and standing, then precision's, as four boxes in one row:
+              each measure's heading sits over its own pair. */}
+          {(metal.length > 0 || precisionPos.length > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              {[
+                { label: 'Metal', tiles: metal.map((m) => ({ position: m.position, rate: Math.round(m.hitRatePct), bouts: m.bouts })) },
+                { label: 'Precision', tiles: precisionPos },
+              ].map((pair) => (
+                <div key={pair.label} style={{ minWidth: 0 }}>
+                  <p className="meta" style={{ margin: '0 0 4px' }}>{pair.label}</p>
+                  <div className="stats">
+                    {pair.tiles.map((t) => (
+                      <div className="stat" key={t.position} style={{ padding: '8px 8px' }}>
+                        <div className="k">{t.position}</div>
+                        <div className="v">{t.rate}<small>%</small></div>
+                        <div className="n">{t.bouts} bout{t.bouts === 1 ? '' : 's'}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
