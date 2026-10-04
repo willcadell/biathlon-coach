@@ -232,7 +232,7 @@ label.field > span {
   margin-bottom: 5px;
 }
 label.field small { display: block; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
-input[type='text'], input[type='number'], input[type='password'], textarea, select {
+input[type='text'], input[type='number'], input[type='password'], input[type='date'], textarea, select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 9px;
@@ -491,3 +491,9 @@ button.link.cowbell[aria-pressed='true'] { color: var(--series-3); }
 }
 .dev-banner button.link { color: #fff; flex: none; font-weight: 600; }
 button.dev-switch { background: var(--critical); border-color: var(--critical); color: #fff; }
+
+/* --- Goals ----------------------------------------------------------------- */
+.goal-bar { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; margin: 6px 0 4px; }
+.goal-bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 3px; }
+.goal-bar.done > i { background: var(--good); }
+.goal-bar.missed > i { background: var(--text-muted); }

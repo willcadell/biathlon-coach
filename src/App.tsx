@@ -280,6 +280,10 @@ function SignedInApp({
     [stored, settings],
   )
 
+  // Everything the athlete has logged, memoised so the goal progress on the home
+  // screen only recomputes when something actually changed.
+  const history = useMemo(() => ({ workouts, bouts, metalBouts }), [workouts, bouts, metalBouts])
+
   // Once they've said yes, targets scored since then go in the background.
   useEffect(() => {
     if (contribution?.choice === true && contribution.since) void contributePending(bouts, contribution.since)
@@ -368,6 +372,7 @@ function SignedInApp({
                 onCancel={() => void cancelWorkout()}
                 onWorkoutChanged={updateWorkout}
                 onDataChanged={refresh}
+                history={history}
               />
             )}
             {tab === 'analysis' && (

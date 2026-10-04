@@ -12,6 +12,7 @@ import {
 import { forLogo } from '../lib/imaging'
 import { AnalysisView, CollapsibleSection } from './AnalysisView'
 import { Help } from './Help'
+import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
@@ -431,15 +432,18 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
   if (!loaded) return <p className="meta">Loading…</p>
 
   return (
-    <AnalysisView
-      bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
-      onChanged={refresh}
-      readOnly
-      onAddCoachNote={async (workoutId, note) => {
-        await addCoachNote(workoutId, note)
-        refresh()
-      }}
-    />
+    <>
+      <SharedGoals athleteId={athlete.athleteId} data={{ workouts, bouts, metalBouts }} />
+      <AnalysisView
+        bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
+        onChanged={refresh}
+        readOnly
+        onAddCoachNote={async (workoutId, note) => {
+          await addCoachNote(workoutId, note)
+          refresh()
+        }}
+      />
+    </>
   )
 }
 

@@ -8,6 +8,8 @@ import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
 import { CaptureView } from './CaptureView'
 import { FeedView } from './FeedView'
+import { GoalsProgress } from './GoalsProgress'
+import type { GoalData } from '../lib/goalProgress'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
@@ -701,6 +703,8 @@ interface Props {
   onCancel: () => void
   onWorkoutChanged: (workout: Workout) => void
   onDataChanged: () => void
+  /** The athlete's whole logged history, for the goal progress on the start screen. */
+  history?: GoalData
 }
 
 /**
@@ -709,7 +713,7 @@ interface Props {
  * actually dialed in logged once at the workout level; a dryfire session is
  * just time spent and how it went, no range required.
  */
-export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged }: Props) {
+export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history }: Props) {
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
@@ -797,6 +801,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
             {starting === 'race' ? 'Starting…' : 'Race'}
           </button>
         </div>
+        {history && <GoalsProgress data={history} />}
         <FeedView role="athlete" />
         <button
           type="button"

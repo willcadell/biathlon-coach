@@ -14,6 +14,7 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
+import { evaluateGoal, goalTitle, newlyAchieved, showOnHome, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -444,6 +445,68 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('coach-context: local date, not UTC', localDate(new Date(2026, 8, 20, 23, 30).toISOString()) === '2026-09-20')
   const empty = buildCoachContext([dry], [], new Date(2026, 8, 23, 9))
   ok('coach-context: nothing to export still yields a valid empty file', empty.metalSessions.length === 0 && empty.range.from === '2026-09-23')
+}
+
+// --- Goals: progress comes from logged training, inside the goal's own window.
+{
+  const day = (d: number, h = 12) => new Date(2026, 8, d, h).toISOString()
+  const goal = (over: Partial<Goal>): Goal => ({
+    id: 'g', metric: 'metal_hit_rate', position: null, target: 80,
+    startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, ...over,
+  })
+  const metalAt = (d: number, position: Position, missed: MetalTarget[]): MetalBout => ({
+    kind: 'metal', id: `m${d}${position}${missed.join('')}`, workoutId: 'w', shotAt: day(d), position, heartRate: 0,
+    comboId: null, targetZone: null,
+    hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>,
+  })
+  const none = { workouts: [], bouts: [], metalBouts: [] }
+  const today = new Date(2026, 8, 20, 9)
+
+  // Metal hit rate
+  const five = [1, 2, 3, 4, 5].map((i) => metalAt(10 + i, 'prone', i === 1 ? ['alpha'] : []))
+  const metalGoal = evaluateGoal(goal({}), { ...none, metalBouts: five }, today)
+  ok('goal: metal hit rate is hits over shots in the window', metalGoal.value !== null && Math.abs(metalGoal.value - 96) < 1e-9)
+  ok('goal: met once the minimum bouts are in and the target reached', metalGoal.status === 'achieved')
+  const thin = evaluateGoal(goal({}), { ...none, metalBouts: five.slice(0, 2) }, today)
+  ok('goal: one or two perfect bouts do not count as met', thin.status === 'active' && thin.sample === 2 && thin.needed === 5)
+  const outside = evaluateGoal(goal({}), { ...none, metalBouts: [...five, metalAt(5, 'prone', []), metalAt(28, 'prone', [])].filter((b) => b.shotAt !== day(28)) }, today)
+  ok('goal: bouts before the start date are ignored', outside.sample === 5)
+  const standingOnly = evaluateGoal(goal({ position: 'standing' }), { ...none, metalBouts: five }, today)
+  ok('goal: a position goal only counts that position', standingOnly.sample === 0 && standingOnly.value === null)
+
+  // Precision score
+  const precision = (d: number, total: number): Bout => ({
+    kind: 'precision', id: `p${d}`, workoutId: 'w', shotAt: day(d), position: 'prone',
+    metrics: { ringTotal: total, ringPossible: 100 },
+  }) as unknown as Bout
+  const precisionGoal = evaluateGoal(goal({ metric: 'precision_score', target: 85 }), { ...none, bouts: [precision(11, 90), precision(12, 80), precision(13, 88)] }, today)
+  ok('goal: precision score is points over possible', precisionGoal.value !== null && Math.abs(precisionGoal.value - (258 / 300) * 100) < 1e-9)
+  ok('goal: precision met at three bouts', precisionGoal.status === 'achieved' && precisionGoal.sample === 3)
+
+  // Dry-fire minutes
+  const dry = (d: number, minutes: number): Workout => ({
+    id: `d${d}`, startedAt: day(d), name: '', workoutType: 'dryfire', wind: 'none', windDirection: '12', clickLog: [],
+    notes: '', coachNotes: [], raceType: null, dryfireMinutes: minutes,
+  })
+  const dryGoal = goal({ metric: 'dryfire_minutes', target: 100 })
+  const dryHalf = evaluateGoal(dryGoal, { ...none, workouts: [dry(11, 30), dry(12, 20), dry(2, 500)] }, today)
+  ok('goal: dry-fire minutes sum inside the window only', dryHalf.value === 50 && dryHalf.status === 'active' && Math.abs(dryHalf.fraction - 0.5) < 1e-9)
+  ok('goal: dry-fire needs no minimum sample', evaluateGoal(dryGoal, { ...none, workouts: [dry(11, 100)] }, today).status === 'achieved')
+
+  // Status over time
+  ok('goal: past its end date and unmet is missed', evaluateGoal(goal({ endsOn: '2026-09-15' }), none, today).status === 'missed')
+  ok('goal: the end date itself is still active', evaluateGoal(goal({ endsOn: '2026-09-20' }), none, today).status === 'active')
+  const kept = evaluateGoal(goal({ achievedAt: day(14), achievedValue: 90, endsOn: '2026-09-15' }), none, today)
+  ok('goal: once achieved it stays achieved, at the value it was met', kept.status === 'achieved' && kept.value === 90)
+  ok('goal: only a freshly met goal needs recording', newlyAchieved(goal({}), metalGoal) && !newlyAchieved(goal({ achievedAt: day(14), achievedValue: 90 }), metalGoal))
+  // What home shows
+  const stillOn = (over: Partial<Goal>, at: Date) => { const g = goal(over); return showOnHome(g, evaluateGoal(g, none, at), at) }
+  ok('goal: a live goal shows on home', stillOn({}, today))
+  ok('goal: a goal achieved recently shows for a fortnight', stillOn({ achievedAt: day(18), achievedValue: 90 }, today))
+  ok('goal: an old achievement leaves home', !stillOn({ achievedAt: new Date(2026, 7, 1).toISOString(), achievedValue: 90, endsOn: '2026-08-31' }, today))
+  ok('goal: a goal that just ended unmet still shows', stillOn({ endsOn: '2026-09-17' }, today))
+  ok('goal: a long-ended unmet goal leaves home', !stillOn({ endsOn: '2026-08-20' }, today))
+  ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

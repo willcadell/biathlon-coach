@@ -12,6 +12,7 @@ import { CreateClub, JoinClubAsCoach } from './CoachView'
 import { AdminPill, TrashIcon } from './icons'
 import { setDevMode } from '../lib/dev'
 import { Dropdown } from './Dropdown'
+import { GoalsCard } from './GoalsCard'
 import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
@@ -491,6 +492,8 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
               </div>
             </div>
           )}
+
+          <GoalsCard />
 
           <PersonalCoachesCard />
         </>
