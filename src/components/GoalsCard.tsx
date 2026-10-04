@@ -92,45 +92,17 @@ export function GoalsCard() {
 
   return (
     <>
-      <h2>
-        Goals
-        <Help>
-          Pick something to aim at and a date to reach it by. Your progress shows on your home screen,
-          worked out from the training you log. A goal is private unless you share it with your coaches.
-        </Help>
-      </h2>
       {error && <div className="notice error">{error}</div>}
 
-      {goals && goals.length > 0 && (
-        <Dropdown title="Your goals">
-          <div className="card">
-            {newestFirst.map((g, i) => (
-              <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
-                <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>{goalTitle(g)}</span>
-                  <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}{g.archivedAt ? ' · archived' : ''}</span>
-                  <button
-                    className="link danger" style={{ flex: 'none' }}
-                    aria-label={`Delete the goal ${goalTitle(g)}`} title="Delete this goal"
-                    onClick={() => void remove(g)}
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-                {goalAchievedText(g) && (
-                  <div className="meta" style={{ margin: '2px 0 0', color: 'var(--good)' }}>{goalAchievedText(g)}</div>
-                )}
-                <label className="check" style={{ marginTop: 4, marginBottom: 0 }}>
-                  <input type="checkbox" checked={g.shared} onChange={() => void toggleShared(g)} />
-                  Share with my coaches
-                </label>
-              </div>
-            ))}
-          </div>
-        </Dropdown>
-      )}
-
-      <Dropdown title="Set a goal">
+      <Dropdown
+        title="Set a goal"
+        help={
+          <Help>
+            Pick something to aim at and a date to reach it by. Your progress shows on your home screen,
+            worked out from the training you log. A goal is private unless you share it with your coaches.
+          </Help>
+        }
+      >
         <div className="card">
           <div className="field" style={{ marginBottom: 12 }}>
             <span>Measure</span>
@@ -177,6 +149,35 @@ export function GoalsCard() {
           </button>
         </div>
       </Dropdown>
+
+      {goals && goals.length > 0 && (
+        <Dropdown title="Your goals">
+          <div className="card">
+            {newestFirst.map((g, i) => (
+              <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
+                <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>{goalTitle(g)}</span>
+                  <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}{g.archivedAt ? ' · archived' : ''}</span>
+                  <button
+                    className="link danger" style={{ flex: 'none' }}
+                    aria-label={`Delete the goal ${goalTitle(g)}`} title="Delete this goal"
+                    onClick={() => void remove(g)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+                {goalAchievedText(g) && (
+                  <div className="meta" style={{ margin: '2px 0 0', color: 'var(--good)' }}>{goalAchievedText(g)}</div>
+                )}
+                <label className="check" style={{ marginTop: 4, marginBottom: 0 }}>
+                  <input type="checkbox" checked={g.shared} onChange={() => void toggleShared(g)} />
+                  Share with my coaches
+                </label>
+              </div>
+            ))}
+          </div>
+        </Dropdown>
+      )}
     </>
   )
 }
