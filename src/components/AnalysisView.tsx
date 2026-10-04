@@ -94,9 +94,9 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
 /** The Race button's colour: also the filter and window chips' in Race performance. */
 const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
 
-/** The five discs' hit rates as tiles, alpha to echo. `tone="race"` gives them
- *  the Race colour, for everything in the Race performance section. */
-function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
+/** The five discs' hit rates as circles, alpha to echo, in their session's
+ *  colour: Range blue in Metal, Race red in Race performance. */
+function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'race' }) {
   // Discs are round, so the tiles are circles. minmax(0, 1fr) and small type so
   // five of them fit a phone's width instead of running off the right edge.
   return (
@@ -156,7 +156,7 @@ function TargetHitRates({
       <p className="meta" style={{ marginTop: 6 }}>
         Last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
       </p>
-      <TargetTiles stats={stats} />
+      <TargetTiles stats={stats} tone="range" />
     </>
   )
 }
