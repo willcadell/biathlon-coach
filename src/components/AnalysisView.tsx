@@ -91,13 +91,30 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  itself stays plain text, not link-styled. headerExtra (a filter, a
  *  window selector) only shows while the section is open — it has nothing
  *  to act on once its content is hidden. */
+/** The five discs' hit rates as tiles, alpha to echo. `tone="race"` gives them
+ *  the Race colour, for everything in the Race performance section. */
+function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
+  return (
+    <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      {stats.map((t) => (
+        <div className={`stat${tone ? ` ${tone}` : ''}`} key={t.target}>
+          <div className="k">{t.target}</div>
+          <div className="v">{t.hitRatePct}<small>%</small></div>
+          <div className="n">{t.hits}/{t.bouts}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** "Which targets get hit": the hit rate of each of the five discs for one
  *  position, from the most recent 5, 10 or 20 bouts. Used for range metal and,
  *  separately, for race metal. */
 function TargetHitRates({
-  position, kind, stats, windowSize, onWindowChange,
+  position, kind, stats, windowSize, onWindowChange, tone,
 }: {
   position: 'prone' | 'standing'
+  tone?: 'race'
   /** What the bouts are, for the caption: "metal" or "race". */
   kind: string
   stats: TargetStat[]
@@ -126,15 +143,7 @@ function TargetHitRates({
       <p className="meta" style={{ marginTop: -6 }}>
         Hit rate per target, alpha to echo, left to right downrange — last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
       </p>
-      <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-        {stats.map((t) => (
-          <div className="stat" key={t.target}>
-            <div className="k">{t.target}</div>
-            <div className="v">{t.hitRatePct}<small>%</small></div>
-            <div className="n">{t.hits}/{t.bouts}</div>
-          </div>
-        ))}
-      </div>
+      <TargetTiles stats={stats} tone={tone} />
     </>
   )
 }
@@ -513,11 +522,20 @@ export function AnalysisView({
                 {RACE_TYPE_LABEL[type]} · {raceCountByType.get(type) ?? 0} race{(raceCountByType.get(type) ?? 0) === 1 ? '' : 's'}
               </p>
               <MetalPositionStats bouts={bs} races={raceCountByType.get(type) ?? 0} />
+              {(['prone', 'standing'] as const).map((position) => {
+                const targets = targetStats(bs.filter((b) => b.position === position))
+                return targets.length > 0 && (
+                  <div key={position}>
+                    <p className="meta" style={{ margin: '10px 0 4px' }}>Targets hit — {position}</p>
+                    <TargetTiles stats={targets} tone="race" />
+                  </div>
+                )
+              })}
             </div>
           ))}
 
-          <TargetHitRates position="prone" kind="race" stats={targetsRaceProne} windowSize={raceProneWindow} onWindowChange={setRaceProneWindow} />
-          <TargetHitRates position="standing" kind="race" stats={targetsRaceStanding} windowSize={raceStandingWindow} onWindowChange={setRaceStandingWindow} />
+          <TargetHitRates position="prone" kind="race" tone="race" stats={targetsRaceProne} windowSize={raceProneWindow} onWindowChange={setRaceProneWindow} />
+          <TargetHitRates position="standing" kind="race" tone="race" stats={targetsRaceStanding} windowSize={raceStandingWindow} onWindowChange={setRaceStandingWindow} />
         </CollapsibleSection>
       )}
 
