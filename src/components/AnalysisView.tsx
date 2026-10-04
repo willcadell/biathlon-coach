@@ -107,11 +107,14 @@ function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
           style={{
             aspectRatio: '1', borderRadius: '50%', padding: 0, minWidth: 0, textAlign: 'center',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            // The type is sized from the circle itself (cqw = 1% of its width), so
+            // the numbers stay in proportion from a phone to a desktop.
+            containerType: 'inline-size',
           }}
         >
-          <div className="k" style={{ fontSize: 9, letterSpacing: '0.02em' }}>{t.target}</div>
-          <div className="v" style={{ fontSize: 17, marginTop: 0 }}>{t.hitRatePct}<small>%</small></div>
-          <div className="n" style={{ fontSize: 10 }}>{t.hits}/{t.bouts}</div>
+          <div className="k" style={{ fontSize: 'max(9px, 12cqw)', letterSpacing: '0.02em' }}>{t.target}</div>
+          <div className="v" style={{ fontSize: 'max(15px, 25cqw)', marginTop: 0, lineHeight: 1.1 }}>{t.hitRatePct}<small style={{ fontSize: '13cqw' }}>%</small></div>
+          <div className="n" style={{ fontSize: 'max(9px, 13cqw)' }}>{t.hits}/{t.bouts}</div>
         </div>
       ))}
     </div>
@@ -150,8 +153,8 @@ function TargetHitRates({
           ))}
         </div>
       </div>
-      <p className="meta" style={{ marginTop: -6 }}>
-        Hit rate per target, alpha to echo, left to right downrange — last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
+      <p className="meta" style={{ marginTop: 6 }}>
+        Last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
       </p>
       <TargetTiles stats={stats} />
     </>
@@ -209,9 +212,6 @@ function RaceTargetHitRates({
           </div>
         </div>
       </div>
-      <p className="meta" style={{ marginTop: 0 }}>
-        Hit rate per target, alpha to echo, left to right downrange.
-      </p>
       {prone.length > 0 && (
         <>
           <p className="meta" style={{ margin: '10px 0 4px' }}>Prone · {bouts(prone)} bout{bouts(prone) === 1 ? '' : 's'}</p>
