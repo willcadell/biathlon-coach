@@ -515,5 +515,7 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 /* --- Goals ----------------------------------------------------------------- */
 .goal-bar { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; margin: 6px 0 4px; }
 .goal-bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 3px; }
+/* A dry-fire goal's bar in the Dryfire button green; met and missed still win. */
+.goal-bar.dryfire > i { background: color-mix(in srgb, var(--series-3) 72%, black); }
 .goal-bar.done > i { background: var(--good); }
 .goal-bar.missed > i { background: var(--text-muted); }

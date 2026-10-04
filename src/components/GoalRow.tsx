@@ -21,7 +21,7 @@ export function GoalRow({ goal, progress, action, archived }: { goal: Goal; prog
         </span>
         <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(goal)}</span>
       </div>
-      <div className={`goal-bar${done ? ' done' : missed ? ' missed' : ''}`} role="progressbar"
+      <div className={`goal-bar${goal.metric === 'dryfire_minutes' ? ' dryfire' : ''}${done ? ' done' : missed ? ' missed' : ''}`} role="progressbar"
         aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.fraction * 100)}>
         <i style={{ width: `${Math.round(progress.fraction * 100)}%` }} />
       </div>
