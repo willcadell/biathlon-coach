@@ -3,7 +3,7 @@ import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
-import { ChevronIcon } from './icons'
+import { ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetStats } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
@@ -91,10 +91,26 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  itself stays plain text, not link-styled. headerExtra (a filter, a
  *  window selector) only shows while the section is open — it has nothing
  *  to act on once its content is hidden. */
+/** The icon for a kind of session, in that kind's colour — the same pairing as
+ *  the session chooser and the feed's tiles. Precision and metal are both range
+ *  shooting, so they share the range icon. */
+const SESSION_ICON = {
+  range: { Icon: RangeIcon, colour: 'var(--series-1)' },
+  race: { Icon: RaceMedalIcon, colour: 'var(--series-2)' },
+  dryfire: { Icon: DryfireIcon, colour: 'var(--series-3)' },
+} as const
+
+const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
+  const { Icon, colour } = SESSION_ICON[kind]
+  return <span style={{ color: colour, display: 'inline-flex' }}><Icon size={22} /></span>
+}
+
 export function CollapsibleSection({
-  title, defaultOpen = true, headerExtra, children,
+  title, icon, defaultOpen = true, headerExtra, children,
 }: {
   title: string
+  /** Shown before the title, e.g. a session kind's icon. */
+  icon?: React.ReactNode
   defaultOpen?: boolean
   headerExtra?: React.ReactNode
   children: React.ReactNode
@@ -104,6 +120,7 @@ export function CollapsibleSection({
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {icon}
           <h2 style={{ margin: 0 }}>{title}</h2>
           <button
             className="link"
@@ -248,7 +265,7 @@ export function AnalysisView({
       {/* A coach is already under the athlete's name, so "Analysis" would only repeat it. */}
       {!readOnly && <h1>Analysis</h1>}
 
-      <CollapsibleSection title="Precision">
+      <CollapsibleSection title="Precision" icon={sessionIcon('range')}>
         <div className="stats three">
           <div className="stat range">
             <div className="k">Overall</div>
@@ -362,6 +379,7 @@ export function AnalysisView({
 
       <CollapsibleSection
         title="Metal"
+        icon={sessionIcon('range')}
         defaultOpen={false}
         headerExtra={(raceWorkoutIds.size > 0 || presentZones.length > 0) && (
           <div className="seg" style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -485,7 +503,7 @@ export function AnalysisView({
       </CollapsibleSection>
 
       {raceCount > 0 && (
-        <CollapsibleSection title="Race performance" defaultOpen={false}>
+        <CollapsibleSection title="Race performance" icon={sessionIcon('race')} defaultOpen={false}>
           <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
           <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
 
@@ -509,7 +527,7 @@ export function AnalysisView({
       )}
 
       {dryfire.total > 0 && (
-        <CollapsibleSection title="Dry-fire" defaultOpen={false}>
+        <CollapsibleSection title="Dry-fire" icon={sessionIcon('dryfire')} defaultOpen={false}>
           <div className="stats three">
             <div className="stat dryfire">
               <div className="k">This week</div>
