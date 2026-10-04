@@ -12,8 +12,10 @@ import { supabase } from './supabase'
 export const RESPONSIBILITIES_VERSION = 1
 
 /** Where the Universal Code of Conduct to Prevent and Address Maltreatment in
- *  Sport (UCCMS) is published, by the Canadian Centre for Ethics in Sport. */
-export const UCCMS_URL = 'https://cces.ca/sites/default/files/content/docs/2025-01/CCES-UCCMS-Final-E.pdf'
+ *  Sport (UCCMS) is published: the master copy, on Sport Integrity Canada's
+ *  site. The CCES address it used to live at now redirects to a 404, so if this
+ *  breaks too, check sportintegrity.ca for the current document. */
+export const UCCMS_URL = 'https://sportintegrity.ca/media/567'
 
 export async function hasAcknowledgedResponsibilities(coachId: string): Promise<boolean> {
   const { data, error } = await supabase
