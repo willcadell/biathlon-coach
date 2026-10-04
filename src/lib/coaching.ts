@@ -11,12 +11,14 @@ async function currentUserId(): Promise<string> {
 export interface Coach {
   id: string
   displayName: string
+  /** When they set up their coaching identity; absent right after creating it. */
+  createdAt?: string
 }
 
 export async function getCoach(userId: string): Promise<Coach | null> {
-  const { data, error } = await supabase.from('coaches').select('id, display_name').eq('id', userId).maybeSingle()
+  const { data, error } = await supabase.from('coaches').select('id, display_name, created_at').eq('id', userId).maybeSingle()
   if (error) throw error
-  return data ? { id: data.id, displayName: data.display_name } : null
+  return data ? { id: data.id, displayName: data.display_name, createdAt: data.created_at } : null
 }
 
 /** Opts the current user into a second, parallel identity as a coach —

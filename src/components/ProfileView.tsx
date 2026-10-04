@@ -80,7 +80,8 @@ function ProfileHeader({ onOpenSettings }: { onOpenSettings?: () => void }) {
 /** Shown only to an athlete without a coach identity yet — the Coach tab is
  *  hidden until mode actually switches to coach, so this is the only way in
  *  for someone starting from athlete-only. */
-/** "Member since: October 2026" — when the account was made, in the reader's
+/** "Member since: October 2026" — when the account (or, for a coach, the
+ *  coaching identity) was made, in the reader's
  *  own locale. Nothing if the date is missing or unreadable. */
 function memberSince(createdAt: string | undefined): string | undefined {
   const d = createdAt ? new Date(createdAt) : null
@@ -238,6 +239,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   const [coachLoaded, setCoachLoaded] = useState(false)
 
   const [memberships, setMemberships] = useState<Membership[]>([])
+  const [coachSince, setCoachSince] = useState<string | undefined>(undefined)
   const [clubCoaches, setClubCoaches] = useState<ClubCoach[]>([])
   const [membershipsError, setMembershipsError] = useState('')
   const [code, setCode] = useState('')
@@ -270,6 +272,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     void getCoach(session.user.id)
       .then((c) => {
         setCoachName(c?.displayName ?? '')
+        setCoachSince(c?.createdAt)
         setCoachLoaded(true)
       })
       .catch((e) => console.error('Could not load coach profile', e))
@@ -344,7 +347,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
         <h2>Coach details</h2>
         <div className="card">
-          <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
+          <NameField hint={memberSince(coachSince)} value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
             <RcmPledgeStatus coachId={session.user.id} />
         </div>
 
@@ -528,7 +531,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Coach details</h2>
           <div className="card">
-            <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
+            <NameField hint={memberSince(coachSince)} value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
             <RcmPledgeStatus coachId={session.user.id} />
           </div>
 
