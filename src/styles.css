@@ -379,7 +379,10 @@ details:not(.help)[open] > summary::after { transform: rotate(180deg); }
 /* A "?" that reveals its text as a floating card anchored underneath it —
    an overlay, like the rest of the app's popovers and modals, rather than
    pushing the page's own layout down the way a plain <details> would. */
-details.help { position: relative; display: inline-block; margin-left: 6px; vertical-align: text-top; }
+/* Raised a little, superscript-style, so it sits level with the top of the words
+   it belongs to rather than hanging below them. Moved with `top`, not
+   vertical-align, so it can't make the heading's line taller. */
+details.help { position: relative; top: -0.35em; display: inline-block; margin-left: 6px; vertical-align: baseline; }
 details.help summary {
   list-style: none; cursor: pointer; font-weight: 700; font-size: 11px; line-height: 1;
   width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border);
