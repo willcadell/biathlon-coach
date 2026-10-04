@@ -91,6 +91,9 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  itself stays plain text, not link-styled. headerExtra (a filter, a
  *  window selector) only shows while the section is open — it has nothing
  *  to act on once its content is hidden. */
+/** The Race button's colour: also the filter and window chips' in Race performance. */
+const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
+
 /** The five discs' hit rates as tiles, alpha to echo. `tone="race"` gives them
  *  the Race colour, for everything in the Race performance section. */
 function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
@@ -133,7 +136,10 @@ function TargetHitRates({
               key={n}
               aria-pressed={windowSize === n}
               onClick={() => onWindowChange(n)}
-              style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
+              style={{
+                padding: '4px 6px', fontSize: 11, borderRadius: 6,
+                ...(tone === 'race' && windowSize === n ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' } : {}),
+              }}
             >
               {n}
             </button>
@@ -225,6 +231,9 @@ export function AnalysisView({
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
   const [raceProneWindow, setRaceProneWindow] = useState<5 | 10 | 20>(10)
   const [raceStandingWindow, setRaceStandingWindow] = useState<5 | 10 | 20>(10)
+  // One race format at a time, or all of them: the whole Race performance
+  // section follows it.
+  const [raceFilter, setRaceFilter] = useState<'all' | RaceType>('all')
   // Metal here is range-session shooting only; race bouts have their own section
   // below. A zone option ('zone', 2) narrows to combo rounds shot at that target
   // heart-rate zone: one lens on Metal at a time.
@@ -261,16 +270,16 @@ export function AnalysisView({
     raceMetalByType.set(type, [...(raceMetalByType.get(type) ?? []), b])
   }
   const raceCount = new Set(raceMetal.map((b) => b.workoutId)).size
-  const raceCountByType = new Map<RaceType, number>(
-    [...raceMetalByType.entries()].map(([type, bs]) => [type, new Set(bs.map((b) => b.workoutId)).size]),
-  )
+  // The formats actually raced, in a steady order, for the filter.
+  const racedTypes = (Object.keys(RACE_TYPE_LABEL) as RaceType[]).filter((t) => raceMetalByType.has(t))
+  const filteredRace = raceFilter === 'all' ? raceMetal : raceMetalByType.get(raceFilter) ?? []
 
   const raceWorkoutSeasonStart = new Map(
     workouts.filter((w) => w.raceType).map((w) => [w.id, seasonStartYear(new Date(w.startedAt))]),
   )
   const thisSeasonStart = seasonStartYear(new Date())
   const lastSeasonStart = thisSeasonStart - 1
-  const raceMetalForSeason = (start: number) => raceMetal.filter((b) => raceWorkoutSeasonStart.get(b.workoutId) === start)
+  const raceMetalForSeason = (start: number) => filteredRace.filter((b) => raceWorkoutSeasonStart.get(b.workoutId) === start)
   const thisSeasonMetal = raceMetalForSeason(thisSeasonStart)
   const lastSeasonMetal = raceMetalForSeason(lastSeasonStart)
   const raceCountForSeason = (bs: MetalBout[]) => new Set(bs.map((b) => b.workoutId)).size
@@ -294,13 +303,13 @@ export function AnalysisView({
 
   // The same per-target read for race shooting, shown with the race results.
   const targetsRaceProne = useMemo(() => {
-    const sorted = raceMetal.filter((b) => b.position === 'prone').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    const sorted = filteredRace.filter((b) => b.position === 'prone').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
     return targetStats(sorted.slice(0, raceProneWindow))
-  }, [raceMetal, raceProneWindow])
+  }, [filteredRace, raceProneWindow])
   const targetsRaceStanding = useMemo(() => {
-    const sorted = raceMetal.filter((b) => b.position === 'standing').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
+    const sorted = filteredRace.filter((b) => b.position === 'standing').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
     return targetStats(sorted.slice(0, raceStandingWindow))
-  }, [raceMetal, raceStandingWindow])
+  }, [filteredRace, raceStandingWindow])
 
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
@@ -504,7 +513,30 @@ export function AnalysisView({
       </CollapsibleSection>
 
       {raceCount > 0 && (
-        <CollapsibleSection title="Race performance" icon={sessionIcon('race')} defaultOpen={false}>
+        <CollapsibleSection
+          title="Race performance" icon={sessionIcon('race')} defaultOpen={false}
+          headerExtra={racedTypes.length > 1 && (
+            <div className="seg" style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {(['all', ...racedTypes] as const).map((f) => {
+                const active = raceFilter === f
+                const label = f === 'all' ? 'All' : RACE_TYPE_LABEL[f]
+                return (
+                  <button
+                    key={f} aria-pressed={active} onClick={() => setRaceFilter(f)}
+                    style={{
+                      padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none',
+                      ...(active
+                        ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
+                        : { borderColor: RACE_COLOUR, color: RACE_COLOUR }),
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        >
           <p className="meta" style={{ marginTop: 0, marginBottom: 4 }}>This season ({seasonLabel(thisSeasonStart)})</p>
           <MetalPositionStats bouts={thisSeasonMetal} races={raceCountForSeason(thisSeasonMetal)} />
 
@@ -515,24 +547,13 @@ export function AnalysisView({
             </>
           )}
 
-          <p className="meta" style={{ marginTop: 16, marginBottom: 4 }}>All-time by format</p>
-          {[...raceMetalByType.entries()].map(([type, bs]) => (
-            <div key={type} style={{ marginTop: 8 }}>
-              <p className="meta" style={{ marginBottom: 4 }}>
-                {RACE_TYPE_LABEL[type]} · {raceCountByType.get(type) ?? 0} race{(raceCountByType.get(type) ?? 0) === 1 ? '' : 's'}
-              </p>
-              <MetalPositionStats bouts={bs} races={raceCountByType.get(type) ?? 0} />
-              {(['prone', 'standing'] as const).map((position) => {
-                const targets = targetStats(bs.filter((b) => b.position === position))
-                return targets.length > 0 && (
-                  <div key={position}>
-                    <p className="meta" style={{ margin: '10px 0 4px' }}>Targets hit — {position}</p>
-                    <TargetTiles stats={targets} tone="race" />
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+          {/* Only when there's something older than the two seasons above. */}
+          {raceCountForSeason(filteredRace) > raceCountForSeason(thisSeasonMetal) + raceCountForSeason(lastSeasonMetal) && (
+            <>
+              <p className="meta" style={{ marginTop: 12, marginBottom: 4 }}>All-time</p>
+              <MetalPositionStats bouts={filteredRace} races={raceCountForSeason(filteredRace)} />
+            </>
+          )}
 
           <TargetHitRates position="prone" kind="race" tone="race" stats={targetsRaceProne} windowSize={raceProneWindow} onWindowChange={setRaceProneWindow} />
           <TargetHitRates position="standing" kind="race" tone="race" stats={targetsRaceStanding} windowSize={raceStandingWindow} onWindowChange={setRaceStandingWindow} />
