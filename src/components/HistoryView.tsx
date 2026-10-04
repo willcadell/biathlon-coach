@@ -99,6 +99,28 @@ interface Props {
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
 }
 
+/** Saves this one workout's metal results, zero clicks and wind as a
+ *  coach-context file for another app. Open to a coach reading an athlete's
+ *  history too: it's the same training they can already see, as a file
+ *  instead of a screen. Range and race sessions only — a dry-fire session
+ *  has none of the three, so it never gets one. */
+function ExportContextButton({ workout, metalBouts }: { workout: Workout; metalBouts: MetalBout[] }) {
+  if (!isRangeOrRace(workout)) return null
+  return (
+    <button
+      className="secondary" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+      aria-label="Export this workout's context as JSON"
+      title="Export metal results, zero clicks and wind as JSON"
+      onClick={() => downloadJson(
+        `coach-context-${localDate(workout.startedAt)}.json`,
+        JSON.stringify(buildCoachContext([workout], metalBouts), null, 2),
+      )}
+    >
+      <DownloadIcon />
+    </button>
+  )
+}
+
 /** Dev mode only: promote this test workout to live data, next to the bin. */
 function MakeLiveButton({ workoutId, onDone }: { workoutId: string; onDone: () => void }) {
   if (!devModeOn()) return null
@@ -400,26 +422,31 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         )}
 
         {shareSheet}
-        {!readOnly && (
-          <div className="row" style={{ marginTop: 16 }}>
-            <button
-              className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
-              aria-label="Delete this workout" title="Delete this workout"
-              onClick={async () => {
-                if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
-                await deleteWorkout(openWorkout.id)
-                setOpenWorkoutId(null)
-                onChanged()
-              }}
-            >
-              <TrashIcon />
-            </button>
-            <MakeLiveButton workoutId={openWorkout.id} onDone={() => { setOpenWorkoutId(null); onChanged() }} />
+        <div className="row" style={{ marginTop: 16 }}>
+          {!readOnly && (
+            <>
+              <button
+                className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+                aria-label="Delete this workout" title="Delete this workout"
+                onClick={async () => {
+                  if (!confirm('Delete this whole workout, its bouts and their photos? This cannot be undone.')) return
+                  await deleteWorkout(openWorkout.id)
+                  setOpenWorkoutId(null)
+                  onChanged()
+                }}
+              >
+                <TrashIcon />
+              </button>
+              <MakeLiveButton workoutId={openWorkout.id} onDone={() => { setOpenWorkoutId(null); onChanged() }} />
+            </>
+          )}
+          <ExportContextButton workout={openWorkout} metalBouts={metalBouts} />
+          {!readOnly && (
             <button className="secondary" onClick={() => setSheet({ workout: openWorkout })}>
               <ShareIcon /> Share workout
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </>
     )
   }
@@ -450,27 +477,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '24px 0 8px' }}>
         <h2 style={{ margin: 0 }}>Workouts</h2>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-          {/* Open to a coach reading an athlete's history too: it's the same
-              training they can already see, as a file instead of a screen. */}
-          {workouts.some(isRangeOrRace) && (
-            <button
-              className="link" aria-label="Export range and race context as JSON"
-              title="Export range and race context (metal, zero clicks, wind) as JSON"
-              onClick={() => downloadJson(
-                `coach-context-${localDate(new Date().toISOString())}.json`,
-                JSON.stringify(buildCoachContext(workouts, metalBouts), null, 2),
-              )}
-            >
-              <DownloadIcon />
-            </button>
-          )}
-          {!readOnly && (
-            <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-              {selecting ? 'Cancel' : 'Select'}
-            </button>
-          )}
-        </div>
+        {!readOnly && (
+          <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+            {selecting ? 'Cancel' : 'Select'}
+          </button>
+        )}
       </div>
       {sortedWorkouts.map((w) => {
         const ownBouts = bouts.filter((b) => b.workoutId === w.id)
