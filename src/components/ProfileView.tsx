@@ -80,6 +80,14 @@ function ProfileHeader({ onOpenSettings }: { onOpenSettings?: () => void }) {
 /** Shown only to an athlete without a coach identity yet — the Coach tab is
  *  hidden until mode actually switches to coach, so this is the only way in
  *  for someone starting from athlete-only. */
+/** "Member since: October 2026" — when the account was made, in the reader's
+ *  own locale. Nothing if the date is missing or unreadable. */
+function memberSince(createdAt: string | undefined): string | undefined {
+  const d = createdAt ? new Date(createdAt) : null
+  if (!d || Number.isNaN(d.getTime())) return undefined
+  return `Member since: ${d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`
+}
+
 function BecomeCoachCard({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('')
   const [settingUp, setSettingUp] = useState(false)
@@ -380,7 +388,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         <>
           <h2>Athlete details</h2>
           <div className="card">
-            <NameField value={name} loaded={loaded} onSave={save} />
+            <NameField hint={memberSince(session.user.created_at)} value={name} loaded={loaded} onSave={save} />
           </div>
 
           <h2>Your clubs</h2>
