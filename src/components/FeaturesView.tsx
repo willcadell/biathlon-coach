@@ -123,7 +123,7 @@ function AthleteFeatures() {
         <p {...p}>
           Enter a club's or a program's code from your Profile. Before you join, the app tells you what
           you're agreeing to: your coaches will see your training. You're in one program at a time, and
-          you can leave a program, or the club, whenever you like.
+          you can leave a program, or the club, whenever you like. Your Profile lists the club's coaches who can see your training.
         </p>
       </Feature>
       <Feature title="Personal coaches">

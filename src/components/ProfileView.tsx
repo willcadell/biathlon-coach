@@ -3,8 +3,8 @@ import type { Session } from '@supabase/supabase-js'
 import { ensureAthleteRow, getAthlete, signOut, updateDisplayName } from '../lib/auth'
 import {
   becomeCoach, findClubByJoinCode, findProgramByJoinCode, getCoach, joinClubAsAthlete, joinProgramAsAthlete,
-  leaveClub, leaveProgram, myCoachedClubs, myMemberships, updateCoachDisplayName,
-  type Club, type Membership,
+  leaveClub, leaveProgram, myClubCoaches, myCoachedClubs, myMemberships, updateCoachDisplayName,
+  type Club, type ClubCoach, type Membership,
 } from '../lib/coaching'
 import { errorMessage } from '../lib/errors'
 import { ClubLogo } from './ClubLogo'
@@ -230,6 +230,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
   const [coachLoaded, setCoachLoaded] = useState(false)
 
   const [memberships, setMemberships] = useState<Membership[]>([])
+  const [clubCoaches, setClubCoaches] = useState<ClubCoach[]>([])
   const [membershipsError, setMembershipsError] = useState('')
   const [code, setCode] = useState('')
   const [match, setMatch] = useState<JoinMatch | null>(null)
@@ -239,6 +240,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
 
   const refreshMemberships = () => {
     setMembershipsError('')
+    void myClubCoaches().then(setClubCoaches).catch(() => undefined) // a nicety: the clubs list works without it
     void myMemberships()
       .then(setMemberships)
       .catch((e) => setMembershipsError(errorMessage(e, 'Could not load your clubs. Check your connection and try again.')))
@@ -407,6 +409,18 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                       <TrashIcon />
                     </button>
                   </div>
+                  {clubCoaches.some((c) => c.clubId === m.clubId) && (
+                    <p className="meta" style={{ margin: '6px 0 0', paddingLeft: 42 }}>
+                      Coaches:{' '}
+                      {clubCoaches.filter((c) => c.clubId === m.clubId).map((c, i) => (
+                        <span key={c.coachId}>
+                          {i > 0 && ', '}
+                          {c.displayName || 'Unnamed coach'}
+                          {c.isAdmin && ' (admin)'}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                   {m.programName && (
                     <div className="row" style={{ alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 42 }}>
                       <span style={{ flex: 1, minWidth: 0 }}>

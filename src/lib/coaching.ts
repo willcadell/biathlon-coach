@@ -303,6 +303,23 @@ export async function myMemberships(): Promise<Membership[]> {
   })
 }
 
+export interface ClubCoach {
+  clubId: string
+  coachId: string
+  displayName: string
+  isAdmin: boolean
+}
+
+/** The club coaches who can see this athlete's training, per club — the same
+ *  rule the database uses to give them access (see my_club_coaches). */
+export async function myClubCoaches(): Promise<ClubCoach[]> {
+  const { data, error } = await supabase.rpc('my_club_coaches')
+  if (error) throw error
+  return ((data ?? []) as { club_id: string; coach_id: string; coach_name: string; is_admin: boolean }[]).map((r) => ({
+    clubId: r.club_id, coachId: r.coach_id, displayName: r.coach_name, isAdmin: r.is_admin,
+  }))
+}
+
 /** Leave a program but stay in the club — see leave_program. */
 export async function leaveProgram(clubId: string): Promise<void> {
   const { error } = await supabase.rpc('leave_program', { p_club_id: clubId })
