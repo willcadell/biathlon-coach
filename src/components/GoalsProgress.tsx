@@ -94,23 +94,23 @@ export function GoalsProgress({ data }: { data: GoalData }) {
         >
           <ChevronIcon direction={open ? 'up' : 'down'} />
         </button>
+        {open && (hiddenCount > 0 || filter === 'all') && (
+          <div className="seg" style={{ flex: 'none', marginLeft: 'auto' }} role="group" aria-label="Which goals to show">
+            {([['live', 'Live'], ['all', 'All']] as const).map(([id, label]) => (
+              <button
+                key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}
+                aria-label={id === 'all' ? 'All goals' : undefined}
+                style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none' }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {open && (
         <>
-          {(hiddenCount > 0 || filter === 'all') && (
-            <div className="seg" style={{ flex: 'none', width: 'fit-content', marginBottom: 8 }} role="group" aria-label="Which goals to show">
-              {([['live', 'Live'], ['all', 'All']] as const).map(([id, label]) => (
-                <button
-                  key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}
-                  aria-label={id === 'all' ? 'All goals' : undefined}
-                  style={{ padding: '4px 10px', fontSize: 11, borderRadius: 6, flex: 'none' }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
           {shown.length === 0 ? (
             <p className="meta">No live goals. Set one in your Profile, or choose All goals to see the ones you've archived.</p>
           ) : (
