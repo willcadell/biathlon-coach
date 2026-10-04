@@ -35,6 +35,7 @@ export interface Goal {
   archivedAt: string | null
   /** Set once the athlete has been shown the confetti for achieving it. */
   celebratedAt: string | null
+  createdAt: string
 }
 
 export interface NewGoal {
@@ -153,6 +154,16 @@ export function goalTitle(g: Pick<Goal, 'metric' | 'position' | 'target'>): stri
 export function goalDeadline(g: Goal): string {
   const [y, m, d] = g.endsOn.split('-').map(Number)
   return `by ${new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+}
+
+/** "Achieved Oct 2 at 84%" — when it was first met, in the reader's own locale;
+ *  null for a goal that hasn't been. */
+export function goalAchievedText(g: Goal): string | null {
+  if (!g.achievedAt) return null
+  const at = new Date(g.achievedAt)
+  const sameYear = at.getFullYear() === new Date().getFullYear()
+  const when = at.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
+  return `Achieved ${when}${g.achievedValue === null ? '' : ` at ${formatValue(g.metric, g.achievedValue)}`}`
 }
 
 /** What's left to say about where it stands, in a few words. */

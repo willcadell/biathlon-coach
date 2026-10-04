@@ -18,6 +18,7 @@ interface GoalRow {
   achieved_value: number | null
   archived_at: string | null
   celebrated_at: string | null
+  created_at: string
 }
 
 const toGoal = (r: GoalRow): Goal => ({
@@ -32,9 +33,10 @@ const toGoal = (r: GoalRow): Goal => ({
   achievedValue: r.achieved_value === null ? null : Number(r.achieved_value),
   archivedAt: r.archived_at,
   celebratedAt: r.celebrated_at,
+  createdAt: r.created_at,
 })
 
-const COLUMNS = 'id, metric, position, target, starts_on, ends_on, shared, achieved_at, achieved_value, archived_at, celebrated_at'
+const COLUMNS = 'id, metric, position, target, starts_on, ends_on, shared, achieved_at, achieved_value, archived_at, celebrated_at, created_at'
 
 async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser()

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { localDate } from '../lib/coachContext'
 import { errorMessage } from '../lib/errors'
-import { GOAL_METRICS, createGoal, deleteGoal, goalDeadline, goalTitle, myGoals, setGoalShared } from '../lib/goals'
+import { GOAL_METRICS, createGoal, deleteGoal, goalAchievedText, goalDeadline, goalTitle, myGoals, setGoalShared } from '../lib/goals'
 import type { Goal, GoalMetric } from '../lib/goals'
 import type { Position } from '../lib/types'
 import { Dropdown } from './Dropdown'
@@ -40,6 +40,9 @@ export function GoalsCard() {
   const refresh = () =>
     void myGoals().then(setGoals).catch((e) => setError(errorMessage(e, 'Could not load your goals. Check your connection and try again.')))
   useEffect(refresh, [])
+
+  // Newest first, whatever their end dates.
+  const newestFirst = [...(goals ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const isRate = metric !== 'dryfire_minutes'
   const targetNumber = Number(target)
@@ -99,27 +102,32 @@ export function GoalsCard() {
       {error && <div className="notice error">{error}</div>}
 
       {goals && goals.length > 0 && (
-        <div className="card">
-          {goals.map((g, i) => (
-            <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
-              <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>{goalTitle(g)}</span>
-                <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}{g.archivedAt ? ' · archived' : ''}</span>
-                <button
-                  className="link danger" style={{ flex: 'none' }}
-                  aria-label={`Delete the goal ${goalTitle(g)}`} title="Delete this goal"
-                  onClick={() => void remove(g)}
-                >
-                  <TrashIcon />
-                </button>
+        <Dropdown title="Your goals">
+          <div className="card">
+            {newestFirst.map((g, i) => (
+              <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
+                <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>{goalTitle(g)}</span>
+                  <span className="meta" style={{ flex: 'none', margin: 0 }}>{goalDeadline(g)}{g.archivedAt ? ' · archived' : ''}</span>
+                  <button
+                    className="link danger" style={{ flex: 'none' }}
+                    aria-label={`Delete the goal ${goalTitle(g)}`} title="Delete this goal"
+                    onClick={() => void remove(g)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+                {goalAchievedText(g) && (
+                  <div className="meta" style={{ margin: '2px 0 0', color: 'var(--good)' }}>{goalAchievedText(g)}</div>
+                )}
+                <label className="check" style={{ marginTop: 4, marginBottom: 0 }}>
+                  <input type="checkbox" checked={g.shared} onChange={() => void toggleShared(g)} />
+                  Share with my coaches
+                </label>
               </div>
-              <label className="check" style={{ marginTop: 4, marginBottom: 0 }}>
-                <input type="checkbox" checked={g.shared} onChange={() => void toggleShared(g)} />
-                Share with my coaches
-              </label>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Dropdown>
       )}
 
       <Dropdown title="Set a goal">

@@ -14,7 +14,7 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
-import { canArchive, evaluateGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
+import { canArchive, goalAchievedText, evaluateGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -452,7 +452,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const day = (d: number, h = 12) => new Date(2026, 8, d, h).toISOString()
   const goal = (over: Partial<Goal>): Goal => ({
     id: 'g', metric: 'metal_hit_rate', position: null, target: 80,
-    startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, archivedAt: null, celebratedAt: null, ...over,
+    startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, archivedAt: null, celebratedAt: null, createdAt: '2026-09-10T08:00:00Z', ...over,
   })
   const metalAt = (d: number, position: Position, missed: MetalTarget[]): MetalBout => ({
     kind: 'metal', id: `m${d}${position}${missed.join('')}`, workoutId: 'w', shotAt: day(d), position, heartRate: 0,
@@ -509,6 +509,8 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('goal: an achieved goal not yet celebrated is celebrated', needsCelebration(won.g, won.p))
   ok('goal: it is celebrated only once', !needsCelebration(...((r) => [r.g, r.p] as const)(rowOf({ achievedAt: day(14), achievedValue: 90, celebratedAt: day(15) }))))
   ok('goal: a missed or live goal is not celebrated', !needsCelebration(rows[0].g, rows[0].p) && !needsCelebration(rows[1].g, rows[1].p))
+  ok('goal: achieved text names the date and value; none for an unmet goal',
+    goalAchievedText(goal({}))=== null && /^Achieved .+ at 90%$/.test(goalAchievedText(goal({ achievedAt: new Date().toISOString(), achievedValue: 90 })) ?? ''))
   ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
 }
 
