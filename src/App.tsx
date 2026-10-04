@@ -1,6 +1,7 @@
 import { contributePending, getContribution, type Contribution } from './lib/contribute'
 import { ContributePrompt } from './components/ContributeChoice'
 import { amDev, devModeOn, setDevMode } from './lib/dev'
+import { amPlatformAdmin } from './lib/platformAdmin'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
@@ -17,7 +18,7 @@ import { WorkoutView } from './components/WorkoutView'
 import { AnalysisView } from './components/AnalysisView'
 import { ProfileView } from './components/ProfileView'
 import { ResponsibilitiesGate } from './components/CoachResponsibilities'
-import { CoachView, ClubSettingsView } from './components/CoachView'
+import { CoachView, ClubSettingsView, PlatformAdminView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
 import { PrivacyPolicyView } from './components/PrivacyPolicyView'
 import { TermsView } from './components/TermsView'
@@ -44,7 +45,7 @@ function saveActiveWorkoutId(id: string | null): void {
   }
 }
 
-type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'club' | 'settings'
+type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'club' | 'settings' | 'platform'
 type Role = 'athlete' | 'coach'
 
 const MODE_KEY_PREFIX = 'biathlon-coach:mode:'
@@ -164,8 +165,10 @@ function IdentityGate({ session }: { session: Session }) {
   const [identities, setIdentities] = useState<{ athlete: boolean; coach: boolean } | undefined>(undefined)
   const [mode, setMode] = useState<Role | null>(null)
   const [isDev, setIsDev] = useState(false)
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   useEffect(() => {
     void amDev().then(setIsDev).catch(() => setIsDev(false))
+    void amPlatformAdmin().then(setIsPlatformAdmin).catch(() => setIsPlatformAdmin(false))
   }, [session.user.id])
 
   const refreshIdentities = useCallback(() => {
@@ -222,6 +225,7 @@ function IdentityGate({ session }: { session: Session }) {
       identities={identities}
       mode={activeMode}
       isDev={isDev}
+      isPlatformAdmin={isPlatformAdmin}
       onIdentityChanged={refreshIdentities}
       onSwitchRole={
         identities.athlete && identities.coach
@@ -233,13 +237,15 @@ function IdentityGate({ session }: { session: Session }) {
 }
 
 function SignedInApp({
-  session, identities, mode, isDev, onIdentityChanged, onSwitchRole,
+  session, identities, mode, isDev, isPlatformAdmin, onIdentityChanged, onSwitchRole,
 }: {
   session: Session
   identities: { athlete: boolean; coach: boolean }
   mode: Role
   /** Granted in Supabase; unlocks the dev mode switch in Profile. */
   isDev: boolean
+  /** Granted in the database; unlocks the read-only platform view from Profile. */
+  isPlatformAdmin: boolean
   onIdentityChanged: () => void
   onSwitchRole?: () => void
 }) {
@@ -389,12 +395,19 @@ function SignedInApp({
                 onSwitchRole={onSwitchRole}
                 isDev={isDev}
                 devMode={devMode}
+                isPlatformAdmin={isPlatformAdmin}
+                onOpenPlatform={() => setTab('platform')}
                 onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
               />
             )}
             {tab === 'coach' && (
               <ResponsibilitiesGate coachId={session.user.id} enabled={identities.coach}>
                 <CoachView session={session} onIdentityChanged={onIdentityChanged} />
+              </ResponsibilitiesGate>
+            )}
+            {tab === 'platform' && isPlatformAdmin && (
+              <ResponsibilitiesGate coachId={session.user.id} enabled={identities.coach}>
+                <PlatformAdminView onBack={() => setTab('profile')} />
               </ResponsibilitiesGate>
             )}
             {tab === 'club' && (

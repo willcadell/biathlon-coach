@@ -17,6 +17,7 @@ import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
 import { RcmPledgeStatus, ResponsibilitiesGate } from './CoachResponsibilities'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
+import { PlatformAccessCard } from './PlatformAccessCard'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
  *  them to know which, it just tries a club code, then a program code. */
@@ -48,6 +49,9 @@ interface Props {
   isDev?: boolean
   /** Dev mode is on for this tab: what's created is test data. */
   devMode?: boolean
+  /** Granted in the database: shows the way into the read-only platform view. */
+  isPlatformAdmin?: boolean
+  onOpenPlatform?: () => void
 }
 
 function CogIcon() {
@@ -193,6 +197,27 @@ function CoachedClubsCard() {
   )
 }
 
+/** The way into the read-only platform view, for the app's operator. Says
+ *  plainly what it is: nothing here is hidden from the people being looked at. */
+function PlatformAdminCard({ hasCoach, onOpen }: { hasCoach: boolean; onOpen: () => void }) {
+  return (
+    <>
+      <h2>Platform admin</h2>
+      <div className="card">
+        <p style={{ marginTop: 0 }}>
+          Look at any club, read-only. You're on no club's coach list and can't change anything, and each
+          club or athlete you open is logged where the athlete can see it.
+        </p>
+        {hasCoach ? (
+          <button className="secondary" onClick={onOpen}>Open the platform view</button>
+        ) : (
+          <p className="meta" style={{ marginBottom: 0 }}>Set up a coaching identity first, and agree to the coach responsibilities, to use this.</p>
+        )}
+      </div>
+    </>
+  )
+}
+
 /** Shown for someone with both identities — switching is the one reason a
  *  session-mode control needs to exist at all — and for a dev account, which
  *  can also enter dev mode. Dev mode is separate from athlete/coach: the
@@ -230,7 +255,7 @@ function SessionCard({
   )
 }
 
-export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings, isDev, devMode }: Props) {
+export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, mode, onSwitchRole, onOpenSettings, isDev, devMode, isPlatformAdmin, onOpenPlatform }: Props) {
   const [name, setName] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [settingUp, setSettingUp] = useState(false)
@@ -343,6 +368,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <>
         <ProfileHeader onOpenSettings={onOpenSettings} />
         <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
+        {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard hasCoach={hasCoach} onOpen={onOpenPlatform} />}
         {mode === 'coach' && <CoachedClubsCard />}
 
         <h2>Coach details</h2>
@@ -514,6 +540,10 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
                   your training, and any coach's notes on it, for as long as you're a member. Your target photos
                   stay private.
                 </p>
+                <p className="meta">
+                  545 Coach's own team can also open your training, read-only, for support and safety. Each time
+                  they do, it's recorded for you to see in your Profile.
+                </p>
                 <p className="meta">If you're under 18, check with a parent or guardian before continuing.</p>
                 <div className="row" style={{ marginTop: 14 }}>
                   <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
@@ -530,6 +560,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           <GoalsCard />
 
           <PersonalCoachesCard />
+          <PlatformAccessCard />
         </>
       )}
 
@@ -548,6 +579,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       )}
 
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
+      {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard hasCoach={hasCoach} onOpen={onOpenPlatform} />}
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
       <Dropdown title="Account">

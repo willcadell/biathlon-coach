@@ -167,6 +167,18 @@ agreed (version 2 is where the pledge is confirmed). Bump
 `required_coach_ack_version()` and `RESPONSIBILITIES_VERSION` together to make everyone agree
 again.
 
+**Platform admin.** The operator of the app can look at any club, read-only, from Profile.
+It's a disclosed role, not a back door: it's granted only from the database
+(`platform_admins`, no policies), it isn't a club coach and appears on no coach list, it
+needs the same coach responsibilities agreement, and it can't write anything. Only SELECT
+policies are widened, through `can_view_athlete` and `platform_may_read`; the note-writing
+policy still needs a real coach link, and an athlete's private goals stay private. Opening a club
+or an athlete is logged (`platform_access_log`, written only by `log_platform_access`), and an
+athlete can read the entries about themselves in Profile. The privacy policy and the join notice
+say all this. The log records in-app use; it can't stop someone with direct database access, who
+could read the same data anyway. Grant or remove with:
+`insert into platform_admins (user_id) select id from auth.users where email = '...'`.
+
 **Reads and posts to the club feed.** Under *Start a session* is the club's feed:
 targets and workouts clubmates chose to share, marked with the same icon and colour
 as the session type, and announcements from coaches. Ring a **cowbell** for

@@ -94,11 +94,18 @@ export function PrivacyPolicyView() {
             that program's athletes; a coach who oversees the whole club, and its admins, see every
             athlete in it.
           </p>
+          <p>
+            <strong>545 Coach's own team.</strong> The people who run 545 Coach can open any club, and an
+            athlete's training, read-only, to give support and keep people safe. They aren't on a club's
+            coach list. They can't change anything, can't see your private goals, and can't write notes or
+            post. They must agree to the same coach responsibilities as any coach. Every time they open
+            your training it's recorded with the date, and you can see those records in your Profile.
+          </p>
           <p style={{ marginBottom: 0 }}>
             We don't sell your data, and we don't share it with advertisers. Nobody outside the app
-            sees your training data except the specific coaches you've chosen to share it with, anything
-            you choose to post to your club's feed (see below), and the infrastructure providers below
-            who store it on our behalf.
+            sees your training data except the specific coaches you've chosen to share it with, 545 Coach's
+            own team as described above, anything you choose to post to your club's feed (see below), and
+            the infrastructure providers below who store it on our behalf.
           </p>
         </div>
 

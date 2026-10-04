@@ -14,11 +14,13 @@ import { AnalysisView, CollapsibleSection, MetalPositionStats, seasonLabel, seas
 import { Help } from './Help'
 import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
+import { Dropdown } from './Dropdown'
+import { logPlatformAccess, platformClubs, recentPlatformAccess, type AccessEntry } from '../lib/platformAdmin'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
 import { myPersonalAthletes, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
-import { AdminPill, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
+import { AdminPill, AdminShield, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -426,7 +428,7 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
  * and there is nowhere to read the athlete's own settings from (they live on
  * their device, never synced).
  */
-function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
+function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; platform?: boolean }) {
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -462,7 +464,7 @@ function AthleteDetail({ athlete }: { athlete: RosterAthlete }) {
         bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
         onChanged={refresh}
         readOnly
-        onAddCoachNote={async (workoutId, note) => {
+        onAddCoachNote={platform ? undefined : async (workoutId, note) => {
           await addCoachNote(workoutId, note)
           refresh()
         }}
@@ -631,9 +633,12 @@ function RosterGroup({
 }
 
 function ClubRosterSection({
-  club, openAthleteId, setOpenAthleteId,
+  club, openAthleteId, setOpenAthleteId, platform = false,
 }: {
   club: Club
+  /** A platform admin looking in: no program changes, no notes, and opening an
+   *  athlete is logged. */
+  platform?: boolean
   /** Owned by CoachView, so the club header can step aside while one athlete is open. */
   openAthleteId: string | null
   setOpenAthleteId: (id: string | null) => void
@@ -700,6 +705,10 @@ function ClubRosterSection({
   }, [club.id, reloadKey])
 
   const openAthlete = athletes?.find((a) => a.athleteId === openAthleteId)
+  const openedId = openAthlete?.athleteId
+  useEffect(() => {
+    if (platform && openedId) void logPlatformAccess('open_athlete', club.id, openedId).catch(() => undefined)
+  }, [platform, openedId, club.id])
   // An athlete who has left the club (or been removed) can't stay open.
   useEffect(() => {
     if (openAthleteId && athletes && !openAthlete) setOpenAthleteId(null)
@@ -711,7 +720,7 @@ function ClubRosterSection({
         <hr className="detail-rule" />
         <h1 style={{ marginTop: 14 }}>{openAthlete.displayName || 'Unnamed athlete'}</h1>
         <p className="lede">{club.name}</p>
-        <AthleteDetail athlete={openAthlete} />
+        <AthleteDetail athlete={openAthlete} platform={platform} />
       </>
     )
   }
@@ -767,9 +776,9 @@ function ClubRosterSection({
         >
           <RosterGroup
             group={g} onOpenAthlete={setOpenAthleteId}
-            onRemove={g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
-            programs={g.key === NO_PROGRAM_KEY ? programs : undefined}
-            onAssign={g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
+            onRemove={platform || g.key === NO_PROGRAM_KEY ? undefined : (a, name) => void removeFromProgram(a, name)}
+            programs={!platform && g.key === NO_PROGRAM_KEY ? programs : undefined}
+            onAssign={!platform && g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
           />
         </CollapsibleSection>
       ))}
@@ -1196,6 +1205,103 @@ export function ClubSettingsView({ session }: { session: Session }) {
           ))}
         </>
       )}
+    </>
+  )
+}
+
+/**
+ * The platform admin's read-only look at any club: its coaches, roster and
+ * athletes' training, with nothing to change. It is not a coaching view: the
+ * admin isn't a coach here, appears on no coach list, and every club or athlete
+ * opened is logged, where the athlete can see it.
+ */
+export function PlatformAdminView({ onBack }: { onBack: () => void }) {
+  const [clubs, setClubs] = useState<Club[] | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [athleteId, setAthleteId] = useState<string | null>(null)
+  const [coaches, setCoaches] = useState<CoCoach[]>([])
+  const [log, setLog] = useState<AccessEntry[]>([])
+  const [error, setError] = useState('')
+
+  const loadLog = () => void recentPlatformAccess().then(setLog).catch(() => undefined)
+  useEffect(() => {
+    void platformClubs().then(setClubs).catch((e) => setError(errorMessage(e, 'Could not load the clubs. Check your connection and try again.')))
+    loadLog()
+  }, [])
+
+  const club = clubs?.find((c) => c.id === openId)
+  useEffect(() => {
+    setAthleteId(null)
+    if (!club) { setCoaches([]); return }
+    void logPlatformAccess('open_club', club.id, null).then(loadLog).catch(() => undefined)
+    void coachesForClub(club.id).then(setCoaches).catch(() => setCoaches([]))
+  }, [club?.id])
+
+  if (club) {
+    return (
+      <>
+        {!athleteId && (
+          <>
+            <button className="link" onClick={() => setOpenId(null)}>← All clubs</button>
+            <hr className="detail-rule" />
+            <h1 style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ClubLogo logoPath={club.logoPath} size={34} />
+              <span style={{ minWidth: 0 }}>{club.name}</span>
+            </h1>
+            {coaches.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, margin: '0 0 12px' }}>
+                <span className="meta">Coaches </span>
+                {coaches.map((c) => (
+                  <span key={c.coachId} className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {c.isAdmin && <span role="img" aria-label="Club admin" style={{ color: 'var(--series-1)', display: 'inline-flex' }}><AdminShield size={12} /></span>}
+                    {c.displayName || 'Unnamed coach'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        <ClubRosterSection club={club} openAthleteId={athleteId} setOpenAthleteId={setAthleteId} platform />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <button className="link" onClick={onBack}>← Profile</button>
+      <hr className="detail-rule" />
+      <h1 style={{ marginTop: 14 }}>Platform admin</h1>
+      <div className="notice">
+        <strong>Read-only.</strong> You're looking in as the platform's operator, not as a coach: you're on no
+        club's coach list and you can't change anything. Each club or athlete you open is logged, and the
+        athlete can see that it happened.
+      </div>
+      {error && <div className="notice error">{error}</div>}
+      {clubs === null && !error && <p className="meta">Loading…</p>}
+      {clubs?.map((c) => (
+        <button key={c.id} className="boutrow" onClick={() => setOpenId(c.id)}>
+          <ClubLogo logoPath={c.logoPath} size={40} />
+          <div className="grow">
+            <div className="title">{c.name}<GoArrow /></div>
+          </div>
+        </button>
+      ))}
+      <Dropdown title="Access log">
+        <div className="card">
+          {log.length === 0 ? (
+            <p className="meta" style={{ margin: 0 }}>Nothing opened yet.</p>
+          ) : (
+            log.map((e) => (
+              <p key={e.id} className="meta" style={{ margin: '0 0 6px' }}>
+                {new Date(e.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                {' · '}
+                {e.action === 'open_athlete' ? `Opened ${e.athleteName || 'an athlete'}` : 'Opened the club'}
+                {e.clubName ? ` · ${e.clubName}` : ''}
+              </p>
+            ))
+          )}
+        </div>
+      </Dropdown>
     </>
   )
 }
