@@ -10,7 +10,7 @@ export function GoalRow({ goal, progress, action, archived }: { goal: Goal; prog
   const missed = progress.status === 'missed'
   return (
     <div
-      className={`card goal-box${goal.metric === 'dryfire_minutes' ? ' dryfire' : ''}`}
+      className={`card goal-box ${goal.metric === 'dryfire_minutes' ? 'dryfire' : 'range'}`}
       style={archived ? { opacity: 0.7 } : undefined}
     >
       <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>

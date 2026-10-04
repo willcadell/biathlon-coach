@@ -516,16 +516,15 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 
 /* --- Goals ----------------------------------------------------------------- */
 .goal-bar { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; margin: 6px 0 4px; }
-.goal-bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 3px; }
-/* Each goal is its own box. A dry-fire goal's box is the Dryfire button green
-   with white text, bar and buttons, like the other green tiles. */
-.goal-box { margin-bottom: 8px; padding: 6px 14px; }
-.goal-check { color: var(--good); }
-.goal-box.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); border-color: transparent; color: #fff; }
-.goal-box.dryfire .meta, .goal-box.dryfire button.link, .goal-box.dryfire .goal-check { color: #fff; }
-.goal-box.dryfire .meta { opacity: 0.85; }
-.goal-box.dryfire .goal-bar { background: rgba(255, 255, 255, 0.28); }
-.goal-box.dryfire .goal-bar > i { background: #fff; }
-.goal-box.dryfire .goal-bar.missed > i { background: rgba(255, 255, 255, 0.55); }
-.goal-bar.done > i { background: var(--good); }
-.goal-bar.missed > i { background: var(--text-muted); }
+.goal-bar > i { display: block; height: 100%; border-radius: 3px; }
+/* Each goal is its own box, in its session's colour with white text, bar and
+   buttons: the Range blue for metal and precision, the Dryfire green for dry-fire. */
+.goal-box { margin-bottom: 8px; padding: 6px 14px; color: #fff; border-color: transparent; }
+.goal-box.range { background: var(--series-1); }
+.goal-box.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); }
+.goal-check { color: #fff; }
+.goal-box .meta, .goal-box button.link { color: #fff; }
+.goal-box .meta { opacity: 0.85; }
+.goal-box .goal-bar { background: rgba(255, 255, 255, 0.28); }
+.goal-box .goal-bar > i { background: #fff; }
+.goal-box .goal-bar.missed > i { background: rgba(255, 255, 255, 0.55); }
