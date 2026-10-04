@@ -98,11 +98,13 @@ const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
  *  the Race colour, for everything in the Race performance section. */
 function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
   return (
-    <div className="stats" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+    // minmax(0, 1fr) and tighter tiles so five of them fit a phone's width
+    // instead of running off the right edge.
+    <div className="stats" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
       {stats.map((t) => (
-        <div className={`stat${tone ? ` ${tone}` : ''}`} key={t.target}>
-          <div className="k">{t.target}</div>
-          <div className="v">{t.hitRatePct}<small>%</small></div>
+        <div className={`stat${tone ? ` ${tone}` : ''}`} key={t.target} style={{ padding: '8px 6px', minWidth: 0 }}>
+          <div className="k" style={{ fontSize: 10, letterSpacing: 0.02 + 'em' }}>{t.target}</div>
+          <div className="v" style={{ fontSize: 18 }}>{t.hitRatePct}<small>%</small></div>
           <div className="n">{t.hits}/{t.bouts}</div>
         </div>
       ))}
@@ -157,15 +159,13 @@ type RaceWindow = 3 | 5 | 10 | 'all'
  * counts bouts, this counts RACES: a sprint has two shooting stages and a
  * pursuit or mass start four, so a bout window would mix formats unevenly.
  * Prone and standing both come from the same chosen races, and the section
- * says in words, in the control and in a "?", that races are what's counted.
+ * says in the control ("Races: Last 5") and in a "?" that races are what's counted.
  */
 function RaceTargetHitRates({
-  prone, standing, races, windowValue, onWindowChange,
+  prone, standing, windowValue, onWindowChange,
 }: {
   prone: TargetStat[]
   standing: TargetStat[]
-  /** How many races the figures below are drawn from. */
-  races: number
   windowValue: RaceWindow
   onWindowChange: (w: RaceWindow) => void
 }) {
@@ -174,35 +174,36 @@ function RaceTargetHitRates({
   const bouts = (stats: TargetStat[]) => stats[0]?.bouts ?? 0
   return (
     <>
-      <h3 style={{ margin: '20px 0 6px' }}>
-        Which targets get hit
-        <Help>
-          Here the count is <strong>races</strong>, not bouts. A sprint has two shooting stages (one prone, one
-          standing); a pursuit or mass start has four. So "Last 5" means your five most recent races, however
-          many bouts they hold, and prone and standing both come from those same races. The Metal section
-          counts bouts instead, because range sessions don't have a fixed number.
-        </Help>
-      </h3>
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
-        <span className="meta" style={{ margin: 0 }}>Races</span>
-        <div className="seg" style={{ flex: 'none' }} role="group" aria-label="How many races to count">
-          {options.map((o) => (
-            <button
-              key={o} aria-pressed={windowValue === o} onClick={() => onWindowChange(o)}
-              style={{
-                padding: '4px 8px', fontSize: 11, borderRadius: 6, flex: 'none',
-                ...(windowValue === o
-                  ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
-                  : { borderColor: RACE_COLOUR, color: RACE_COLOUR }),
-              }}
-            >
-              {o === 'all' ? 'All' : `Last ${o}`}
-            </button>
-          ))}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, margin: '20px 0 6px' }}>
+        <h3 style={{ margin: 0 }}>
+          Which targets get hit
+          <Help>
+            Here the count is <strong>races</strong>, not bouts. A sprint has two shooting stages (one prone, one
+            standing); a pursuit or mass start has four. So "Last 5" means your five most recent races, however
+            many bouts they hold, and prone and standing both come from those same races. The Metal section
+            counts bouts instead, because range sessions don't have a fixed number.
+          </Help>
+        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginLeft: 'auto' }}>
+          <span className="meta" style={{ margin: 0 }}>Races</span>
+          <div className="seg" style={{ flex: 'none' }} role="group" aria-label="How many races to count">
+            {options.map((o) => (
+              <button
+                key={o} aria-pressed={windowValue === o} onClick={() => onWindowChange(o)}
+                style={{
+                  padding: '4px 8px', fontSize: 11, borderRadius: 6, flex: 'none',
+                  ...(windowValue === o
+                    ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
+                    : { borderColor: RACE_COLOUR, color: RACE_COLOUR }),
+                }}
+              >
+                {o === 'all' ? 'All' : `Last ${o}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <p className="meta" style={{ marginTop: 0 }}>
-        Counting {races === 1 ? 'your 1 race' : `${windowValue === 'all' ? 'all' : 'your last'} ${races} races`}, not bouts.
         Hit rate per target, alpha to echo, left to right downrange.
       </p>
       {prone.length > 0 && (
@@ -635,7 +636,7 @@ export function AnalysisView({
           )}
 
           <RaceTargetHitRates
-            prone={targetsRaceProne} standing={targetsRaceStanding} races={chosenRaces.size}
+            prone={targetsRaceProne} standing={targetsRaceStanding}
             windowValue={raceWindow} onWindowChange={setRaceWindow}
           />
         </CollapsibleSection>
