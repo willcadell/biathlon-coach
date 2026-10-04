@@ -114,10 +114,9 @@ function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'race' }) {
  *  position, from the most recent 5, 10 or 20 bouts. Used for range metal and,
  *  separately, for race metal. */
 function TargetHitRates({
-  position, kind, stats, windowSize, onWindowChange, tone,
+  position, kind, stats, windowSize, onWindowChange,
 }: {
   position: 'prone' | 'standing'
-  tone?: 'race'
   /** What the bouts are, for the caption: "metal" or "race". */
   kind: string
   stats: TargetStat[]
@@ -136,14 +135,7 @@ function TargetHitRates({
               key={n}
               aria-pressed={windowSize === n}
               onClick={() => onWindowChange(n)}
-              style={{
-                padding: '4px 6px', fontSize: 11, borderRadius: 6,
-                ...(tone === 'race'
-                  ? windowSize === n
-                    ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
-                    : { borderColor: RACE_COLOUR, color: RACE_COLOUR }
-                  : {}),
-              }}
+              style={{ padding: '4px 6px', fontSize: 11, borderRadius: 6 }}
             >
               {n}
             </button>
@@ -153,7 +145,78 @@ function TargetHitRates({
       <p className="meta" style={{ marginTop: -6 }}>
         Hit rate per target, alpha to echo, left to right downrange — last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
       </p>
-      <TargetTiles stats={stats} tone={tone} />
+      <TargetTiles stats={stats} />
+    </>
+  )
+}
+
+type RaceWindow = 3 | 5 | 10 | 'all'
+
+/**
+ * "Which targets get hit" for races. Unlike the range metal version, which
+ * counts bouts, this counts RACES: a sprint has two shooting stages and a
+ * pursuit or mass start four, so a bout window would mix formats unevenly.
+ * Prone and standing both come from the same chosen races, and the section
+ * says in words, in the control and in a "?", that races are what's counted.
+ */
+function RaceTargetHitRates({
+  prone, standing, races, windowValue, onWindowChange,
+}: {
+  prone: TargetStat[]
+  standing: TargetStat[]
+  /** How many races the figures below are drawn from. */
+  races: number
+  windowValue: RaceWindow
+  onWindowChange: (w: RaceWindow) => void
+}) {
+  if (prone.length === 0 && standing.length === 0) return null
+  const options: RaceWindow[] = [3, 5, 10, 'all']
+  const bouts = (stats: TargetStat[]) => stats[0]?.bouts ?? 0
+  return (
+    <>
+      <h3 style={{ margin: '20px 0 6px' }}>
+        Which targets get hit
+        <Help>
+          Here the count is <strong>races</strong>, not bouts. A sprint has two shooting stages (one prone, one
+          standing); a pursuit or mass start has four. So "Last 5" means your five most recent races, however
+          many bouts they hold, and prone and standing both come from those same races. The Metal section
+          counts bouts instead, because range sessions don't have a fixed number.
+        </Help>
+      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+        <span className="meta" style={{ margin: 0 }}>Races</span>
+        <div className="seg" style={{ flex: 'none' }} role="group" aria-label="How many races to count">
+          {options.map((o) => (
+            <button
+              key={o} aria-pressed={windowValue === o} onClick={() => onWindowChange(o)}
+              style={{
+                padding: '4px 8px', fontSize: 11, borderRadius: 6, flex: 'none',
+                ...(windowValue === o
+                  ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
+                  : { borderColor: RACE_COLOUR, color: RACE_COLOUR }),
+              }}
+            >
+              {o === 'all' ? 'All' : `Last ${o}`}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="meta" style={{ marginTop: 0 }}>
+        Counting {races === 1 ? 'your 1 race' : `${windowValue === 'all' ? 'all' : 'your last'} ${races} races`}, not bouts.
+        Hit rate per target, alpha to echo, left to right downrange.
+      </p>
+      {prone.length > 0 && (
+        <>
+          <p className="meta" style={{ margin: '10px 0 4px' }}>Prone · {bouts(prone)} bout{bouts(prone) === 1 ? '' : 's'}</p>
+          <TargetTiles stats={prone} tone="race" />
+        </>
+      )}
+      {standing.length > 0 && (
+        <>
+          <p className="meta" style={{ margin: '10px 0 4px' }}>Standing · {bouts(standing)} bout{bouts(standing) === 1 ? '' : 's'}</p>
+          <TargetTiles stats={standing} tone="race" />
+        </>
+      )}
     </>
   )
 }
@@ -233,8 +296,7 @@ export function AnalysisView({
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
-  const [raceProneWindow, setRaceProneWindow] = useState<5 | 10 | 20>(10)
-  const [raceStandingWindow, setRaceStandingWindow] = useState<5 | 10 | 20>(10)
+  const [raceWindow, setRaceWindow] = useState<RaceWindow>(5)
   // One race format at a time, or all of them: the whole Race performance
   // section follows it.
   const [raceFilter, setRaceFilter] = useState<'all' | RaceType>('all')
@@ -305,15 +367,28 @@ export function AnalysisView({
     return targetStats(sorted.slice(0, standingWindow))
   }, [metalStanding, standingWindow])
 
-  // The same per-target read for race shooting, shown with the race results.
-  const targetsRaceProne = useMemo(() => {
-    const sorted = filteredRace.filter((b) => b.position === 'prone').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
-    return targetStats(sorted.slice(0, raceProneWindow))
-  }, [filteredRace, raceProneWindow])
-  const targetsRaceStanding = useMemo(() => {
-    const sorted = filteredRace.filter((b) => b.position === 'standing').sort((a, b) => b.shotAt.localeCompare(a.shotAt))
-    return targetStats(sorted.slice(0, raceStandingWindow))
-  }, [filteredRace, raceStandingWindow])
+  // The same per-target read for race shooting, counted in races: the most
+  // recent N races (of the chosen format), then both positions from those.
+  const recentRaceIds = useMemo(() => {
+    const lastShot = new Map<string, string>()
+    for (const b of filteredRace) {
+      const prev = lastShot.get(b.workoutId)
+      if (!prev || b.shotAt > prev) lastShot.set(b.workoutId, b.shotAt)
+    }
+    return [...lastShot.entries()].sort((x, y) => y[1].localeCompare(x[1])).map(([id]) => id)
+  }, [filteredRace])
+  const chosenRaces = useMemo(
+    () => new Set(raceWindow === 'all' ? recentRaceIds : recentRaceIds.slice(0, raceWindow)),
+    [recentRaceIds, raceWindow],
+  )
+  const targetsRaceProne = useMemo(
+    () => targetStats(filteredRace.filter((b) => b.position === 'prone' && chosenRaces.has(b.workoutId))),
+    [filteredRace, chosenRaces],
+  )
+  const targetsRaceStanding = useMemo(
+    () => targetStats(filteredRace.filter((b) => b.position === 'standing' && chosenRaces.has(b.workoutId))),
+    [filteredRace, chosenRaces],
+  )
 
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
@@ -559,8 +634,10 @@ export function AnalysisView({
             </>
           )}
 
-          <TargetHitRates position="prone" kind="race" tone="race" stats={targetsRaceProne} windowSize={raceProneWindow} onWindowChange={setRaceProneWindow} />
-          <TargetHitRates position="standing" kind="race" tone="race" stats={targetsRaceStanding} windowSize={raceStandingWindow} onWindowChange={setRaceStandingWindow} />
+          <RaceTargetHitRates
+            prone={targetsRaceProne} standing={targetsRaceStanding} races={chosenRaces.size}
+            windowValue={raceWindow} onWindowChange={setRaceWindow}
+          />
         </CollapsibleSection>
       )}
 
