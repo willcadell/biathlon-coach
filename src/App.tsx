@@ -16,6 +16,7 @@ import { ChooseRoleView } from './components/ChooseRoleView'
 import { WorkoutView } from './components/WorkoutView'
 import { AnalysisView } from './components/AnalysisView'
 import { ProfileView } from './components/ProfileView'
+import { ResponsibilitiesGate } from './components/CoachResponsibilities'
 import { CoachView, ClubSettingsView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
 import { PrivacyPolicyView } from './components/PrivacyPolicyView'
@@ -391,8 +392,16 @@ function SignedInApp({
                 onOpenSettings={mode === 'athlete' ? () => setTab('settings') : undefined}
               />
             )}
-            {tab === 'coach' && <CoachView session={session} onIdentityChanged={onIdentityChanged} />}
-            {tab === 'club' && <ClubSettingsView session={session} />}
+            {tab === 'coach' && (
+              <ResponsibilitiesGate coachId={session.user.id} enabled={identities.coach}>
+                <CoachView session={session} onIdentityChanged={onIdentityChanged} />
+              </ResponsibilitiesGate>
+            )}
+            {tab === 'club' && (
+              <ResponsibilitiesGate coachId={session.user.id} enabled={identities.coach}>
+                <ClubSettingsView session={session} />
+              </ResponsibilitiesGate>
+            )}
             {tab === 'settings' && (
               <SettingsView
                 settings={settings}

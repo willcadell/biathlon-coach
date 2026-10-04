@@ -15,6 +15,7 @@ import { Dropdown } from './Dropdown'
 import { GoalsCard } from './GoalsCard'
 import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
+import { ResponsibilitiesGate } from './CoachResponsibilities'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
 
 /** A code an athlete enters could be either kind — the input doesn't ask
@@ -102,7 +103,8 @@ function BecomeCoachCard({ onDone }: { onDone: () => void }) {
       <div className="card">
         <p style={{ marginTop: 0 }}>
           Set up a coaching identity too if you also want to create a club and see a roster's
-          training — it doesn't replace your athlete profile, it sits alongside it.
+          training — it doesn't replace your athlete profile, it sits alongside it. Before you can
+          coach you'll be asked to agree to the coach responsibilities, which start with Canadian Safe Sport.
         </p>
         <label className="field" style={{ marginBottom: 0 }}>
           <span>Your name<small>Shown to athletes on any club you create.</small></span>
@@ -506,7 +508,9 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             <NameField hint="Shown to athletes and other coaches on any club you're part of." value={coachName} loaded={coachLoaded} onSave={saveCoachName} />
           </div>
 
-          <CoachedClubsCard />
+          <ResponsibilitiesGate coachId={session.user.id} enabled={hasCoach}>
+            <CoachedClubsCard />
+          </ResponsibilitiesGate>
         </>
       )}
 

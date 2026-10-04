@@ -56,7 +56,7 @@ export function FollowAthleteCard() {
             Athlete's invite code
             <small>
               For a parent, or a coach outside the athlete's club. The athlete makes it in their own
-              Profile and gives it to you; it works once.
+              Profile and gives it to you; it works once, and they then approve your request.
             </small>
           </span>
           <div className="row">
@@ -75,22 +75,22 @@ export function FollowAthleteCard() {
         {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
         {followed && (
           <div className="notice" style={{ marginTop: 10 }}>
-            You're now coaching <strong>{followed}</strong>. Find them on the Coach tab, under Coach your
-            individual athletes.
+            Request sent to <strong>{followed}</strong>. You won't see anything until they approve it. If they
+            do, they'll appear on the Coach tab, under Coach your individual athletes.
           </div>
         )}
         {match && (
           <>
             <p className="meta">
-              Follow <strong>{match.displayName || 'this athlete'}</strong>? You'll see their sessions,
-              analysis and posts, and announcements from their club's coaches.
+              Ask to follow <strong>{match.displayName || 'this athlete'}</strong>? They'll be asked to approve.
+              If they do, you'll see their sessions, analysis and posts, and announcements from their club's coaches.
             </p>
             <div className="row">
               <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={following}>
                 Cancel
               </button>
               <button className="primary" onClick={() => void confirmFollow()} disabled={following}>
-                {following ? 'Following…' : 'Follow'}
+                {following ? 'Sending…' : 'Send request'}
               </button>
             </div>
           </>

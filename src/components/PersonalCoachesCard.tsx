@@ -6,6 +6,7 @@ import {
 import { errorMessage } from '../lib/errors'
 import { Dropdown } from './Dropdown'
 import { Help } from './Help'
+import { PersonalCoachRequests } from './PersonalCoachRequests'
 import { TrashIcon } from './icons'
 
 const mono = { fontFamily: 'var(--mono, monospace)', letterSpacing: '0.08em' } as const
@@ -31,6 +32,8 @@ export function PersonalCoachesCard() {
       .catch((e) => { if (!cancelled) setError(errorMessage(e, 'Could not load your personal coaches. Check your connection and try again.')) })
     return () => { cancelled = true }
   }, [])
+
+  const reloadCoaches = () => void myPersonalCoaches().then(setCoaches).catch(() => undefined)
 
   async function makeInvite() {
     setBusy(true)
@@ -58,8 +61,8 @@ export function PersonalCoachesCard() {
   async function remove(c: PersonalCoach) {
     const who = c.displayName || 'this coach'
     if (!confirm(
-      `Remove ${who} as a personal coach?\n\nThey'll stop seeing your sessions, analysis and posts straight away. ` +
-      `You can invite them again later.`,
+      `Revoke ${who}'s access?\n\nThey'll stop seeing your sessions, analysis and posts straight away. ` +
+      `They can only follow you again if you approve a new request.`,
     )) return
     setError('')
     try {
@@ -86,11 +89,13 @@ export function PersonalCoachesCard() {
         <Help>
           A personal coach is one person who follows you — a parent, or a coach outside your club. They
           can see your sessions, analysis and posts, and announcements from your club's coaches. They
-          can't see the rest of your club's feed, or your target photos. You choose who, and you can
-          remove them at any time.
+          can't see the rest of your club's feed, or your target photos. They only get access once you
+          approve their request, and you can revoke it at any time.
         </Help>
       </h2>
       {error && <div className="notice error">{error}</div>}
+
+      <PersonalCoachRequests onChanged={reloadCoaches} />
 
       {coaches && coaches.length > 0 && (
         <div className="card">
@@ -99,10 +104,10 @@ export function PersonalCoachesCard() {
               <span style={{ flex: 1, minWidth: 0 }}>{c.displayName || 'Unnamed coach'}</span>
               <button
                 className="link danger" style={{ flex: 'none' }}
-                aria-label={`Remove ${c.displayName || 'this coach'} as a personal coach`} title="Remove personal coach"
+                aria-label={`Revoke ${c.displayName || 'this coach'}'s access`} title="Revoke access"
                 onClick={() => void remove(c)}
               >
-                <TrashIcon />
+                Revoke
               </button>
             </div>
           ))}
@@ -128,7 +133,7 @@ export function PersonalCoachesCard() {
                 </button>
               </div>
               <p className="meta" style={{ margin: '6px 0 0' }}>
-                They enter it in their own Profile, under Follow an athlete. It works once, and expires in{' '}
+                They enter it in their own Profile, under Follow an athlete, and you then approve their request. It works once, and expires in{' '}
                 {daysLeft(invite.expiresAt)} day{daysLeft(invite.expiresAt) === 1 ? '' : 's'}.{' '}
                 <button className="link" disabled={busy} onClick={() => void makeInvite()}>Make a new code</button>
               </p>

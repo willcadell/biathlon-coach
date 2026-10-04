@@ -146,10 +146,24 @@ they like.
 **Invites a personal coach.** One individual — a parent, or a coach outside the
 club — can follow an athlete regardless of any club. It always starts with the
 athlete: in Profile they make a single-use invite code (valid for seven days) and
-hand it over; the coach accepts it from their own account. A personal coach sees
+hand it over. The coach enters it from their own account, which only sends a request
+(`personal_coach_requests`): nothing is shared until the athlete approves it, from their home
+screen or Profile, and declining discards it. A personal coach sees
 the athlete's sessions, analysis and posts, plus announcements made by the
 coaches of the athlete's clubs, but not the rest of those clubs' feeds, and never
-the athlete's target photos. Either side can end it at any time.
+the athlete's target photos. The athlete can revoke at any time, and the coach can step away.
+
+**Approves coaches, and asks them to agree to responsibilities.** A coach who uses a club's
+coach invite code sends a request (`coach_join_requests`), and a club admin approves or
+declines it before the coach sees anyone; an approved coach is never an admin. Before a coach
+can create a club, request to join one or follow an athlete, post an announcement, or write a
+note on an athlete's workout, they must have agreed to the coach responsibilities
+(`CoachResponsibilities.tsx`), which lead with the Canadian Safe Sport Program and its
+Universal Code of Conduct (UCCMS). The agreement is recorded server-side
+(`coach_acknowledgements`, written only by `accept_coach_responsibilities`) and enforced in the
+database functions and the notes policy, not just the screen. Bump
+`required_coach_ack_version()` and `RESPONSIBILITIES_VERSION` together to make everyone agree
+again.
 
 **Reads and posts to the club feed.** Under *Start a session* is the club's feed:
 targets and workouts clubmates chose to share, marked with the same icon and colour

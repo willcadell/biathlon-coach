@@ -4,10 +4,10 @@ import type { Bout, MetalBout, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
-  addCoachNote, assignAthleteToProgram, becomeCoach, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
-  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, setCoachAdmin, rosterBouts,
+  addCoachNote, assignAthleteToProgram, becomeCoach, clubCoachRequests, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
+  getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, respondToCoachJoinRequest, setCoachAdmin, rosterBouts,
   rosterForClub, rosterMetalBouts, rosterWorkouts, uploadClubLogo,
-  type Club, type ClubMatch, type CoCoach, type Coach, type Program, type RosterAthlete,
+  type Club, type ClubMatch, type CoCoach, type CoachJoinRequest, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
 import { AnalysisView, CollapsibleSection } from './AnalysisView'
@@ -320,9 +320,11 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
   const [joining, setJoining] = useState(false)
+  const [requested, setRequested] = useState('')
 
   async function checkCode() {
     setError('')
+    setRequested('')
     setMatch(null)
     if (!code.trim()) return
     setChecking(true)
@@ -340,13 +342,15 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
   async function confirmJoin() {
     if (!match) return
     setJoining(true)
+    setError('')
     try {
       await joinClubAsCoach(code)
+      setRequested(match.name)
       setMatch(null)
       setCode('')
       onJoined()
-    } catch {
-      setError('Could not join that club. Check your connection and try again.')
+    } catch (e) {
+      setError(errorMessage(e, 'Could not send that request. Check your connection and try again.'))
     } finally {
       setJoining(false)
     }
@@ -363,7 +367,7 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
             placeholder="e.g. 7K4RXP"
             autoCapitalize="characters"
             value={code}
-            onChange={(e) => { setCode(e.target.value); setMatch(null); setError('') }}
+            onChange={(e) => { setCode(e.target.value); setMatch(null); setError(''); setRequested('') }}
           />
           <button
             className="secondary" style={{ flex: 'none', width: 'auto' }}
@@ -374,15 +378,21 @@ export function JoinClubAsCoach({ onJoined }: { onJoined: () => void }) {
         </div>
       </label>
       {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
+      {requested && (
+        <div className="notice" style={{ marginTop: 10 }}>
+          Request sent to <strong>{requested}</strong>. One of its admins has to approve it before you can see
+          anything.
+        </div>
+      )}
       {match && (
         <>
-          <p className="meta">Join <strong>{match.name}</strong> as a coach?</p>
+          <p className="meta">Ask to join <strong>{match.name}</strong> as a coach? A club admin will need to approve you.</p>
           <div className="row">
             <button className="secondary" onClick={() => { setMatch(null); setCode('') }} disabled={joining}>
               Cancel
             </button>
             <button className="primary" onClick={() => void confirmJoin()} disabled={joining}>
-              {joining ? 'Joining…' : 'Join'}
+              {joining ? 'Sending…' : 'Send request'}
             </button>
           </div>
         </>
@@ -954,6 +964,22 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
   const [coaches, setCoaches] = useState<CoCoach[]>([])
   const [coachCode, setCoachCode] = useState<string | null>(null)
   const [coachError, setCoachError] = useState('')
+  const [requests, setRequests] = useState<CoachJoinRequest[]>([])
+  const [responding, setResponding] = useState<string | null>(null)
+
+  async function respond(r: CoachJoinRequest, approve: boolean) {
+    setResponding(r.coachId)
+    setCoachError('')
+    try {
+      await respondToCoachJoinRequest(club.id, r.coachId, approve)
+      setRequests((prev) => prev.filter((x) => x.coachId !== r.coachId))
+      if (approve) setCoaches(await coachesForClub(club.id))
+    } catch (e) {
+      setCoachError(errorMessage(e, 'Could not do that. Check your connection and try again.'))
+    } finally {
+      setResponding(null)
+    }
+  }
 
   async function changeAdmin(coach: CoCoach) {
     const name = coach.displayName || 'this coach'
@@ -973,7 +999,7 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
   async function removeCoach(coach: CoCoach) {
     if (!confirm(
       `Remove ${coach.displayName || 'this coach'} from ${club.name}?\n\nThey'll lose access to the club's roster ` +
-      `and athletes' training. They can rejoin with the coach invite code.`,
+      `and athletes' training. To come back they'd need to ask again and be approved.`,
     )) return
     setCoachError('')
     try {
@@ -990,6 +1016,9 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
       .then((c) => { if (!cancelled) setCoaches(c) })
       .catch((e) => console.error('Could not load co-coaches', e))
     if (club.isAdmin) {
+      void clubCoachRequests(club.id)
+        .then((r) => { if (!cancelled) setRequests(r) })
+        .catch((e) => console.error('Could not load coach requests', e))
       void getCoachJoinCode(club.id)
         .then((code) => { if (!cancelled) setCoachCode(code) })
         .catch((e) => console.error('Could not load the coach invite code', e))
@@ -1007,6 +1036,29 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
           <Help>Give this to an athlete — they enter it in their own Profile to join.</Help>
         </p>
       </div>
+
+      {club.isAdmin && requests.length > 0 && (
+        <>
+          <h2>Coaches asking to join</h2>
+          <div className="card" style={{ borderColor: 'var(--series-1)', borderWidth: 2 }}>
+            {requests.map((r, i) => (
+              <div key={r.coachId} style={i > 0 ? { marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' } : undefined}>
+                <p style={{ margin: '0 0 4px' }}>
+                  <strong>{r.coachName || 'A coach'}</strong> used your coach invite code.
+                </p>
+                <p className="meta" style={{ margin: '0 0 10px' }}>
+                  Approving lets them see every athlete in {club.name} and their training, and write notes and
+                  announcements. Check you know them, and that they meet the club's safe sport requirements.
+                </p>
+                <div className="row">
+                  <button className="secondary" disabled={responding !== null} onClick={() => void respond(r, false)}>Decline</button>
+                  <button className="primary" disabled={responding !== null} onClick={() => void respond(r, true)}>Approve</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <h2>Coaches</h2>
       <div className="card">
@@ -1040,7 +1092,7 @@ function ClubAdminSection({ club, myCoachId, onChanged }: { club: Club; myCoachI
         {club.isAdmin && (
           <>
             <p className="meta" style={{ marginTop: coaches.length > 0 ? 14 : 0, marginBottom: 4 }}>
-              Only admins can see this — share it to invite another coach to this club.
+              Only admins can see this. A coach who uses it sends a request, which you approve before they can see anything.
             </p>
             <p style={{ margin: 0 }}>
               Coach invite code{' '}

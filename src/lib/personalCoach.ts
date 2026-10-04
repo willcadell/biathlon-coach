@@ -111,3 +111,28 @@ export async function stopCoachingAthlete(athleteId: string): Promise<void> {
     .from('personal_coaches').delete().eq('coach_id', await currentUserId()).eq('athlete_id', athleteId)
   if (error) throw error
 }
+
+// --- Approval ---------------------------------------------------------------
+// Entering an athlete's code only sends a request. Nothing is shared until the
+// athlete approves it.
+
+export interface PersonalCoachRequest {
+  coachId: string
+  coachName: string
+  requestedAt: string
+}
+
+/** Coaches who've used this athlete's invite and are waiting to be approved. */
+export async function myPersonalCoachRequests(): Promise<PersonalCoachRequest[]> {
+  const { data, error } = await supabase.rpc('my_personal_coach_requests')
+  if (error) throw error
+  return ((data ?? []) as { coach_id: string; coach_name: string; requested_at: string }[]).map((r) => ({
+    coachId: r.coach_id, coachName: r.coach_name, requestedAt: r.requested_at,
+  }))
+}
+
+/** Approving lets them follow the athlete; declining throws the request away. */
+export async function respondToPersonalCoachRequest(coachId: string, approve: boolean): Promise<void> {
+  const { error } = await supabase.rpc('respond_personal_coach_request', { p_coach_id: coachId, p_approve: approve })
+  if (error) throw error
+}

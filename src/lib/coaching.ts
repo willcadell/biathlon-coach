@@ -251,8 +251,9 @@ export async function joinProgramAsAthlete(code: string): Promise<ProgramMatch> 
   return { id: row.id, name: row.name, clubId: row.club_id, clubName: row.club_name }
 }
 
-/** Never grants admin — an invited coach can see and manage the roster but
- *  can't invite further coaches themselves. */
+/** Only sends a request: a club admin has to approve it before this coach sees
+ *  anything. Never grants admin — an approved coach can see and manage the
+ *  roster but can't invite or approve further coaches themselves. */
 export async function joinClubAsCoach(code: string): Promise<void> {
   const { error } = await supabase.rpc('join_club_as_coach', { p_code: code.trim().toUpperCase() })
   if (error) throw error
@@ -433,5 +434,26 @@ export async function addCoachNote(workoutId: string, note: string): Promise<Coa
  *  notes" policy, which checks coach_id itself. */
 export async function deleteCoachNote(id: string): Promise<void> {
   const { error } = await supabase.from('workout_coach_notes').delete().eq('id', id)
+  if (error) throw error
+}
+
+export interface CoachJoinRequest {
+  coachId: string
+  coachName: string
+  requestedAt: string
+}
+
+/** Coaches asking to join this club — admin-only, enforced by the database,
+ *  which returns nothing to anyone else. */
+export async function clubCoachRequests(clubId: string): Promise<CoachJoinRequest[]> {
+  const { data, error } = await supabase.rpc('club_coach_requests', { p_club_id: clubId })
+  if (error) throw error
+  return ((data ?? []) as { coach_id: string; coach_name: string; requested_at: string }[]).map((r) => ({
+    coachId: r.coach_id, coachName: r.coach_name, requestedAt: r.requested_at,
+  }))
+}
+
+export async function respondToCoachJoinRequest(clubId: string, coachId: string, approve: boolean): Promise<void> {
+  const { error } = await supabase.rpc('respond_coach_join_request', { p_club_id: clubId, p_coach_id: coachId, p_approve: approve })
   if (error) throw error
 }

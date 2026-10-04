@@ -129,9 +129,10 @@ function AthleteFeatures() {
       <Feature title="Personal coaches">
         <p {...p}>
           Invite one person to follow you — a parent, or a coach outside your club. You make an invite code
-          in your Profile and give it to them; they enter it in their own account. They can then see your
-          sessions, analysis and posts, plus announcements from your club's coaches. They can't see the
-          rest of your club's feed, or your target photos, and you can remove them at any time.
+          in your Profile and give it to them; when they enter it in their own account you get a request
+          to approve or decline, on your home screen and in Profile. Only once you approve can they see
+          your sessions, analysis and posts, plus announcements from your club's coaches. They can't see
+          the rest of your club's feed, or your target photos, and you can revoke their access at any time.
         </p>
       </Feature>
       <Feature icon={<CowbellIcon size={22} />} title="The club feed">
@@ -200,6 +201,15 @@ function CoachFeatures() {
           An athlete's training is visible to you only after they join your club or program and accept the
           sharing notice. A coach assigned to a single program sees just that program; admins and
           whole-club coaches see everyone. If an athlete leaves, you stop seeing them.
+        </p>
+      </Feature>
+      <Feature title="Coach responsibilities and approval">
+        <p {...p}>
+          Before you can create a club, ask to join one, follow an athlete, or write on an athlete's
+          training, you agree to the coach responsibilities, which start with Canadian Safe Sport and its
+          Universal Code of Conduct (UCCMS). Joining a club with its coach invite code sends a request, and
+          one of the club's admins approves it before you can see anyone. Athletes approve personal coaches
+          the same way.
         </p>
       </Feature>
 

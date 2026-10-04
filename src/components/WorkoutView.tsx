@@ -10,6 +10,7 @@ import { CaptureView } from './CaptureView'
 import { FeedView } from './FeedView'
 import { GoalsProgress } from './GoalsProgress'
 import type { GoalData } from '../lib/goalProgress'
+import { PersonalCoachRequests } from './PersonalCoachRequests'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
@@ -772,6 +773,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   if (!workout) {
     return (
       <>
+        <PersonalCoachRequests />
         <h1>Start a session</h1>
         <p className="lede">
           A range session holds any number of precision and metal bouts, with wind and clicks
