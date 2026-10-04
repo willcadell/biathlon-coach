@@ -88,7 +88,9 @@ function AthleteFeatures() {
       <Feature title="History">
         <p {...p}>
           Every workout, newest first, with each bout and its photo. Delete one workout or many, drop the
-          photos and keep the scores, or export everything as JSON.
+          photos and keep the scores, or export everything as JSON. The download button beside Select
+          saves a smaller file for other apps — just your range and race sessions' metal results, zero
+          clicks and wind. Coaches can save it from an athlete's history too.
         </p>
       </Feature>
 

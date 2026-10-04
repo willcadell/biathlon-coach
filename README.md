@@ -96,6 +96,16 @@ that climbs as you log more bouts. It then ranks drills against those findings.
 Delete one workout or many at once, drop just the photos and keep the scores, or
 export everything as JSON.
 
+**Exports coach context.** The download button in History (beside Select, for athletes
+and for coaches reading an athlete's history) saves a `coach-context` JSON file of the
+range and race sessions' metal results, zero-click log and wind, shaped to NordicAim's
+draft import spec (`docs/spec/coach-context-import.md` there). Dry-fire sessions are left
+out. Built in `src/lib/coachContext.ts` with tests in `test/logic.ts`: `discHits` runs
+alpha to echo, clicks are signed (up and right positive, as point-of-impact movement),
+wind is a strength band plus the clock position it blew from (no speed is recorded), and
+`sessionDate` is the local calendar date. Additive fields beyond the spec: `targetZone`,
+`race`, and a `conventions` block saying what each number means.
+
 **Shares.** The Share button on a target offers *Share as image* — a graded
 trading card (Elite, Sharp, Solid or Logged) with a QR code back to the app, drawn
 in the browser and sent through the phone's share sheet or downloaded — or *Post

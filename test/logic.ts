@@ -13,6 +13,7 @@ import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../src/lib/metal.ts'
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
+import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -399,6 +400,50 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('scope: keeps bouts from the given workouts', kept.length === 2 && kept.every((k) => k.workoutId !== 'someone-elses'))
   ok('scope: no workouts means no bouts', ofWorkouts(items, []).length === 0)
   ok('scope: does not mutate its input', items.length === 3)
+}
+
+// --- Coach-context export: range and race only, in the shape NordicAim's spec describes.
+{
+  const noon = (m: number, d: number, h = 12) => new Date(2026, m - 1, d, h).toISOString()
+  const wk = (id: string, startedAt: string, over: Partial<Workout>): Workout => ({
+    id, startedAt, name: '', workoutType: 'range', wind: 'none', windDirection: '12', clickLog: [],
+    notes: '', coachNotes: [], raceType: null, dryfireMinutes: 0, ...over,
+  })
+  const training = wk('t', noon(9, 20), {
+    wind: 'moderate', windDirection: '3',
+    clickLog: [
+      { id: 'c1', loggedAt: noon(9, 20, 12), vertical: 3, verticalDir: 'down', horizontal: 2, horizontalDir: 'right', clips: 1, note: '  ' },
+      { id: 'c2', loggedAt: noon(9, 20, 13), vertical: 1, verticalDir: 'up', horizontal: 4, horizontalDir: 'left', clips: 0, note: 'back a bit' },
+    ],
+  })
+  const race = wk('r', noon(9, 21), { raceType: 'sprint', wind: 'none' })
+  const dry = wk('d', noon(9, 22), { workoutType: 'dryfire', dryfireMinutes: 20 })
+  const mb = (id: string, workoutId: string, missed: MetalTarget[], over: Partial<MetalBout> = {}): MetalBout => ({
+    kind: 'metal', id, workoutId, shotAt: noon(9, 20, 14), position: 'prone', heartRate: 0,
+    comboId: null, targetZone: null,
+    hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>,
+    ...over,
+  })
+  const metal = [
+    mb('m1', 't', ['beta', 'echo'], { comboId: 'combo-1', targetZone: 2 }),
+    mb('m2', 'r', []),
+    mb('m3', 'd', []), // a metal bout hanging off a dry-fire session must not leak in
+  ]
+  const ctx = buildCoachContext([training, race, dry], metal, new Date(2026, 8, 23, 9))
+
+  ok('coach-context: shape and version', ctx.format === 'coach-context' && ctx.formatVersion === 1 && ctx.source.app === '545-coach')
+  ok('coach-context: dry-fire sessions are left out', ctx.windConditions.length === 2 && ctx.metalSessions.length === 2)
+  ok('coach-context: range spans the exported sessions', ctx.range.from === '2026-09-20' && ctx.range.to === '2026-09-21')
+  ok('coach-context: disc order is alpha..echo', JSON.stringify(ctx.metalSessions[0].discHits) === '[true,false,true,true,false]')
+  ok('coach-context: hit rate is hits over five', Math.abs(ctx.metalSessions[0].hitRate - 0.6) < 1e-9)
+  ok('coach-context: combo, zone and race carry through', ctx.metalSessions[0].comboGroup === 'combo-1' && ctx.metalSessions[0].targetZone === 2 && ctx.metalSessions[1].race === 'sprint')
+  ok('coach-context: clicks are signed, up/right positive', ctx.zeroAdjustments[0].verticalClicks === -3 && ctx.zeroAdjustments[0].horizontalClicks === 2 && ctx.zeroAdjustments[1].verticalClicks === 1 && ctx.zeroAdjustments[1].horizontalClicks === -4)
+  ok('coach-context: blank click note becomes null', ctx.zeroAdjustments[0].note === null && ctx.zeroAdjustments[1].note === 'back a bit')
+  ok('coach-context: wind keeps band and clock direction, no speed', ctx.windConditions[0].note === 'moderate' && ctx.windConditions[0].direction === '3' && ctx.windConditions[0].speedKph === null)
+  ok('coach-context: no wind has no direction', ctx.windConditions[1].note === 'none' && ctx.windConditions[1].direction === null)
+  ok('coach-context: local date, not UTC', localDate(new Date(2026, 8, 20, 23, 30).toISOString()) === '2026-09-20')
+  const empty = buildCoachContext([dry], [], new Date(2026, 8, 23, 9))
+  ok('coach-context: nothing to export still yields a valid empty file', empty.metalSessions.length === 0 && empty.range.from === '2026-09-23')
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

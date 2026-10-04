@@ -8,7 +8,9 @@ import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
-import { GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
+import { buildCoachContext, isRangeOrRace, localDate } from '../lib/coachContext'
+import { downloadJson } from '../lib/download'
+import { DownloadIcon, GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -448,11 +450,27 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '24px 0 8px' }}>
         <h2 style={{ margin: 0 }}>Workouts</h2>
-        {!readOnly && (
-          <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
-            {selecting ? 'Cancel' : 'Select'}
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+          {/* Open to a coach reading an athlete's history too: it's the same
+              training they can already see, as a file instead of a screen. */}
+          {workouts.some(isRangeOrRace) && (
+            <button
+              className="link" aria-label="Export range and race context as JSON"
+              title="Export range and race context (metal, zero clicks, wind) as JSON"
+              onClick={() => downloadJson(
+                `coach-context-${localDate(new Date().toISOString())}.json`,
+                JSON.stringify(buildCoachContext(workouts, metalBouts), null, 2),
+              )}
+            >
+              <DownloadIcon />
+            </button>
+          )}
+          {!readOnly && (
+            <button className="link" onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+              {selecting ? 'Cancel' : 'Select'}
+            </button>
+          )}
+        </div>
       </div>
       {sortedWorkouts.map((w) => {
         const ownBouts = bouts.filter((b) => b.workoutId === w.id)

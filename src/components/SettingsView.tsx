@@ -4,6 +4,7 @@ import { faceById, TARGET_FACES } from '../lib/types'
 import { ringRadii } from '../lib/scoring'
 import { COST_PER_IMAGE, testApiKey, type KeyCheck } from '../lib/vision'
 import { clearImages, exportAll } from '../lib/db'
+import { downloadJson } from '../lib/download'
 import { DRILLS } from '../lib/training'
 import type { Contribution } from '../lib/contribute'
 import { ContributeCard } from './ContributeChoice'
@@ -37,13 +38,7 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
     onChange({ ...settings, [key]: value })
 
   async function download() {
-    const json = await exportAll()
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `biathlon-coach-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadJson(`biathlon-coach-${new Date().toISOString().slice(0, 10)}.json`, await exportAll())
   }
 
   const calibration = DRILLS.find((d) => d.id === 'click-calibration')
