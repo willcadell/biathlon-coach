@@ -56,7 +56,9 @@ export interface ZeroAdjustment {
   verticalClicks: number
   /** Net movement of the point of impact, + right / − left. */
   horizontalClicks: number
-  note: string | null
+  /** Always null. The spec has the field, but the athlete's own click notes are
+   *  free text they wrote for themselves, so they never leave in an export. */
+  note: null
 }
 
 export interface WindContext {
@@ -115,7 +117,7 @@ export function buildCoachContext(
       at: c.loggedAt,
       verticalClicks: c.verticalDir === 'up' ? c.vertical : -c.vertical,
       horizontalClicks: c.horizontalDir === 'right' ? c.horizontal : -c.horizontal,
-      note: c.note.trim() || null,
+      note: null,
     }))
 
   const windConditions: WindContext[] = sessions

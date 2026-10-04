@@ -105,7 +105,8 @@ have no button. Built in `src/lib/coachContext.ts` with tests in `test/logic.ts`
 alpha to echo, clicks are signed (up and right positive, as point-of-impact movement),
 wind is a strength band plus the clock position it blew from (no speed is recorded), and
 `sessionDate` is the local calendar date. Additive fields beyond the spec: `targetZone`,
-`race`, and a `conventions` block saying what each number means.
+`race`, and a `conventions` block saying what each number means. The `note` on each zero
+adjustment is always `null`: the athlete's own click notes are never exported.
 
 **Sets goals.** In Profile an athlete sets a goal on one measure (metal hit rate, precision
 score or dry-fire minutes, optionally by position) with an end date they choose. Progress is

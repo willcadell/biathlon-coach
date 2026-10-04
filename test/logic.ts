@@ -439,7 +439,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('coach-context: hit rate is hits over five', Math.abs(ctx.metalSessions[0].hitRate - 0.6) < 1e-9)
   ok('coach-context: combo, zone and race carry through', ctx.metalSessions[0].comboGroup === 'combo-1' && ctx.metalSessions[0].targetZone === 2 && ctx.metalSessions[1].race === 'sprint')
   ok('coach-context: clicks are signed, up/right positive', ctx.zeroAdjustments[0].verticalClicks === -3 && ctx.zeroAdjustments[0].horizontalClicks === 2 && ctx.zeroAdjustments[1].verticalClicks === 1 && ctx.zeroAdjustments[1].horizontalClicks === -4)
-  ok('coach-context: blank click note becomes null', ctx.zeroAdjustments[0].note === null && ctx.zeroAdjustments[1].note === 'back a bit')
+  ok('coach-context: click notes are never exported', ctx.zeroAdjustments.every((z) => z.note === null) && !JSON.stringify(ctx).includes('back a bit'))
   ok('coach-context: wind keeps band and clock direction, no speed', ctx.windConditions[0].note === 'moderate' && ctx.windConditions[0].direction === '3' && ctx.windConditions[0].speedKph === null)
   ok('coach-context: no wind has no direction', ctx.windConditions[1].note === 'none' && ctx.windConditions[1].direction === null)
   ok('coach-context: local date, not UTC', localDate(new Date(2026, 8, 20, 23, 30).toISOString()) === '2026-09-20')
