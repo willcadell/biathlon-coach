@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Position, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
 import {
   addCoachNote, assignAthleteToProgram, becomeCoach, clubCoachRequests, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, respondToCoachJoinRequest, setCoachAdmin, rosterBouts,
@@ -10,7 +10,7 @@ import {
   type Club, type ClubMatch, type CoCoach, type CoachJoinRequest, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
-import { AnalysisView, CollapsibleSection, MetalPositionStats, seasonLabel, seasonStartYear } from './AnalysisView'
+import { AnalysisView, CollapsibleSection, MetalPositionStats, TargetTiles, seasonLabel, seasonStartYear } from './AnalysisView'
 import { Help } from './Help'
 import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
@@ -20,7 +20,7 @@ import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
 import { myPersonalAthletes, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
-import { AdminPill, AdminShield, GoArrow, MegaphoneIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
+import { AdminPill, AdminShield, GoArrow, MegaphoneIcon, RaceMedalIcon, RangeIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
 interface Props {
   session: Session
@@ -499,7 +499,15 @@ function RosterGroup({
    *  program to take someone out of. */
   onRemove?: (athlete: RosterAthlete, programName: string) => void
 }) {
-  const metal = metalStats(group.metalBouts)
+  // Metal here is range-session shooting, as in an athlete's own Metal section;
+  // race bouts are shown separately, under Season race performance.
+  const raceWorkoutIds = new Set(group.workouts.filter((w) => w.raceType).map((w) => w.id))
+  const rangeMetal = group.metalBouts.filter((b) => !raceWorkoutIds.has(b.workoutId))
+  const metal = metalStats(rangeMetal)
+  const rangeTargets = {
+    prone: targetStats(rangeMetal.filter((b) => b.position === 'prone')),
+    standing: targetStats(rangeMetal.filter((b) => b.position === 'standing')),
+  }
   const precisionPos = precisionByPosition(group.bouts)
   // Metal shot in races this season, by the same season definition as an
   // athlete's own Race performance, so the two read against each other.
@@ -508,6 +516,10 @@ function RosterGroup({
     group.workouts.filter((w) => w.raceType && seasonStartYear(new Date(w.startedAt)) === thisSeason).map((w) => w.id),
   )
   const seasonRaceBouts = group.metalBouts.filter((b) => seasonRaceWorkouts.has(b.workoutId))
+  const raceTargets = {
+    prone: targetStats(seasonRaceBouts.filter((b) => b.position === 'prone')),
+    standing: targetStats(seasonRaceBouts.filter((b) => b.position === 'standing')),
+  }
   const dryfire = dryfireMinutesThisMonth(group.workouts)
   const [pickingId, setPickingId] = useState<string | null>(null)
 
@@ -525,8 +537,8 @@ function RosterGroup({
             </div>
             <div className="stat range">
               <div className="k">Metal</div>
-              <div className="v">{metalPct(group.metalBouts)}</div>
-              <div className="n">{group.metalBouts.length} bout{group.metalBouts.length === 1 ? '' : 's'}</div>
+              <div className="v">{metalPct(rangeMetal)}</div>
+              <div className="n">{rangeMetal.length} bout{rangeMetal.length === 1 ? '' : 's'}</div>
             </div>
             <div className="stat dryfire">
               <div className="k">Dry-fire</div>
@@ -544,10 +556,13 @@ function RosterGroup({
                 { label: 'Precision', tiles: precisionPos },
               ].filter((pair) => pair.tiles.length > 0).map((pair) => (
                 <div key={pair.label} style={{ minWidth: 0 }}>
-                  <p className="meta" style={{ margin: '0 0 4px' }}>{pair.label}</p>
+                  <p className="meta" style={{ margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: 'var(--series-1)', display: 'inline-flex' }}><RangeIcon size={14} /></span>
+                    {pair.label}
+                  </p>
                   <div className="stats">
                     {pair.tiles.map((t) => (
-                      <div className="stat" key={t.position} style={{ padding: '8px 8px' }}>
+                      <div className="stat range" key={t.position} style={{ padding: '8px 8px' }}>
                         <div className="k">{t.position}</div>
                         <div className="v">{t.rate}<small>%</small></div>
                         <div className="n">{t.bouts} bout{t.bouts === 1 ? '' : 's'}</div>
@@ -559,14 +574,37 @@ function RosterGroup({
             </div>
           )}
 
+          {(['prone', 'standing'] as const).map((position) =>
+            rangeTargets[position].length > 0 && (
+              <div key={position}>
+                <p className="meta" style={{ margin: '16px 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ color: 'var(--series-1)', display: 'inline-flex' }}><RangeIcon size={14} /></span>
+                  Which targets get hit · {position}
+                </p>
+                <TargetTiles stats={rangeTargets[position]} tone="range" />
+              </div>
+            ),
+          )}
+
           {seasonRaceBouts.length > 0 && (
             <>
-              <p className="meta" style={{ margin: '16px 0 4px' }}>Season race performance ({seasonLabel(thisSeason)})</p>
+              <p className="meta" style={{ margin: '16px 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: 'var(--series-2)', display: 'inline-flex' }}><RaceMedalIcon size={14} /></span>
+                Season race performance ({seasonLabel(thisSeason)})
+              </p>
               <MetalPositionStats
                 bouts={seasonRaceBouts}
                 races={new Set(seasonRaceBouts.map((b) => b.workoutId)).size}
                 raceWord="athlete race"
               />
+              {(['prone', 'standing'] as const).map((position) =>
+                raceTargets[position].length > 0 && (
+                  <div key={position}>
+                    <p className="meta" style={{ margin: '10px 0 4px' }}>Race targets hit · {position}</p>
+                    <TargetTiles stats={raceTargets[position]} tone="race" />
+                  </div>
+                ),
+              )}
             </>
           )}
 
