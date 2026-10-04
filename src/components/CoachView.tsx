@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Position, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount, targetStats } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount } from '../lib/metal'
 import {
   addCoachNote, assignAthleteToProgram, becomeCoach, clubCoachRequests, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, respondToCoachJoinRequest, setCoachAdmin, rosterBouts,
@@ -10,7 +10,7 @@ import {
   type Club, type ClubMatch, type CoCoach, type CoachJoinRequest, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
-import { AnalysisView, CollapsibleSection, MetalPositionStats, TargetTiles, seasonLabel, seasonStartYear } from './AnalysisView'
+import { AnalysisView, CollapsibleSection, MetalPositionStats, seasonLabel, seasonStartYear } from './AnalysisView'
 import { Help } from './Help'
 import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
@@ -504,10 +504,6 @@ function RosterGroup({
   const raceWorkoutIds = new Set(group.workouts.filter((w) => w.raceType).map((w) => w.id))
   const rangeMetal = group.metalBouts.filter((b) => !raceWorkoutIds.has(b.workoutId))
   const metal = metalStats(rangeMetal)
-  const rangeTargets = {
-    prone: targetStats(rangeMetal.filter((b) => b.position === 'prone')),
-    standing: targetStats(rangeMetal.filter((b) => b.position === 'standing')),
-  }
   const precisionPos = precisionByPosition(group.bouts)
   // Metal shot in races this season, by the same season definition as an
   // athlete's own Race performance, so the two read against each other.
@@ -516,10 +512,6 @@ function RosterGroup({
     group.workouts.filter((w) => w.raceType && seasonStartYear(new Date(w.startedAt)) === thisSeason).map((w) => w.id),
   )
   const seasonRaceBouts = group.metalBouts.filter((b) => seasonRaceWorkouts.has(b.workoutId))
-  const raceTargets = {
-    prone: targetStats(seasonRaceBouts.filter((b) => b.position === 'prone')),
-    standing: targetStats(seasonRaceBouts.filter((b) => b.position === 'standing')),
-  }
   const dryfire = dryfireMinutesThisMonth(group.workouts)
   const [pickingId, setPickingId] = useState<string | null>(null)
 
@@ -574,18 +566,6 @@ function RosterGroup({
             </div>
           )}
 
-          {(['prone', 'standing'] as const).map((position) =>
-            rangeTargets[position].length > 0 && (
-              <div key={position}>
-                <p className="meta" style={{ margin: '16px 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ color: 'var(--series-1)', display: 'inline-flex' }}><RangeIcon size={14} /></span>
-                  Which targets get hit · {position}
-                </p>
-                <TargetTiles stats={rangeTargets[position]} tone="range" />
-              </div>
-            ),
-          )}
-
           {seasonRaceBouts.length > 0 && (
             <>
               <p className="meta" style={{ margin: '16px 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -597,14 +577,6 @@ function RosterGroup({
                 races={new Set(seasonRaceBouts.map((b) => b.workoutId)).size}
                 raceWord="athlete race"
               />
-              {(['prone', 'standing'] as const).map((position) =>
-                raceTargets[position].length > 0 && (
-                  <div key={position}>
-                    <p className="meta" style={{ margin: '10px 0 4px' }}>Race targets hit · {position}</p>
-                    <TargetTiles stats={raceTargets[position]} tone="race" />
-                  </div>
-                ),
-              )}
             </>
           )}
 

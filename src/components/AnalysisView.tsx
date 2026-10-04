@@ -96,7 +96,7 @@ const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
 
 /** The five discs' hit rates as circles, alpha to echo, in their session's
  *  colour: Range blue in Metal, Race red in Race performance. */
-export function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'race' }) {
+function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'race' }) {
   // Discs are round, so the tiles are circles. minmax(0, 1fr) and small type so
   // five of them fit a phone's width instead of running off the right edge.
   return (
