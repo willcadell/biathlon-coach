@@ -53,16 +53,16 @@ export function MetalPositionStats({ bouts, races, raceWord = 'race' }: { bouts:
   const standing = bouts.filter((b) => b.position === 'standing')
   return (
     <div className="stats three">
-      <div className="stat">
+      <div className="stat race">
         <div className="k">Overall</div>
         <div className="v">{metalPct(bouts)}</div>
         <div className="n">{races} {raceWord}{races === 1 ? '' : 's'}</div>
       </div>
-      <div className="stat">
+      <div className="stat race">
         <div className="k">Prone</div>
         <div className="v">{metalPct(prone)}</div>
       </div>
-      <div className="stat">
+      <div className="stat race">
         <div className="k">Standing</div>
         <div className="v">{metalPct(standing)}</div>
       </div>
