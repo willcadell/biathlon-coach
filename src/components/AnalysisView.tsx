@@ -250,17 +250,17 @@ export function AnalysisView({
 
       <CollapsibleSection title="Precision">
         <div className="stats three">
-          <div className="stat">
+          <div className="stat range">
             <div className="k">Overall</div>
             <div className="v">{precisionPct(bouts)}</div>
             <div className="n">{bouts.length} bout{bouts.length === 1 ? '' : 's'}</div>
           </div>
-          <div className="stat">
+          <div className="stat range">
             <div className="k">Prone</div>
             <div className="v">{precisionPct(prone)}</div>
             <div className="n">{prone.length} bout{prone.length === 1 ? '' : 's'}</div>
           </div>
-          <div className="stat">
+          <div className="stat range">
             <div className="k">Standing</div>
             <div className="v">{precisionPct(standing)}</div>
             <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
@@ -405,12 +405,12 @@ export function AnalysisView({
         )}
       >
         <div className="stats">
-          <div className="stat">
+          <div className="stat range">
             <div className="k">Prone</div>
             <div className="v">{metalPct(metalProne)}</div>
             <div className="n">{metalProne.length} bout{metalProne.length === 1 ? '' : 's'}</div>
           </div>
-          <div className="stat">
+          <div className="stat range">
             <div className="k">Standing</div>
             <div className="v">{metalPct(metalStanding)}</div>
             <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
