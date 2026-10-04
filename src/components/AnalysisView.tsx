@@ -138,7 +138,11 @@ function TargetHitRates({
               onClick={() => onWindowChange(n)}
               style={{
                 padding: '4px 6px', fontSize: 11, borderRadius: 6,
-                ...(tone === 'race' && windowSize === n ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' } : {}),
+                ...(tone === 'race'
+                  ? windowSize === n
+                    ? { background: RACE_COLOUR, borderColor: RACE_COLOUR, color: '#fff' }
+                    : { borderColor: RACE_COLOUR, color: RACE_COLOUR }
+                  : {}),
               }}
             >
               {n}
