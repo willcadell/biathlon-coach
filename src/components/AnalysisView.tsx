@@ -511,15 +511,15 @@ export function AnalysisView({
       {dryfire.total > 0 && (
         <CollapsibleSection title="Dry-fire" defaultOpen={false}>
           <div className="stats three">
-            <div className="stat">
+            <div className="stat dryfire">
               <div className="k">This week</div>
               <div className="v">{dryfire.week}<small>min</small></div>
             </div>
-            <div className="stat">
+            <div className="stat dryfire">
               <div className="k">This month</div>
               <div className="v">{dryfire.month}<small>min</small></div>
             </div>
-            <div className="stat">
+            <div className="stat dryfire">
               <div className="k">Total</div>
               <div className="v">{dryfire.total}<small>min</small></div>
             </div>
