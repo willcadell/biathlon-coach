@@ -159,7 +159,8 @@ declines it before the coach sees anyone; an approved coach is never an admin. B
 can create a club, request to join one or follow an athlete, post an announcement, or write a
 note on an athlete's workout, they must have agreed to the coach responsibilities
 (`CoachResponsibilities.tsx`), which lead with the Canadian Safe Sport Program and its
-Universal Code of Conduct (UCCMS). The agreement is recorded server-side
+Universal Code of Conduct (UCCMS), and the Responsible Coaching Movement's RCM Pledge (Rule of
+Two, background screening, ethics training). The agreement is recorded server-side
 (`coach_acknowledgements`, written only by `accept_coach_responsibilities`) and enforced in the
 database functions and the notes policy, not just the screen. Bump
 `required_coach_ack_version()` and `RESPONSIBILITIES_VERSION` together to make everyone agree

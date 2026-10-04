@@ -207,7 +207,7 @@ function CoachFeatures() {
         <p {...p}>
           Before you can create a club, ask to join one, follow an athlete, or write on an athlete's
           training, you agree to the coach responsibilities, which start with Canadian Safe Sport and its
-          Universal Code of Conduct (UCCMS). Joining a club with its coach invite code sends a request, and
+          Universal Code of Conduct (UCCMS), and the Responsible Coaching Movement's RCM Pledge. Joining a club with its coach invite code sends a request, and
           one of the club's admins approves it before you can see anyone. Athletes approve personal coaches
           the same way.
         </p>

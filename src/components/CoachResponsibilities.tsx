@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  UCCMS_URL, acknowledgeResponsibilities, hasAcknowledgedResponsibilities,
+  RCM_URL, UCCMS_URL, acknowledgeResponsibilities, hasAcknowledgedResponsibilities,
 } from '../lib/coachResponsibilities'
 import { errorMessage } from '../lib/errors'
 
@@ -43,26 +43,35 @@ export function CoachResponsibilities({ onAgreed }: { onAgreed: () => void }) {
           The code prohibits maltreatment in every form, including grooming, neglect, and physical, sexual
           and psychological maltreatment, as well as misuse of power, retaliation, and failing to report.
         </p>
-        <p style={{ margin: 0 }}>
+        <p style={{ marginBottom: 8 }}>
           <a href={UCCMS_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>Read the UCCMS</a>
+        </p>
+        <p style={{ marginBottom: 8 }}>
+          It also means supporting the <strong>Responsible Coaching Movement (RCM) Pledge</strong>, which
+          rests on three pillars: the <strong>Rule of Two</strong>, <strong>background screening</strong> and{' '}
+          <strong>ethics training</strong>.
+        </p>
+        <p style={{ margin: 0 }}>
+          <a href={RCM_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)' }}>About the RCM Pledge</a>
         </p>
       </div>
 
       <h2>You agree to</h2>
       <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--text-secondary)' }}>
         <Item>
-          <strong>Meet your organisation's requirements.</strong> Complete the safe sport training, screening
-          and background checks your club, sport organisation or province requires. 545 Coach doesn't check
-          these, or who you are.
+          <strong>Meet your organisation's requirements.</strong> Complete the ethics and safe sport training,
+          screening and background checks your club, sport organisation or province requires, as the RCM
+          Pledge asks. 545 Coach doesn't check these, or who you are.
         </Item>
         <Item>
           <strong>Use what you see only to coach.</strong> Athletes and parents choose to share their
           training with you. Don't copy it, pass it on, or post it elsewhere.
         </Item>
         <Item>
-          <strong>Keep contact open and appropriate.</strong> Notes and announcements are about training, and
-          other coaches and the athlete can read them. Don't use the app to start private, one-to-one
-          contact with an athlete, especially a minor.
+          <strong>Follow the Rule of Two.</strong> Keep every interaction and communication with an athlete open,
+          observable and justifiable. Notes and announcements are about training, and other coaches and the
+          athlete can read them. Don't use the app to start private, one-to-one contact with an athlete,
+          especially a minor.
         </Item>
         <Item>
           <strong>Speak up.</strong> If you see or suspect maltreatment, report it through your
@@ -76,7 +85,7 @@ export function CoachResponsibilities({ onAgreed }: { onAgreed: () => void }) {
 
       <label className="check" style={{ marginBottom: 12 }}>
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-        I've read this, and I agree to follow the Canadian Safe Sport Program's code of conduct.
+        I've read this, and I agree to follow the Canadian Safe Sport Program's code of conduct and to support the RCM Pledge.
       </label>
       {error && <div className="notice error">{error}</div>}
       <button className="primary" disabled={!agreed || saving} onClick={() => void submit()}>

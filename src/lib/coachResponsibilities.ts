@@ -17,6 +17,10 @@ export const RESPONSIBILITIES_VERSION = 1
  *  breaks too, check sportintegrity.ca for the current document. */
 export const UCCMS_URL = 'https://sportintegrity.ca/media/567'
 
+/** The Responsible Coaching Movement (RCM) and its pledge, from the Coaching
+ *  Association of Canada: the Rule of Two, background screening and ethics training. */
+export const RCM_URL = 'https://coach.ca/sport-safety/responsible-coaching-movement'
+
 export async function hasAcknowledgedResponsibilities(coachId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('coach_acknowledgements').select('version').eq('coach_id', coachId).maybeSingle()
