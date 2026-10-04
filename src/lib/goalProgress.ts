@@ -171,8 +171,7 @@ export function goalStatusText(g: Goal, p: GoalProgress): string {
   if (p.status === 'achieved') return 'Achieved'
   if (p.status === 'missed') return p.value === null ? 'Ended with nothing logged' : `Ended at ${formatValue(g.metric, p.value)}`
   if (g.metric !== 'dryfire_minutes' && p.sample < p.needed) {
-    const more = p.needed - p.sample
-    return `${more} more ${g.metric === 'metal_hit_rate' ? 'metal' : 'precision'} bout${more === 1 ? '' : 's'} to count`
+    return `Averaged over at least ${p.needed} bouts · ${p.sample} so far`
   }
   return `${formatValue(g.metric, p.value)} of ${g.target}${unit(g.metric)}`
 }
