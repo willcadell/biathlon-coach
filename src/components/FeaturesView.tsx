@@ -205,7 +205,8 @@ function CoachFeatures() {
       </Feature>
       <Feature icon={<TrophyIcon size={22} />} title="Program goals">
         <p {...p}>
-          Set a goal for a whole program in its roster: total dry-fire minutes or total sessions across
+          Set a goal for a whole program in the Club tab, under Programs, and follow how each is going on your 545 Coach
+          home: total dry-fire minutes or total sessions across
           everyone in it. They're about how much the group trains, not how well it shoots. The program's
           athletes see the goal on their home screen, and the total once at least three of them have
           contributed.

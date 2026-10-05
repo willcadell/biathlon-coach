@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { localDate } from '../lib/coachContext'
 import { errorMessage } from '../lib/errors'
 import {
-  MIN_PROGRAM_CONTRIBUTORS, PROGRAM_GOAL_METRICS, canArchive, evaluateProgramGoal, goalTitle,
+  MIN_PROGRAM_CONTRIBUTORS, PROGRAM_GOAL_METRICS, canArchive, goalTitle,
   type Goal, type GoalMetric, type GoalProgress,
 } from '../lib/goalProgress'
-import { createProgramGoal, deleteGoal, programGoalProgress, programGoalsOf, setGoalArchived } from '../lib/goals'
+import { createProgramGoal, deleteGoal, programGoalRows, setGoalArchived } from '../lib/goals'
 import { Dropdown } from './Dropdown'
 import { GoalRow } from './GoalRow'
-import { Help } from './Help'
 import { ArchiveIcon, TrashIcon } from './icons'
 
 const endOfThisMonth = () => {
@@ -17,13 +16,16 @@ const endOfThisMonth = () => {
 }
 
 /**
+ * Where a program's goals are set and managed, in the Club tab. The goal
+ * tracker the coach watches is on their 545 Coach home (ProgramGoalsTracker).
+ *
  * A program's goals, for the coaches who manage it. They're about process, not
  * outcome: how much the program trains, as a total across its athletes (dry-fire
  * minutes, sessions), never how well it shoots. The athletes in the program see
  * the goals on their home screen, and the total once enough of them have
  * contributed.
  */
-export function ProgramGoalsCard({ programId, programName, readOnly = false }: { programId: string; programName: string; readOnly?: boolean }) {
+export function ProgramGoalsEditor({ programId, programName }: { programId: string; programName: string }) {
   const [rows, setRows] = useState<{ g: Goal; p: GoalProgress }[] | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [error, setError] = useState('')
@@ -34,14 +36,7 @@ export function ProgramGoalsCard({ programId, programName, readOnly = false }: {
   const [saving, setSaving] = useState(false)
 
   const load = () => {
-    void (async () => {
-      const goals = await programGoalsOf(programId)
-      return Promise.all(goals.map(async (goal) => {
-        const r = await programGoalProgress(goal.id)
-        const g = { ...goal, achievedAt: r.achievedAt, achievedValue: r.achievedValue }
-        return { g, p: evaluateProgramGoal(g, r.aggregate) }
-      }))
-    })().then(setRows).catch((e) => setError(errorMessage(e, 'Could not load the program goals. Check your connection and try again.')))
+    void programGoalRows(programId).then(setRows).catch((e) => setError(errorMessage(e, 'Could not load the program goals. Check your connection and try again.')))
   }
   useEffect(load, [programId])
 
@@ -95,20 +90,15 @@ export function ProgramGoalsCard({ programId, programName, readOnly = false }: {
 
   return (
     <>
-      <h3 style={{ margin: '20px 0 6px' }}>
-        Program goals
-        <Help>
-          Goals for the whole program, about how much it trains rather than how well it shoots: total dry-fire
-          minutes or sessions across its athletes. The athletes see them on their home screen. They see the
-          total once at least {MIN_PROGRAM_CONTRIBUTORS} athletes have contributed, so one person's effort
-          can't be picked out.
-        </Help>
-      </h3>
+      <p className="meta" style={{ margin: '0 0 8px' }}>
+        About how much {programName} trains, not how well it shoots: a total across its athletes. They see it
+        on their home screen, and the total once at least {MIN_PROGRAM_CONTRIBUTORS} of them have contributed.
+      </p>
       {error && <div className="notice error">{error}</div>}
       {shown.map(({ g, p }) => (
         <GoalRow
           key={g.id} goal={g} progress={p} archived={Boolean(g.archivedAt)}
-          action={readOnly ? undefined : (
+          action={(
             <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
               {g.archivedAt ? (
                 <button className="link" style={{ flex: 'none' }} onClick={() => void archive(g, false)}>Restore</button>
@@ -131,7 +121,7 @@ export function ProgramGoalsCard({ programId, programName, readOnly = false }: {
         </button>
       )}
 
-      {!readOnly && (
+      {(
         <Dropdown title="Set a program goal">
           <div className="card">
             <div className="field" style={{ marginBottom: 12 }}>

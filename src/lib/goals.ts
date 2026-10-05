@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Goal, GoalMetric, NewGoal, ProgramAggregate } from './goalProgress'
+import { evaluateProgramGoal, type Goal, type GoalMetric, type GoalProgress, type NewGoal, type ProgramAggregate } from './goalProgress'
 import type { Position } from './types'
 
 export * from './goalProgress'
@@ -169,4 +169,14 @@ export async function programGoalProgress(goalId: string): Promise<{ aggregate: 
     achievedAt: r.achieved_at,
     achievedValue: r.achieved_value === null ? null : Number(r.achieved_value),
   }
+}
+
+/** A program's goals with their progress worked out, ready to show. */
+export async function programGoalRows(programId: string): Promise<{ g: Goal; p: GoalProgress }[]> {
+  const goals = await programGoalsOf(programId)
+  return Promise.all(goals.map(async (goal) => {
+    const r = await programGoalProgress(goal.id)
+    const g = { ...goal, achievedAt: r.achievedAt, achievedValue: r.achievedValue }
+    return { g, p: evaluateProgramGoal(g, r.aggregate) }
+  }))
 }

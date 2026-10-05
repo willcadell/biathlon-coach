@@ -15,7 +15,8 @@ import { Help } from './Help'
 import { SharedGoals } from './GoalsProgress'
 import { ClubLogo } from './ClubLogo'
 import { Dropdown } from './Dropdown'
-import { ProgramGoalsCard } from './ProgramGoalsCard'
+import { ProgramGoalsEditor } from './ProgramGoalsEditor'
+import { ProgramGoalsTracker } from './ProgramGoalsTracker'
 import { logPlatformAccess, platformClubs, recentPlatformAccess, type AccessEntry } from '../lib/platformAdmin'
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
@@ -247,6 +248,17 @@ function ProgramsCard({ club }: { club: Club }) {
         </label>
         {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
       </div>
+
+      {programs && programs.length > 0 && (
+        <>
+          <h2>Program goals</h2>
+          {programs.map((p) => (
+            <Dropdown key={p.id} title={p.name}>
+              <ProgramGoalsEditor programId={p.id} programName={p.name} />
+            </Dropdown>
+          ))}
+        </>
+      )}
     </>
   )
 }
@@ -791,7 +803,6 @@ function ClubRosterSection({
             programs={!platform && g.key === NO_PROGRAM_KEY ? programs : undefined}
             onAssign={!platform && g.key === NO_PROGRAM_KEY ? (a, programId) => void assignToProgram(a, programId) : undefined}
           />
-          {g.key !== NO_PROGRAM_KEY && <ProgramGoalsCard programId={g.key} programName={g.label} readOnly={platform} />}
         </CollapsibleSection>
       ))}
     </>
@@ -970,6 +981,8 @@ export function CoachView({ session, onIdentityChanged }: Props) {
         onOpen={setOpenPersonalId}
         onChanged={refreshPersonal}
       />
+
+      <ProgramGoalsTracker clubs={clubs} />
 
       {(clubs.length > 0 || (personal ?? []).length > 0) && <FeedView role="coach" clubs={clubs} />}
     </>

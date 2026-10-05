@@ -110,8 +110,9 @@ adjustment is always `null`: the athlete's own click notes are never exported.
 
 **Program goals.** A coach who manages a program sets goals for the whole program, about
 process, not outcome: total dry-fire minutes or total sessions across its athletes (hit rates
-and scores stay personal). They appear on each program athlete's home, tagged with the
-program, and in the coach's program card. Progress is totalled by `program_goal_progress`
+and scores stay personal). Coaches set and manage them in the Club tab (under Programs) and
+watch them on their 545 Coach home; they appear on each program athlete's home, tagged with the
+program. Progress is totalled by `program_goal_progress`
 because athletes can't read each other's training: the figure is shown to anyone but the
 program's coaches only once **three** athletes have contributed, and a goal is recorded as
 achieved on the same condition. Coaches need the coach responsibilities agreement to set one.
