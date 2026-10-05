@@ -176,6 +176,14 @@ agreed (version 2 is where the pledge is confirmed). Bump
 `required_coach_ack_version()` and `RESPONSIBILITIES_VERSION` together to make everyone agree
 again.
 
+**Dev-only coach persona.** A coach identity can be marked a test identity (`coaches.is_test`,
+stamped from the request's mode like other test data, or set from the SQL editor), so a
+developer's coaching persona exists only in dev mode. Outside dev mode a test coach is invisible
+(only to its own account, and only in dev mode), `is_coach_of` is false for it so it reads no
+athlete's training through the coach route, and the coach lists athletes see leave it out. Any
+club assignment it already has is kept but does nothing outside dev mode. Mark one with
+`update coaches set is_test = true where id = ...` (run as the database owner).
+
 **Platform admin.** The operator of the app can look at any club, read-only, from Profile.
 It's a disclosed role, not a back door: it's granted only from the database
 (`platform_admins`, no policies), it isn't a club coach and appears on no coach list, it

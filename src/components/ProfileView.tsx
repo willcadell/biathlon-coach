@@ -16,6 +16,7 @@ import { GoalsCard } from './GoalsCard'
 import { NameField } from './NameField'
 import { FollowAthleteCard } from './FollowAthleteCard'
 import { RcmPledgeStatus, ResponsibilitiesGate } from './CoachResponsibilities'
+import { hasAcknowledgedResponsibilities } from '../lib/coachResponsibilities'
 import { PersonalCoachesCard } from './PersonalCoachesCard'
 import { PlatformAccessCard } from './PlatformAccessCard'
 
@@ -199,7 +200,15 @@ function CoachedClubsCard() {
 
 /** The way into the read-only platform view, for the app's operator. Says
  *  plainly what it is: nothing here is hidden from the people being looked at. */
-function PlatformAdminCard({ hasCoach, onOpen }: { hasCoach: boolean; onOpen: () => void }) {
+function PlatformAdminCard({ userId, onOpen }: { userId: string; onOpen: () => void }) {
+  // The platform view needs the coach responsibilities agreed, not a visible coach
+  // identity: a developer's coaching persona can exist only in dev mode.
+  const [agreed, setAgreed] = useState<boolean | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void hasAcknowledgedResponsibilities(userId).then((a) => { if (!cancelled) setAgreed(a) }).catch(() => { if (!cancelled) setAgreed(false) })
+    return () => { cancelled = true }
+  }, [userId])
   // Closed by default, like the other Profile sections: out of the way in normal use.
   return (
     <Dropdown title="Platform admin">
@@ -208,10 +217,10 @@ function PlatformAdminCard({ hasCoach, onOpen }: { hasCoach: boolean; onOpen: ()
           Look at any club, read-only. You're on no club's coach list and can't change anything, and each
           club or athlete you open is logged where the athlete can see it.
         </p>
-        {hasCoach ? (
+        {agreed === null ? null : agreed ? (
           <button className="secondary" onClick={onOpen}>Open the platform view</button>
         ) : (
-          <p className="meta" style={{ marginBottom: 0 }}>Set up a coaching identity first, and agree to the coach responsibilities, to use this.</p>
+          <p className="meta" style={{ marginBottom: 0 }}>Agree to the coach responsibilities first (from your coaching identity, in dev mode if that's where it lives) to use this.</p>
         )}
       </div>
     </Dropdown>
@@ -368,7 +377,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       <>
         <ProfileHeader onOpenSettings={onOpenSettings} />
         <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
-        {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard hasCoach={hasCoach} onOpen={onOpenPlatform} />}
+        {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard userId={session.user.id} onOpen={onOpenPlatform} />}
         {mode === 'coach' && <CoachedClubsCard />}
 
         <h2>Coach details</h2>
@@ -579,7 +588,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
       )}
 
       <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
-      {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard hasCoach={hasCoach} onOpen={onOpenPlatform} />}
+      {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard userId={session.user.id} onOpen={onOpenPlatform} />}
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
       <Dropdown title="Account">
