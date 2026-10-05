@@ -200,9 +200,9 @@ function CoachedClubsCard() {
 /** The way into the read-only platform view, for the app's operator. Says
  *  plainly what it is: nothing here is hidden from the people being looked at. */
 function PlatformAdminCard({ hasCoach, onOpen }: { hasCoach: boolean; onOpen: () => void }) {
+  // Closed by default, like the other Profile sections: out of the way in normal use.
   return (
-    <>
-      <h2>Platform admin</h2>
+    <Dropdown title="Platform admin">
       <div className="card">
         <p style={{ marginTop: 0 }}>
           Look at any club, read-only. You're on no club's coach list and can't change anything, and each
@@ -214,7 +214,7 @@ function PlatformAdminCard({ hasCoach, onOpen }: { hasCoach: boolean; onOpen: ()
           <p className="meta" style={{ marginBottom: 0 }}>Set up a coaching identity first, and agree to the coach responsibilities, to use this.</p>
         )}
       </div>
-    </>
+    </Dropdown>
   )
 }
 
