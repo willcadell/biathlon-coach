@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  canArchive, evaluateGoal, formatValue, goalTitle, goalsFor, needsCelebration, newlyAchieved,
-  type Goal, type GoalData, type GoalFilter,
+  canArchive, evaluateGoal, evaluateProgramGoal, formatValue, goalTitle, goalsFor, needsCelebration, newlyAchieved,
+  type Goal, type GoalData, type GoalFilter, type GoalProgress,
 } from '../lib/goalProgress'
-import { markGoalAchieved, markGoalsCelebrated, myGoals, setGoalArchived, sharedGoalsOf } from '../lib/goals'
+import {
+  markGoalAchieved, markGoalsCelebrated, myGoals, myProgramGoals, programGoalProgress, setGoalArchived, sharedGoalsOf,
+} from '../lib/goals'
 import { Confetti } from './Confetti'
 import { GoalRow } from './GoalRow'
 import { ArchiveIcon, ChevronIcon, ShareIcon, TrophyIcon } from './icons'
@@ -32,12 +34,29 @@ export function GoalsProgress({ data }: { data: GoalData }) {
   const [filter, setFilter] = useState<GoalFilter>('live')
   const [sharing, setSharing] = useState<Goal | null>(null)
   const [celebrating, setCelebrating] = useState<Goal[] | null>(null)
+  // Goals a coach set for the athlete's program, with the program's totals from
+  // the server. Read-only here: the athlete can't archive or change them.
+  const [programRows, setProgramRows] = useState<{ g: Goal; p: GoalProgress; programName: string }[]>([])
   const recorded = useRef(new Set<string>())
   const celebrated = useRef(new Set<string>())
 
   useEffect(() => {
     let cancelled = false
     void myGoals().then((g) => { if (!cancelled) setGoals(g) }).catch(() => { if (!cancelled) setGoals([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const mine = await myProgramGoals()
+      const rows = await Promise.all(mine.map(async ({ goal, programName }) => {
+        const r = await programGoalProgress(goal.id)
+        const g = { ...goal, achievedAt: r.achievedAt, achievedValue: r.achievedValue }
+        return { g, p: evaluateProgramGoal(g, r.aggregate), programName }
+      }))
+      if (!cancelled) setProgramRows(rows)
+    })().catch(() => undefined) // program goals are an extra: the athlete's own goals work without them
     return () => { cancelled = true }
   }, [])
 
@@ -78,8 +97,10 @@ export function GoalsProgress({ data }: { data: GoalData }) {
     }
   }
 
-  if (!goals || goals.length === 0) return null
-  const rows = goals.map((g) => ({ g, p: evaluateGoal(g, data) }))
+  if (!goals || (goals.length === 0 && programRows.length === 0)) return null
+  const programName = new Map(programRows.map((r) => [r.g.id, r.programName]))
+  // The program's goals first, then the athlete's own.
+  const rows = [...programRows.map(({ g, p }) => ({ g, p })), ...goals.map((g) => ({ g, p: evaluateGoal(g, data) }))]
   const shown = goalsFor(rows, filter)
   const hiddenCount = rows.length - goalsFor(rows, 'live').length
 
@@ -118,7 +139,8 @@ export function GoalsProgress({ data }: { data: GoalData }) {
               {shown.map(({ g, p }) => (
                 <GoalRow
                   key={g.id} goal={g} progress={p} archived={Boolean(g.archivedAt)}
-                  action={
+                  tag={g.scope === 'program' ? programName.get(g.id) || 'Program' : undefined}
+                  action={g.scope === 'program' ? undefined : (
                     <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
                       {p.status === 'achieved' && !g.archivedAt && (
                         <button className="link" style={{ flex: 'none' }} aria-label={`Share the goal ${goalTitle(g)}`} title="Share this goal" onClick={() => setSharing(g)}>
@@ -133,7 +155,7 @@ export function GoalsProgress({ data }: { data: GoalData }) {
                         </button>
                       )}
                     </span>
-                  }
+                  )}
                 />
               ))}
             </div>

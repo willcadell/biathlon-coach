@@ -203,6 +203,14 @@ function CoachFeatures() {
           whole-club coaches see everyone. If an athlete leaves, you stop seeing them.
         </p>
       </Feature>
+      <Feature icon={<TrophyIcon size={22} />} title="Program goals">
+        <p {...p}>
+          Set a goal for a whole program in its roster: total dry-fire minutes or total sessions across
+          everyone in it. They're about how much the group trains, not how well it shoots. The program's
+          athletes see the goal on their home screen, and the total once at least three of them have
+          contributed.
+        </p>
+      </Feature>
       <Feature title="Coach responsibilities and approval">
         <p {...p}>
           Before you can create a club, ask to join one, follow an athlete, or write on an athlete's

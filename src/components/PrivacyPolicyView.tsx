@@ -50,6 +50,12 @@ export function PrivacyPolicyView() {
             goal to your club's feed, everyone in that club sees the goal and your result, with your name.
           </p>
           <p>
+            <strong>Program goals.</strong> A coach can set a goal for a whole program, such as total
+            dry-fire minutes or total sessions. The program's total is worked out from its athletes' logged
+            training and shown to the program's coaches, and to its athletes once at least three athletes
+            have contributed, so no one person's effort can be picked out.
+          </p>
+          <p>
             <strong>Club feed posts.</strong> If you choose to post a target or a workout to your
             club's feed, we store a copy of what you shared, with your name. For a target that's the shot
             positions, score, position and date; for a workout it's the name, date, type and headline

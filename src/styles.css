@@ -523,6 +523,8 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .goal-box.range { background: var(--series-1); }
 .goal-box.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); }
 .goal-check { color: #fff; }
+/* "Program"-style tag after a goal's title, on its coloured box. */
+.goal-tag { margin-left: 8px; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25); vertical-align: 1px; }
 .goal-box .meta, .goal-box button.link { color: #fff; }
 .goal-box .meta { opacity: 0.85; }
 .goal-box .goal-bar { background: rgba(255, 255, 255, 0.28); }

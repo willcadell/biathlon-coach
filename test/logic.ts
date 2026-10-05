@@ -14,7 +14,7 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
-import { canArchive, goalAchievedText, evaluateGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
+import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -451,7 +451,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
 {
   const day = (d: number, h = 12) => new Date(2026, 8, d, h).toISOString()
   const goal = (over: Partial<Goal>): Goal => ({
-    id: 'g', metric: 'metal_hit_rate', position: null, target: 80,
+    id: 'g', scope: 'athlete', programId: null, metric: 'metal_hit_rate', position: null, target: 80,
     startsOn: '2026-09-10', endsOn: '2026-09-30', shared: false, achievedAt: null, achievedValue: null, archivedAt: null, celebratedAt: null, createdAt: '2026-09-10T08:00:00Z', ...over,
   })
   const metalAt = (d: number, position: Position, missed: MetalTarget[]): MetalBout => ({
@@ -511,6 +511,23 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('goal: a missed or live goal is not celebrated', !needsCelebration(rows[0].g, rows[0].p) && !needsCelebration(rows[1].g, rows[1].p))
   ok('goal: achieved text names the date and value; none for an unmet goal',
     goalAchievedText(goal({}))=== null && /^Achieved .+ at 90%$/.test(goalAchievedText(goal({ achievedAt: new Date().toISOString(), achievedValue: 90 })) ?? ''))
+  // Range goals leave race bouts to Race performance
+  const raceWk: Workout = { id: 'race1', startedAt: day(12), name: '', workoutType: 'range', wind: 'none', windDirection: '12', clickLog: [], notes: '', coachNotes: [], raceType: 'sprint', dryfireMinutes: 0 }
+  const raceMissed = { ...metalAt(12, 'prone', ['alpha', 'beta', 'charlie', 'delta', 'echo']), id: 'mrace', workoutId: 'race1' }
+  const withRace = evaluateGoal(goal({}), { workouts: [raceWk], bouts: [], metalBouts: [...five, raceMissed] }, today)
+  ok('goal: a metal goal ignores race bouts', withRace.sample === 5 && withRace.value !== null && Math.abs(withRace.value - 96) < 1e-9)
+
+  // Program goals: process totals from the server, met only with enough athletes behind them
+  const programGoal = (over: Partial<Goal>) => goal({ scope: 'program', programId: 'p1', metric: 'sessions', target: 40, ...over })
+  const aggregate = (value: number | null, contributors: number, hidden = false) => ({ value, contributors, hidden })
+  ok('program goal: below target is active', evaluateProgramGoal(programGoal({}), aggregate(25, 5), today).status === 'active')
+  ok('program goal: met with enough athletes', evaluateProgramGoal(programGoal({}), aggregate(41, 4), today).status === 'achieved')
+  ok('program goal: a total from too few athletes does not count', evaluateProgramGoal(programGoal({}), aggregate(50, 2), today).status === 'active')
+  ok('program goal: hidden figure stays hidden and shows no value', evaluateProgramGoal(programGoal({}), aggregate(null, 2, true), today).hidden === true && evaluateProgramGoal(programGoal({}), aggregate(null, 2, true), today).value === null)
+  ok('program goal: past its end unmet is missed', evaluateProgramGoal(programGoal({ endsOn: '2026-09-15' }), aggregate(10, 5), today).status === 'missed')
+  const keptProgram = evaluateProgramGoal(programGoal({ achievedAt: day(14), achievedValue: 44, endsOn: '2026-09-15' }), aggregate(30, 5), today)
+  ok('program goal: once achieved it stays, at the recorded total', keptProgram.status === 'achieved' && keptProgram.value === 44 && !keptProgram.hidden)
+  ok('program goal: process measures read plainly', goalTitle(programGoal({})) === '40 sessions' && goalTitle(programGoal({ metric: 'dryfire_minutes', target: 600 })) === 'Dry-fire 600 min')
   ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
 }
 

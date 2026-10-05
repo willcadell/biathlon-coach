@@ -108,6 +108,14 @@ wind is a strength band plus the clock position it blew from (no speed is record
 `race`, and a `conventions` block saying what each number means. The `note` on each zero
 adjustment is always `null`: the athlete's own click notes are never exported.
 
+**Program goals.** A coach who manages a program sets goals for the whole program, about
+process, not outcome: total dry-fire minutes or total sessions across its athletes (hit rates
+and scores stay personal). They appear on each program athlete's home, tagged with the
+program, and in the coach's program card. Progress is totalled by `program_goal_progress`
+because athletes can't read each other's training: the figure is shown to anyone but the
+program's coaches only once **three** athletes have contributed, and a goal is recorded as
+achieved on the same condition. Coaches need the coach responsibilities agreement to set one.
+
 **Sets goals.** In Profile an athlete sets a goal on one measure (metal hit rate, precision
 score or dry-fire minutes, optionally by position) with an end date they choose. Progress is
 never typed in: it's computed from logged training in `src/lib/goalProgress.ts` (a rate or
