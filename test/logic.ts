@@ -14,7 +14,7 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
-import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
+import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -527,6 +527,12 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('program goal: past its end unmet is missed', evaluateProgramGoal(programGoal({ endsOn: '2026-09-15' }), aggregate(10, 5), today).status === 'missed')
   const keptProgram = evaluateProgramGoal(programGoal({ achievedAt: day(14), achievedValue: 44, endsOn: '2026-09-15' }), aggregate(30, 5), today)
   ok('program goal: once achieved it stays, at the recorded total', keptProgram.status === 'achieved' && keptProgram.value === 44 && !keptProgram.hidden)
+  const pg = programGoal({ metric: 'dryfire_minutes', target: 10 })
+  ok('program goal: a total past the target with too few athletes explains itself',
+    /target reached, but it only counts once 3 athletes have contributed \(1 so far\)/.test(goalStatusText(pg, evaluateProgramGoal(pg, aggregate(11, 1), today))))
+  ok('program goal: a total short of target says how many athletes are needed',
+    /counts once 3 athletes contribute \(2 so far\)/.test(goalStatusText(pg, evaluateProgramGoal(pg, aggregate(6, 2), today))))
+  ok('program goal: with enough athletes it just counts them', goalStatusText(pg, evaluateProgramGoal(pg, aggregate(6, 4), today)) === '6 min of 10 min · 4 athletes')
   ok('program goal: process measures read plainly', goalTitle(programGoal({})) === '40 sessions' && goalTitle(programGoal({ metric: 'dryfire_minutes', target: 600 })) === 'Dry-fire 600 min')
   ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
 }

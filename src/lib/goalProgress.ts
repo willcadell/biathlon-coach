@@ -199,7 +199,13 @@ export function goalStatusText(g: Goal, p: GoalProgress): string {
   if (p.status === 'missed') return p.value === null ? 'Ended with nothing logged' : `Ended at ${formatValue(g.metric, p.value)}`
   if (g.scope === 'program') {
     const n = p.contributors ?? 0
-    return `${formatValue(g.metric, p.value)} of ${g.target}${unit(g.metric)} · ${n} athlete${n === 1 ? '' : 's'}`
+    const total = `${formatValue(g.metric, p.value)} of ${g.target}${unit(g.metric)}`
+    if (n >= MIN_PROGRAM_CONTRIBUTORS) return `${total} · ${n} athletes`
+    // The total may already be past the target; say why it hasn't counted.
+    if (p.value !== null && p.value >= g.target) {
+      return `${total} · target reached, but it only counts once ${MIN_PROGRAM_CONTRIBUTORS} athletes have contributed (${n} so far)`
+    }
+    return `${total} · counts once ${MIN_PROGRAM_CONTRIBUTORS} athletes contribute (${n} so far)`
   }
   if (g.metric !== 'dryfire_minutes' && p.sample < p.needed) {
     return `Averaged over at least ${p.needed} bouts · ${p.sample} so far`
