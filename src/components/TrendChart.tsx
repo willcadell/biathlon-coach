@@ -300,7 +300,10 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   }
 
   const sx = (tt: number) => PAD.left + Math.min(1, Math.max(0, tt)) * (W - PAD.left - PAD.right)
-  const sy = (v: number) => PAD.top + (1 - (Math.max(yMin, v) - yMin) / (yMax - yMin)) * (H - PAD.top - PAD.bottom)
+  // The per-bout view carries a second row under the dates (the time between
+  // bouts), so it keeps more room at the bottom.
+  const bottom = calendar ? PAD.bottom : 46
+  const sy = (v: number) => PAD.top + (1 - (Math.max(yMin, v) - yMin) / (yMax - yMin)) * (H - PAD.top - bottom)
   const ticks = Array.from({ length: Math.round((yMax - yMin) / tickStep) + 1 }, (_, i) => yMin + i * tickStep)
 
   const trends = byPosition.flatMap((s) => {
@@ -397,13 +400,35 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                 <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">{fmtAxisDate(rangeEnd, granularity === 'year')}</text>
               </>
             ) : (
-              // Dates under the dots, as many as fit.
-              pts.map((p, i) => (pts.length <= 6 || i === 0 || i === pts.length - 1) && (
-                <text key={`d-${p.key}`} x={sx(p.tt)} y={H - 6} fontSize={11} fill="var(--text-muted)"
-                  textAnchor={i === 0 && pts.length > 6 ? 'start' : i === pts.length - 1 && pts.length > 6 ? 'end' : 'middle'}>
-                  {fmtDate(p.at)}
-                </text>
-              ))
+              // Spacing is by order, so time has to be said in words: the date
+              // under every dot (once per day), a tick at each, and between
+              // dots how long the gap was.
+              <g>
+                {pts.map((p, i) => {
+                  const prev = pts[i - 1]
+                  const sameDay = prev && prev.at.toDateString() === p.at.toDateString()
+                  const sameMonth = prev && prev.at.getMonth() === p.at.getMonth() && prev.at.getFullYear() === p.at.getFullYear()
+                  const x = sx(p.tt)
+                  const gapDays = prev ? Math.round((p.at.getTime() - prev.at.getTime()) / 864e5) : 0
+                  const gap = gapDays <= 0 ? '' : gapDays < 14 ? `${gapDays}d` : gapDays < 60 ? `${Math.round(gapDays / 7)}w` : `${Math.round(gapDays / 30)}mo`
+                  return (
+                    <g key={`d-${p.key}`}>
+                      <line x1={x} y1={H - bottom} x2={x} y2={H - bottom + 4} stroke="var(--axis)" strokeWidth={1} />
+                      {!sameDay && (
+                        <text x={x} y={H - bottom + 17} textAnchor="middle" fontSize={10.5} fill="var(--text-secondary)">
+                          {sameMonth ? p.at.toLocaleDateString(undefined, { day: 'numeric' }) : fmtDate(p.at)}
+                        </text>
+                      )}
+                      {gap && (
+                        <text x={(sx(prev.tt) + x) / 2} y={H - 5} textAnchor="middle" fontSize={9.5} fill="var(--text-muted)">
+                          {gap}
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
+                <text x={PAD.left - 6} y={H - 5} textAnchor="end" fontSize={9.5} fill="var(--text-muted)">gap</text>
+              </g>
             )}
 
             {ghosts.map((g) => (
@@ -460,7 +485,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
 
             {hover && (
               <g pointerEvents="none">
-                <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - PAD.bottom} stroke="var(--axis)" strokeWidth={1} />
+                <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - bottom} stroke="var(--axis)" strokeWidth={1} />
                 <rect
                   x={Math.min(Math.max(hover.x - 130, 2), W - 262)} y={Math.max(hover.y - 40, 2)}
                   width={260} height={24} rx={6} fill="var(--surface-1)" stroke="var(--border)"
