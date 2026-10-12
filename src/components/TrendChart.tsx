@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Bout, Position, Workout } from '../lib/types'
 
 export type Metric = 'score' | 'group'
@@ -121,8 +121,6 @@ function linearTrend(points: { t: number; v: number }[]): { at: (t: number) => n
   return { at: (t) => slope * t + intercept }
 }
 
-const W = 640
-const H = 220
 // top leaves room for the value written above the highest point; left holds
 // the widest tick label (a plain number now that the unit is in the title).
 const PAD = { top: 26, right: 14, bottom: 26, left: 40 }
@@ -175,7 +173,23 @@ interface PlotPoint {
  * points of a position: fewer than that is the data, not a trend.
  */
 export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workouts: Workout[]; metric: Metric }) {
-  const [hover, setHover] = useState<{ x: number; y: number; label: string } | null>(null)
+  const [hover, setHover] = useState<{ x: number; y: number; value: string; rest: string } | null>(null)
+  // Drawn at the width it's shown at, so text is true pixel size on a phone
+  // instead of a 640-wide drawing shrunk to a third of that.
+  const wrap = useRef<HTMLDivElement>(null)
+  const [boxW, setBoxW] = useState(640)
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const measure = () => setBoxW(Math.round(Math.max(280, Math.min(760, el.clientWidth || 640))))
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const W = boxW
+  const H = Math.round(Math.max(210, Math.min(270, boxW * 0.6)))
   const [view, setView] = useState<View>('recent')
   const [anchor, setAnchor] = useState(() => new Date())
   const spec = SPECS[metric]
@@ -320,7 +334,10 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   // Write every value beside its dot while there are few enough to read; where
   // two dots stack at one x (prone and standing in the same workout), the
   // lower one's label goes below it.
-  const labelled = pts.length <= 12
+  const xs = pts.map((p) => sx(p.tt)).sort((a, b) => a - b)
+  const minGapPx = xs.length > 1 ? Math.min(...xs.slice(1).map((x, i) => x - xs[i])) : Infinity
+  // value written beside every dot only while each has room to be read
+  const labelled = pts.length <= 12 && minGapPx >= 26
   const latestKeys = new Set(byPosition.map((s) => s.points[s.points.length - 1].key))
   const labelBelow = new Set<string>()
   for (const p of pts) {
@@ -337,7 +354,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   const tableRows = [...pts].sort((x, y) => y.at.getTime() - x.at.getTime())
 
   return (
-    <div>
+    <div ref={wrap}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 380, margin: '0 auto' }}>
         {calendar && (
           <button
@@ -407,30 +424,48 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
               // under every dot (once per day), a tick at each, and between
               // dots how long the gap was.
               <g>
-                {pts.map((p, i) => {
-                  const prev = pts[i - 1]
-                  const sameDay = prev && prev.at.toDateString() === p.at.toDateString()
-                  const sameMonth = prev && prev.at.getMonth() === p.at.getMonth() && prev.at.getFullYear() === p.at.getFullYear()
-                  const x = sx(p.tt)
-                  const gapDays = prev ? Math.round((p.at.getTime() - prev.at.getTime()) / 864e5) : 0
-                  const gap = gapDays <= 0 ? '' : gapDays < 14 ? `${gapDays}d` : gapDays < 60 ? `${Math.round(gapDays / 7)}w` : `${Math.round(gapDays / 30)}mo`
-                  return (
-                    <g key={`d-${p.key}`}>
-                      <line x1={x} y1={H - bottom} x2={x} y2={H - bottom + 4} stroke="var(--axis)" strokeWidth={1} />
-                      {!sameDay && (
-                        <text x={x} y={H - bottom + 17} textAnchor="middle" fontSize={10.5} fill="var(--text-secondary)">
-                          {sameMonth ? p.at.toLocaleDateString(undefined, { day: 'numeric' }) : fmtDate(p.at)}
-                        </text>
-                      )}
-                      {gap && (
-                        <text x={(sx(prev.tt) + x) / 2} y={H - 5} textAnchor="middle" fontSize={9.5} fill="var(--text-muted)">
-                          {gap}
-                        </text>
-                      )}
-                    </g>
-                  )
-                })}
-                <text x={PAD.left - 6} y={H - 5} textAnchor="end" fontSize={9.5} fill="var(--text-muted)">gap</text>
+                {(() => {
+                  // A date under a dot only where it has room: every dot, or
+                  // every second or third one as the chart narrows, and always the
+                  // latest. Real pixels, so this tracks the phone's width.
+                  const px = pts.map((p) => sx(p.tt))
+                  const tightest = px.length > 1 ? Math.min(...px.slice(1).map((x, i) => x - px[i])) : Infinity
+                  const every = Math.max(1, Math.ceil(46 / Math.max(tightest, 1)))
+                  const dateShown = pts.map((_, i) => i === pts.length - 1 || i % every === 0)
+                  // never two shown dates closer than a label is wide
+                  for (let i = pts.length - 2; i >= 0; i--) {
+                    if (dateShown[i] && dateShown.slice(i + 1).some((v, k) => v && px[i + 1 + k] - px[i] < 40)) dateShown[i] = false
+                  }
+                  let lastShown: Date | null = null
+                  return pts.map((p, i) => {
+                    const prev = pts[i - 1]
+                    const sameDay = prev && prev.at.toDateString() === p.at.toDateString()
+                    // The month goes on a label unless the last label shown was
+                    // the same month, so a thinned "26" still says which month.
+                    const sameMonth = lastShown !== null && lastShown.getMonth() === p.at.getMonth() && lastShown.getFullYear() === p.at.getFullYear()
+                    const x = px[i]
+                    const gapDays = prev ? Math.round((p.at.getTime() - prev.at.getTime()) / 864e5) : 0
+                    const gap = gapDays <= 0 ? '' : gapDays < 14 ? `${gapDays}d` : gapDays < 60 ? `${Math.round(gapDays / 7)}w` : `${Math.round(gapDays / 30)}mo`
+                    const showMonth = !sameMonth
+                    if (!sameDay && dateShown[i]) lastShown = p.at
+                    return (
+                      <g key={`d-${p.key}`}>
+                        <line x1={x} y1={H - bottom} x2={x} y2={H - bottom + 4} stroke="var(--axis)" strokeWidth={1} />
+                        {!sameDay && dateShown[i] && (
+                          <text x={x} y={H - bottom + 17} textAnchor="middle" fontSize={11} fill="var(--text-secondary)">
+                            {showMonth ? fmtDate(p.at) : p.at.toLocaleDateString(undefined, { day: 'numeric' })}
+                          </text>
+                        )}
+                        {gap && prev && x - px[i - 1] >= 22 && (
+                          <text x={(px[i - 1] + x) / 2} y={H - 5} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
+                            {gap}
+                          </text>
+                        )}
+                      </g>
+                    )
+                  })
+                })()}
+                <text x={PAD.left - 6} y={H - 5} textAnchor="end" fontSize={10} fill="var(--text-muted)">gap</text>
               </g>
             )}
 
@@ -463,8 +498,10 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
 
             {pts.map((p) => {
               const x = sx(p.tt), y = sy(p.v)
-              const text = `${p.period ?? fmtDate(p.at)} · ${p.position} · ${spec.format(p.v)} · ${p.count} bout${p.count === 1 ? '' : 's'}`
-              const show = () => setHover({ x, y, label: text })
+              const when = p.period ?? fmtDate(p.at)
+              const rest = `${when} · ${p.position} · ${p.count} bout${p.count === 1 ? '' : 's'}`
+              const text = `${when} · ${p.position} · ${spec.format(p.v)} · ${p.count} bout${p.count === 1 ? '' : 's'}`
+              const show = () => setHover({ x, y, value: spec.format(p.v), rest })
               return (
                 <g
                   key={p.key} tabIndex={0} role="button" aria-label={text} style={{ cursor: 'pointer', outline: 'none' }}
@@ -477,6 +514,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                     <text
                       x={x} y={labelBelow.has(p.key) ? y + 22 : y - 12} textAnchor="middle"
                       fontSize={11} fontWeight={600} fill="var(--text-primary)"
+                      stroke="var(--surface-1)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round"
                       style={{ fontVariantNumeric: 'tabular-nums' }}
                     >
                       {spec.format(p.v)}
@@ -487,21 +525,23 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
             })}
 
             {hover && (
-              <g pointerEvents="none">
-                <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - bottom} stroke="var(--axis)" strokeWidth={1} />
-                <rect
-                  x={Math.min(Math.max(hover.x - 130, 2), W - 262)} y={Math.max(hover.y - 40, 2)}
-                  width={260} height={24} rx={6} fill="var(--surface-1)" stroke="var(--border)"
-                />
-                <text
-                  x={Math.min(Math.max(hover.x - 130, 2), W - 262) + 8} y={Math.max(hover.y - 40, 2) + 12}
-                  dominantBaseline="central" fontSize={11} fill="var(--text-primary)"
-                >
-                  {hover.label}
-                </text>
-              </g>
+              <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - bottom} stroke="var(--axis)" strokeWidth={1} pointerEvents="none" />
             )}
           </svg>
+
+          {/* The selected mark, written out at normal size under the chart: a
+              tooltip inside a phone-width drawing was unreadable and sat under
+              the thumb that tapped it. */}
+          <div aria-live="polite" style={{ minHeight: 24, margin: '8px 0 4px', fontSize: 15 }}>
+            {hover ? (
+              <>
+                <strong style={{ fontSize: 17 }}>{hover.value}</strong>{' '}
+                <span style={{ color: 'var(--text-secondary)' }}>{hover.rest}</span>
+              </>
+            ) : (
+              <span className="meta">Tap a mark for its date and value.</span>
+            )}
+          </div>
 
           <div className="legend">
             {byPosition.map((s) => (
