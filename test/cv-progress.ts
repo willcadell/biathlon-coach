@@ -21,7 +21,21 @@
 import { loadEvalTargets, scoreTarget } from './cv-eval'
 
 async function main() {
-  const targets = (await loadEvalTargets()).filter((t) => t.label.startsWith('contributed/'))
+  const contributed = (await loadEvalTargets()).filter((t) => t.label.startsWith('contributed/'))
+  // The same target has been contributed more than once (re-encoded, so the
+  // server's photo check didn't catch it). Count each target once: its
+  // confirmed shots are identical, so the duplicate adds no information and
+  // would only inflate the headline numbers.
+  const seen = new Set<string>()
+  const targets = contributed.filter((t) => {
+    const key = `${t.mmPerUnit.toFixed(3)}|` + t.shots.map((s) => `${s.x.toFixed(1)},${s.y.toFixed(1)}`).sort().join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  if (contributed.length !== targets.length) {
+    console.log(`${contributed.length} contributions, but only ${targets.length} unique targets (the rest are duplicates). Scoring the unique ones.\n`)
+  }
   if (targets.length === 0) {
     console.log('No contributed targets downloaded yet — nothing to measure. Try again once athletes have opted in and scored a few.')
     return

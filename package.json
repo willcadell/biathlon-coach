@@ -11,6 +11,8 @@
     "typecheck": "tsc -b",
     "cv-check": "esbuild test/cv-check.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-check.mjs && node node_modules/.cache/cv-check.mjs",
     "cv-progress": "esbuild test/cv-progress.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-progress.mjs && node node_modules/.cache/cv-progress.mjs",
+    "cv-diagnose": "esbuild test/cv-diagnose.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-diagnose.mjs && node node_modules/.cache/cv-diagnose.mjs",
+    "cv-sweep": "esbuild test/cv-sweep.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-sweep.mjs && node node_modules/.cache/cv-sweep.mjs",
     "cv-tune": "esbuild test/cv-tune.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-tune.mjs && node node_modules/.cache/cv-tune.mjs"
   },
   "dependencies": {
