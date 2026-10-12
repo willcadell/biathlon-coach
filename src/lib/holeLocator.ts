@@ -36,6 +36,11 @@ export interface HoleCandidate {
    *  single marker at its centre, but the caller should make clear it
    *  needs a look rather than presenting it as a settled reading. */
   ambiguous: boolean
+  /** How much of the neighbourhood was disturbed, 0 to 1: the strength the
+   *  candidate was ranked by. Extra detail for tools; the app ignores it. */
+  density?: number
+  /** Whether the candidate sits inside the printed black. */
+  onBlack?: boolean
 }
 
 export interface KnownBull {
@@ -72,6 +77,9 @@ export interface HoleParams {
   ambiguousDensity?: number
   blackMargin?: number
   whiteMargin?: number
+  /** How many candidates to return at most. Defaults to a bout's ten shots;
+   *  evaluation tools raise it to see every candidate, not just the top few. */
+  maxShots?: number
 }
 /** A precision bout is never more than PRECISION_SHOTS (types.ts) shots, so
  *  once there are more candidates than that, the excess is leftover noise,
@@ -314,11 +322,13 @@ export function locateHoles(
   const ranked = accepted
     .map((p) => ({ ...p, onBlack: insideBlack(p.x, p.y) }))
     .sort((a, b) => (a.onBlack === b.onBlack ? b.d - a.d : a.onBlack ? -1 : 1))
-    .slice(0, MAX_SHOTS)
+    .slice(0, params.maxShots ?? MAX_SHOTS)
 
   return ranked.map((p) => ({
     cx: p.x,
     cy: p.y,
     ambiguous: density(p.x, p.y, wideR) >= ambiguousDensity,
+    density: p.d,
+    onBlack: p.onBlack,
   }))
 }
