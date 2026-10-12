@@ -532,14 +532,21 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
           {/* The selected mark, written out at normal size under the chart: a
               tooltip inside a phone-width drawing was unreadable and sat under
               the thumb that tapped it. */}
-          <div aria-live="polite" style={{ minHeight: 24, margin: '8px 0 4px', fontSize: 15 }}>
+          <div
+            aria-live="polite"
+            style={{
+              minHeight: 64, margin: '10px 0 8px', padding: '10px 14px', borderRadius: 10,
+              display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 12px',
+              border: '1px solid var(--border)', background: 'color-mix(in srgb, var(--series-1) 8%, transparent)',
+            }}
+          >
             {hover ? (
               <>
-                <strong style={{ fontSize: 17 }}>{hover.value}</strong>{' '}
-                <span style={{ color: 'var(--text-secondary)' }}>{hover.rest}</span>
+                <strong style={{ fontSize: 30, lineHeight: 1.1, letterSpacing: '-0.02em' }}>{hover.value}</strong>
+                <span style={{ fontSize: 17, color: 'var(--text-secondary)' }}>{hover.rest}</span>
               </>
             ) : (
-              <span className="meta">Tap a mark for its date and value.</span>
+              <span style={{ fontSize: 15, color: 'var(--text-muted)' }}>Tap a mark for its date and value.</span>
             )}
           </div>
 
