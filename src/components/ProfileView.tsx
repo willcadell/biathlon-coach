@@ -376,7 +376,6 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
     return (
       <>
         <ProfileHeader onOpenSettings={onOpenSettings} />
-        <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
         {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard userId={session.user.id} onOpen={onOpenPlatform} />}
         {mode === 'coach' && <CoachedClubsCard />}
 
@@ -406,6 +405,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
             </button>
           </div>
         </Dropdown>
+        <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
         <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '24px 0 20px' }} />
         <p className="meta" style={{ textAlign: 'center' }}>
           <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
@@ -587,7 +587,6 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
         </>
       )}
 
-      <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
       {isPlatformAdmin && onOpenPlatform && <PlatformAdminCard userId={session.user.id} onOpen={onOpenPlatform} />}
       {!hasCoach && <BecomeCoachCard onDone={onIdentityChanged} />}
 
@@ -599,6 +598,7 @@ export function ProfileView({ session, hasAthlete, hasCoach, onIdentityChanged, 
           </button>
         </div>
       </Dropdown>
+      <SessionCard mode={mode} onSwitchRole={onSwitchRole} isDev={isDev} devMode={devMode} />
       <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '24px 0 20px' }} />
       <p className="meta" style={{ textAlign: 'center' }}>
         <a href="/features" className="link" style={{ color: 'inherit' }}>What it does</a>
