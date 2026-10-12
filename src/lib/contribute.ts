@@ -74,6 +74,17 @@ export async function contributeBout(bout: Bout): Promise<boolean> {
     p_expected_shots: bout.expectedShots ?? null,
     // Positions only: no firing order, no bull ids.
     p_shots: bout.shots.map((s) => ({ x: s.mm.x, y: s.mm.y })),
+    // Where the aiming circle and the holes sit in the photo, so the photo is an
+    // exact training example rather than one the circle has to be re-found in.
+    // Geometry only; older bouts have none and are sent without.
+    p_marks: bout.bulls && bout.bulls.length > 0
+      ? {
+          bulls: bout.bulls.map((b) => ({
+            cx: b.centre.x, cy: b.centre.y, a: b.semiMajor, b: b.semiMinor, rot: b.rotationDeg,
+            holes: b.holes.map((h) => ({ x: h.x, y: h.y })),
+          })),
+        }
+      : null,
   })
   if (error) throw error
   markContributed(bout.id)

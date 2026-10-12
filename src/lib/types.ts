@@ -169,6 +169,10 @@ export interface Bout {
    *  athlete has deleted the photos but kept the scored bout. */
   imagePath: string | null
   shots: Shot[]
+  /** The aiming-circle fit and hole positions in the photo (normalised image
+   *  coordinates), as the athlete confirmed them. Lets a photo be used as an
+   *  exact training example. Bouts saved before this existed have none. */
+  bulls?: Bull[]
   context: Context
   /** Millimetres per normalised image unit, derived at calibration time. */
   mmPerUnit: number

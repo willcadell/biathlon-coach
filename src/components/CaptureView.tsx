@@ -143,8 +143,8 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       if (saved) {
         // Refining a bout that's already saved: same photo, same row —
         // only the shots and what follows from them change.
-        await updateBoutShots(saved.id, { shots, mmPerUnit, metrics })
-        setSaved({ ...saved, shots, mmPerUnit, metrics })
+        await updateBoutShots(saved.id, { shots, mmPerUnit, metrics, bulls })
+        setSaved({ ...saved, shots, bulls, mmPerUnit, metrics })
       } else {
         const bout: Omit<Bout, 'imagePath'> = {
           kind: 'precision',
@@ -156,6 +156,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
           bulletDiameterMm: settings.bulletDiameterMm,
           expectedShots: PRECISION_SHOTS,
           shots,
+          bulls,
           context,
           mmPerUnit,
           metrics,

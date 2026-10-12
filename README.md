@@ -139,11 +139,14 @@ in `athlete_preferences` (own row only, so no coach or club can read it), with t
 said yes. From then on, each target scored after that time is sent in the background: the browser
 re-encodes the photo at up to 1400 px (which drops camera and location metadata) and calls
 `submit_training_target`, which itself refuses anyone who hasn't said yes and stores the photo,
-confirmed holes and calibration in `training_targets` with no account, bout, workout or
+confirmed holes, calibration and the aiming circle's fit in the photo (`marks`) in
+`training_targets` with no account, bout, workout or
 timestamp — only the month. That table has no policies and no client grants, so it can only be
 read from the SQL editor or CLI. Because nothing identifies the contributor, a submission can't
-be withdrawn, and the prompt says so. Dev-mode (test) data is refused, and a duplicate photo is
-dropped by hash. Export for training with
+be withdrawn, and the prompt says so. Dev-mode (test) data is refused, and a duplicate is
+dropped by photo hash and by a fingerprint of the confirmed shots and scale (the same target
+was arriving twice, re-encoded). A scored bout now keeps its aiming-circle fit and hole
+positions (`precision_bouts.bulls`) so a contribution is an exact training label. Export for training with
 `select id, encode(photo,'base64'), shots ... from training_targets`.
 
 **Belongs to a club.** Enter a club's or a program's join code in Profile. Before

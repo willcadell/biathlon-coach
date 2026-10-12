@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
+import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
 
 const BUCKET = 'target-photos'
@@ -167,6 +167,7 @@ export interface BoutRow {
   image_path: string | null
   mm_per_unit: number
   shots: Shot[]
+  bulls: Bull[] | null
   metrics: Bout['metrics']
   skied_in: boolean
   notes: string
@@ -184,6 +185,7 @@ export function toBout(row: BoutRow): Bout {
     expectedShots: row.expected_shots,
     imagePath: row.image_path,
     shots: row.shots,
+    bulls: row.bulls ?? undefined,
     context: { skiedIn: row.skied_in, notes: row.notes },
     mmPerUnit: row.mm_per_unit,
     metrics: row.metrics,
@@ -226,6 +228,7 @@ export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob
     image_path: imagePath,
     mm_per_unit: full.mmPerUnit,
     shots: full.shots,
+    bulls: full.bulls ?? null,
     metrics: full.metrics,
     skied_in: full.context.skiedIn,
     notes: full.context.notes,
@@ -239,11 +242,11 @@ export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob
  *  them. Nothing about the photo or the bout's identity changes. */
 export async function updateBoutShots(
   id: string,
-  patch: Pick<Bout, 'shots' | 'mmPerUnit' | 'metrics'>,
+  patch: Pick<Bout, 'shots' | 'mmPerUnit' | 'metrics'> & { bulls?: Bull[] },
 ): Promise<void> {
   const { error } = await supabase
     .from('precision_bouts')
-    .update({ shots: patch.shots, mm_per_unit: patch.mmPerUnit, metrics: patch.metrics })
+    .update({ shots: patch.shots, mm_per_unit: patch.mmPerUnit, metrics: patch.metrics, ...(patch.bulls ? { bulls: patch.bulls } : {}) })
     .eq('id', id)
   if (error) throw error
 }

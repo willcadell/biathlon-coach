@@ -171,8 +171,9 @@ export function PrivacyPolicyView() {
           <p>
             <strong>What we receive:</strong> a smaller copy of the target photo, re-encoded on your
             device so the camera and location details (such as where and when it was taken) are removed;
-            the hole positions you confirmed; the target type, bullet size and the calibration figures
-            needed to place the holes on the photo; and the month it was submitted.
+            the hole positions you confirmed, including where the aiming circle and the holes sit in the
+            photo; the target type, bullet size and the calibration figures needed to place the holes on
+            the photo; and the month it was submitted.
           </p>
           <p>
             <strong>What we don't receive:</strong> your name, email, account, club, program, coaches,
