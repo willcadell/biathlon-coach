@@ -10,6 +10,8 @@ interface Spec {
   tickStep: number
   /** A meaningful line to draw across the plot, or null. */
   reference: number | null
+  /** An axis tick without its unit: the unit is in the section's title. */
+  tickFormat: (v: number) => string
   caption: string
   /** The caption for the per-bout view, where nothing is averaged. */
   captionRecent: string
@@ -26,6 +28,7 @@ const SPECS: Record<Metric, Spec> = {
     caption: 'Score out of what the target could give, averaged across each workout. Higher is better.',
     captionRecent: 'Score out of what the target could give, one mark per bout. Higher is better.',
     label: 'Score as a percentage of the target maximum, one point per workout, split by shooting position',
+    tickFormat: (v) => `${Math.round(v)}`,
     format: (v) => `${Math.round(v)}%`,
   },
   group: {
@@ -36,6 +39,7 @@ const SPECS: Record<Metric, Spec> = {
     caption: 'Mean radius of the group, averaged across each workout. Lower is tighter.',
     captionRecent: 'Mean radius of the group, one mark per bout. Lower is tighter.',
     label: 'Group mean radius in millimetres, one point per workout, split by shooting position',
+    tickFormat: (v) => `${Math.round(v)}`,
     format: (v) => `${Math.round(v)} mm`,
   },
 }
@@ -119,10 +123,9 @@ function linearTrend(points: { t: number; v: number }[]): { at: (t: number) => n
 
 const W = 640
 const H = 220
-// left is wide enough for the widest tick label ("100%", "100 mm" on a very
-// loose group) plus the gap before the plot area — narrower clipped it off
-// the left edge.
-const PAD = { top: 14, right: 14, bottom: 26, left: 52 }
+// top leaves room for the value written above the highest point; left holds
+// the widest tick label (a plain number now that the unit is in the title).
+const PAD = { top: 26, right: 14, bottom: 26, left: 40 }
 
 const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 /** Axis end labels carry the year in the 12-month view, where the same month
@@ -389,7 +392,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                 <line x1={PAD.left} y1={sy(v)} x2={W - PAD.right} y2={sy(v)} stroke="var(--grid)" strokeWidth={1} />
                 <text x={PAD.left - 6} y={sy(v)} textAnchor="end" dominantBaseline="central"
                   fontSize={11} fill="var(--text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {spec.format(v)}
+                  {spec.tickFormat(v)}
                 </text>
               </g>
             ))}

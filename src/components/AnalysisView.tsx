@@ -532,15 +532,15 @@ export function AnalysisView({
         )}
 
         <h3 style={{ marginTop: 20 }}>
-          Score over time
-          <Help>Averaged to one point per workout, not per bout — a session's whole story, not its noisiest shot.</Help>
+          Score over time (%)
+          <Help>Recent shows one mark per bout. The 7 days and 4 weeks views average each workout to one point, and the 12 months view averages each month, so you see the session's whole story, not its noisiest shot.</Help>
         </h3>
         <div className="card">
           <TrendChart bouts={bouts} workouts={workouts} metric="score" />
         </div>
 
         <h3>
-          Group size over time
+          Group size over time (mm)
           <Help>
             Score says how you did. Group size says whether the shooting or the sight was responsible,
             because a group can tighten while the score stays flat.
