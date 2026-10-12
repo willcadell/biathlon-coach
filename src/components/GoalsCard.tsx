@@ -5,6 +5,7 @@ import { GOAL_METRICS, createGoal, deleteGoal, goalAchievedText, goalDeadline, g
 import type { Goal, GoalMetric } from '../lib/goals'
 import type { Position } from '../lib/types'
 import { Dropdown } from './Dropdown'
+import { GoalSetNotice } from './GoalSetNotice'
 import { Help } from './Help'
 import { TrashIcon } from './icons'
 
@@ -36,6 +37,8 @@ export function GoalsCard() {
   const [endsOn, setEndsOn] = useState(endOfThisMonth)
   const [shared, setShared] = useState(false)
   const [saving, setSaving] = useState(false)
+  // The goal just set, for the confirmation.
+  const [justSet, setJustSet] = useState<{ title: string; deadline: string } | null>(null)
 
   const refresh = () =>
     void myGoals().then(setGoals).catch((e) => setError(errorMessage(e, 'Could not load your goals. Check your connection and try again.')))
@@ -58,7 +61,9 @@ export function GoalsCard() {
     setSaving(true)
     setError('')
     try {
-      await createGoal({ metric, position: isRate ? position : null, target: targetNumber, endsOn, shared })
+      const position_ = isRate ? position : null
+      await createGoal({ metric, position: position_, target: targetNumber, endsOn, shared })
+      setJustSet({ title: goalTitle({ metric, position: position_, target: targetNumber }), deadline: goalDeadline({ endsOn }) })
       setTarget('')
       setShared(false)
       refresh()
@@ -93,6 +98,13 @@ export function GoalsCard() {
   return (
     <>
       {error && <div className="notice error">{error}</div>}
+      {justSet && (
+        <GoalSetNotice
+          title={justSet.title} deadline={justSet.deadline}
+          hint="Follow it on your home screen, under Goals."
+          onClose={() => setJustSet(null)}
+        />
+      )}
 
       <Dropdown
         title="Set a goal"

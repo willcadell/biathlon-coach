@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { localDate } from '../lib/coachContext'
 import { errorMessage } from '../lib/errors'
 import {
-  MIN_PROGRAM_CONTRIBUTORS, PROGRAM_GOAL_METRICS, canArchive, goalTitle,
+  MIN_PROGRAM_CONTRIBUTORS, PROGRAM_GOAL_METRICS, canArchive, goalDeadline, goalTitle,
   type Goal, type GoalMetric, type GoalProgress,
 } from '../lib/goalProgress'
 import { createProgramGoal, deleteGoal, programGoalRows, setGoalArchived } from '../lib/goals'
 import { Dropdown } from './Dropdown'
 import { GoalRow } from './GoalRow'
+import { GoalSetNotice } from './GoalSetNotice'
 import { ArchiveIcon, TrashIcon } from './icons'
 
 const endOfThisMonth = () => {
@@ -34,6 +35,7 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
   const [target, setTarget] = useState('')
   const [endsOn, setEndsOn] = useState(endOfThisMonth)
   const [saving, setSaving] = useState(false)
+  const [justSet, setJustSet] = useState<{ title: string; deadline: string } | null>(null)
 
   const load = () => {
     void programGoalRows(programId).then(setRows).catch((e) => setError(errorMessage(e, 'Could not load the program goals. Check your connection and try again.')))
@@ -54,6 +56,7 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
     setError('')
     try {
       await createProgramGoal(programId, { metric, target: targetNumber, endsOn })
+      setJustSet({ title: goalTitle({ metric, position: null, target: targetNumber }), deadline: goalDeadline({ endsOn }) })
       setTarget('')
       load()
     } catch (e) {
@@ -95,6 +98,13 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
         on their home screen, and the total once at least {MIN_PROGRAM_CONTRIBUTORS} of them have contributed.
       </p>
       {error && <div className="notice error">{error}</div>}
+      {justSet && (
+        <GoalSetNotice
+          title={justSet.title} deadline={justSet.deadline}
+          hint={`${programName}'s athletes will see it on their home screen.`}
+          onClose={() => setJustSet(null)}
+        />
+      )}
       {shown.map(({ g, p }) => (
         <GoalRow
           key={g.id} goal={g} progress={p} archived={Boolean(g.archivedAt)}

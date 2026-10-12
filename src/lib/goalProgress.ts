@@ -177,7 +177,7 @@ export function goalTitle(g: Pick<Goal, 'metric' | 'position' | 'target'>): stri
 }
 
 /** "by Oct 31" — the goal's end date, in the reader's own locale. */
-export function goalDeadline(g: Goal): string {
+export function goalDeadline(g: Pick<Goal, 'endsOn'>): string {
   const [y, m, d] = g.endsOn.split('-').map(Number)
   return `by ${new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
 }
