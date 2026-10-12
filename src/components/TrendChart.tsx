@@ -56,43 +56,43 @@ const MIN_TREND_POINTS = 5
 type Granularity = 'week' | 'month' | 'year'
 type View = 'recent' | Granularity
 
-/** Calendar-aligned bounds for one unit of the given granularity, anchored
- *  on any date inside it. Week runs Monday to Sunday. */
+/** The views are rolling windows that end on the anchor day: the last 7 days,
+ *  the last 4 weeks, the last 12 months. Not calendar weeks or months, which
+ *  start the window at the first of the month with a few days' data in it. */
+const WINDOW_LABEL: Record<Granularity, { short: string; long: string }> = {
+  week: { short: '7 days', long: '7 days' },
+  month: { short: '4 weeks', long: '4 weeks' },
+  year: { short: '12 months', long: '12 months' },
+}
+
+/** The window of the given length ending on the anchor's day (inclusive). */
 function rangeFor(granularity: Granularity, anchor: Date): { start: Date; end: Date } {
+  const end = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), 23, 59, 59, 999)
   if (granularity === 'week') {
-    const dayIndex = (anchor.getDay() + 6) % 7 // Monday = 0 .. Sunday = 6
-    const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - dayIndex)
-    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999)
-    return { start, end }
+    return { start: new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6), end }
   }
   if (granularity === 'month') {
-    return {
-      start: new Date(anchor.getFullYear(), anchor.getMonth(), 1),
-      end: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0, 23, 59, 59, 999),
-    }
+    return { start: new Date(end.getFullYear(), end.getMonth(), end.getDate() - 27), end }
   }
-  return {
-    start: new Date(anchor.getFullYear(), 0, 1),
-    end: new Date(anchor.getFullYear(), 11, 31, 23, 59, 59, 999),
-  }
+  // 12 months: from the day after this date a year ago.
+  return { start: new Date(end.getFullYear() - 1, end.getMonth(), end.getDate() + 1), end }
 }
 
-/** A date guaranteed to land in the next or previous unit, for rangeFor to
- *  re-align — stepping the anchor's day by a week's worth, or the month/year
- *  field by one, rather than any fixed number of days. */
+/** The anchor moved one whole window back or forward, so each step lands on
+ *  the window just before or after the one on screen. */
 function step(granularity: Granularity, anchor: Date, dir: 1 | -1): Date {
   if (granularity === 'week') return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + dir * 7)
-  if (granularity === 'month') return new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1)
-  return new Date(anchor.getFullYear() + dir, 0, 1)
+  if (granularity === 'month') return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + dir * 28)
+  return new Date(anchor.getFullYear() + dir, anchor.getMonth(), anchor.getDate())
 }
 
-function periodLabel(granularity: Granularity, start: Date, end: Date): string {
-  if (granularity === 'year') return String(start.getFullYear())
-  if (granularity === 'month') return start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-  const sameMonth = start.getMonth() === end.getMonth()
-  const startStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  const endStr = end.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' })
-  return `${startStr} – ${endStr}, ${end.getFullYear()}`
+/** "Last 7 days" for the window ending today, otherwise "7 days to 3 Oct",
+ *  with the dates beside it. */
+function periodLabel(granularity: Granularity, start: Date, end: Date, isCurrent: boolean): string {
+  const withYear = granularity === 'year'
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, withYear ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' })
+  const name = WINDOW_LABEL[granularity].long
+  return `${isCurrent ? `Last ${name}` : `${name} to ${fmt(end)}`} · ${fmt(start)} – ${fmt(end)}`
 }
 
 /** Ordinary least squares over a series' own points, in its normalised
@@ -125,6 +125,10 @@ const H = 220
 const PAD = { top: 14, right: 14, bottom: 26, left: 52 }
 
 const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+/** Axis end labels carry the year in the 12-month view, where the same month
+ *  appears at both ends. */
+const fmtAxisDate = (d: Date, withYear: boolean) =>
+  d.toLocaleDateString(undefined, withYear ? { month: 'short', day: 'numeric', year: '2-digit' } : { month: 'short', day: 'numeric' })
 
 /** One drawn mark: a circle for prone, a diamond for standing, in the series
  *  colour with a surface ring so overlapping marks stay readable. */
@@ -148,6 +152,9 @@ interface PlotPoint {
   at: Date
   /** Bouts this point stands for (1 in the recent view). */
   count: number
+  /** What to call it when it stands for a stretch of time ("Oct 2026"), in
+   *  place of a single date. */
+  period?: string
 }
 
 /**
@@ -218,6 +225,30 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
     pts = recent.map((b, i) => ({
       key: b.id, tt: n === 1 ? 0.5 : 0.04 + (i / (n - 1)) * 0.92, v: spec.value(b), position: b.position, at: new Date(b.shotAt), count: 1,
     }))
+  } else if (granularity === 'year') {
+    // Twelve months is too many workouts to read as separate marks: one mark per
+    // position per month, averaged over that month's bouts.
+    const a = rangeStart.getTime()
+    const span = Math.max(rangeEnd.getTime() - a, 1)
+    pts = buildSeries(rangeStart, rangeEnd).flatMap((s) => {
+      const months = new Map<string, { sum: number; n: number; first: Date }>()
+      for (const p of s.points) {
+        const d = new Date(p.workout.startedAt)
+        const k = `${d.getFullYear()}-${d.getMonth()}`
+        const m = months.get(k) ?? { sum: 0, n: 0, first: d }
+        for (const b of p.bouts) { m.sum += spec.value(b); m.n++ }
+        months.set(k, m)
+      }
+      return [...months.entries()].map(([k, m]) => {
+        // the mark sits mid-month, kept inside the window
+        const mid = new Date(m.first.getFullYear(), m.first.getMonth(), 15)
+        const at = new Date(Math.min(Math.max(mid.getTime(), a), rangeEnd.getTime()))
+        return {
+          key: `${s.position}-${k}`, tt: (at.getTime() - a) / span, v: m.sum / m.n, position: s.position,
+          at, count: m.n, period: mid.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+        }
+      })
+    })
   } else {
     pts = buildSeries(rangeStart, rangeEnd).flatMap((s) =>
       s.points.map((p) => ({ key: `${s.position}-${p.workout.id}`, tt: p.t, v: p.v, position: s.position, at: new Date(p.workout.startedAt), count: p.bouts.length })),
@@ -284,23 +315,24 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   // two dots stack at one x (prone and standing in the same workout), the
   // lower one's label goes below it.
   const labelled = pts.length <= 12
+  const latestKeys = new Set(byPosition.map((s) => s.points[s.points.length - 1].key))
   const labelBelow = new Set<string>()
   for (const p of pts) {
     if (pts.some((o) => o !== p && Math.abs(sx(o.tt) - sx(p.tt)) < 26 && o.v > p.v)) labelBelow.add(p.key)
   }
 
-  const periodText = calendar ? periodLabel(granularity, rangeStart, rangeEnd) : `Your last ${pts.length} bout${pts.length === 1 ? '' : 's'}`
+  const periodText = calendar ? periodLabel(granularity, rangeStart, rangeEnd, isCurrent) : `Your last ${pts.length} bout${pts.length === 1 ? '' : 's'}`
   const single = !calendar && pts.length === 1
 
   const caption =
-    `${calendar ? spec.caption : spec.captionRecent}${trends.length > 0 ? ' The dashed line is the trend.' : ''}` +
-    (ghosts.length > 0 ? ` The dotted line is the trend from the previous ${granularity}.` : '')
+    `${calendar ? (granularity === 'year' ? spec.caption.replace('each workout', 'each month') : spec.caption) : spec.captionRecent}${trends.length > 0 ? ' The dashed line is the trend.' : ''}` +
+    (ghosts.length > 0 ? ` The dotted line is the trend from the ${WINDOW_LABEL[granularity].long} before.` : '')
 
   const tableRows = [...pts].sort((x, y) => y.at.getTime() - x.at.getTime())
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 320, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 380, margin: '0 auto' }}>
         {calendar && (
           <button
             type="button" aria-label="Previous period"
@@ -314,9 +346,9 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
             <button
               key={g} type="button" aria-pressed={view === g}
               onClick={() => { setView(g); setAnchor(new Date()) }}
-              style={{ padding: '4px 6px', borderRadius: 6, fontSize: 11 }}
+              style={{ padding: '4px 6px', borderRadius: 6, fontSize: 11, whiteSpace: 'nowrap' }}
             >
-              {g === 'recent' ? 'Recent' : g === 'week' ? 'Week' : g === 'month' ? 'Month' : 'Year'}
+              {g === 'recent' ? 'Recent' : WINDOW_LABEL[g].short}
             </button>
           ))}
         </div>
@@ -361,8 +393,8 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
 
             {calendar ? (
               <>
-                <text x={PAD.left} y={H - 6} fontSize={11} fill="var(--text-muted)">{fmtDate(rangeStart)}</text>
-                <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">{fmtDate(rangeEnd)}</text>
+                <text x={PAD.left} y={H - 6} fontSize={11} fill="var(--text-muted)">{fmtAxisDate(rangeStart, granularity === 'year')}</text>
+                <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">{fmtAxisDate(rangeEnd, granularity === 'year')}</text>
               </>
             ) : (
               // Dates under the dots, as many as fit.
@@ -403,7 +435,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
 
             {pts.map((p) => {
               const x = sx(p.tt), y = sy(p.v)
-              const text = `${fmtDate(p.at)} · ${p.position} · ${spec.format(p.v)} · ${p.count} bout${p.count === 1 ? '' : 's'}`
+              const text = `${p.period ?? fmtDate(p.at)} · ${p.position} · ${spec.format(p.v)} · ${p.count} bout${p.count === 1 ? '' : 's'}`
               const show = () => setHover({ x, y, label: text })
               return (
                 <g
@@ -413,7 +445,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
                   {/* A hit area well past the mark, so a thumb can land on it. */}
                   <circle cx={x} cy={y} r={16} fill="transparent" />
                   <PositionMarker position={p.position} x={x} y={y} />
-                  {labelled && (
+                  {(labelled || latestKeys.has(p.key)) && (
                     <text
                       x={x} y={labelBelow.has(p.key) ? y + 22 : y - 12} textAnchor="middle"
                       fontSize={11} fontWeight={600} fill="var(--text-primary)"
@@ -464,7 +496,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
           <p key={d.position} className="meta" style={{ margin: '8px 0 0' }}>
             <strong style={{ textTransform: 'capitalize' }}>{d.position}</strong>: your last 3 bouts average {spec.format(d.last)},{' '}
             {size < 0.5 ? 'level with' : metric === 'score'
-              ? `${better ? 'up' : 'down'} ${Math.round(size)} points on`
+              ? `${better ? 'up' : 'down'} ${Math.round(size)} point${Math.round(size) === 1 ? '' : 's'} on`
               : `${better ? 'tighter' : 'looser'} by ${Math.round(size)} mm than`}{' '}
             the 3 before.
           </p>
@@ -486,7 +518,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
             <tbody>
               {tableRows.map((p) => (
                 <tr key={p.key} style={{ borderTop: '1px solid var(--border)' }}>
-                  <td style={{ padding: '5px 0' }}>{fmtDate(p.at)}</td>
+                  <td style={{ padding: '5px 0' }}>{p.period ?? fmtDate(p.at)}</td>
                   <td style={{ padding: '5px 0', textTransform: 'capitalize' }}>{p.position}</td>
                   <td style={{ padding: '5px 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{spec.format(p.v)}</td>
                   {calendar && <td style={{ padding: '5px 0', textAlign: 'right' }}>{p.count}</td>}
