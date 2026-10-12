@@ -11,6 +11,8 @@ interface Spec {
   /** A meaningful line to draw across the plot, or null. */
   reference: number | null
   caption: string
+  /** The caption for the per-bout view, where nothing is averaged. */
+  captionRecent: string
   label: string
   format: (v: number) => string
 }
@@ -22,6 +24,7 @@ const SPECS: Record<Metric, Spec> = {
     tickStep: 25,
     reference: null,
     caption: 'Score out of what the target could give, averaged across each workout. Higher is better.',
+    captionRecent: 'Score out of what the target could give, one mark per bout. Higher is better.',
     label: 'Score as a percentage of the target maximum, one point per workout, split by shooting position',
     format: (v) => `${Math.round(v)}%`,
   },
@@ -31,19 +34,27 @@ const SPECS: Record<Metric, Spec> = {
     tickStep: 5,
     reference: null,
     caption: 'Mean radius of the group, averaged across each workout. Lower is tighter.',
+    captionRecent: 'Mean radius of the group, one mark per bout. Lower is tighter.',
     label: 'Group mean radius in millimetres, one point per workout, split by shooting position',
     format: (v) => `${Math.round(v)} mm`,
   },
 }
 
-/** Standing shoots against the sky, prone against the ground — blue and
- *  green read the same way a course map does. */
-const SERIES_COLOUR: Record<Position, string> = {
-  standing: 'var(--series-1)',
-  prone: 'var(--series-3)',
-}
+/** Every point is range shooting, so one colour: the Range blue the rest of the
+ *  app uses for it. Position is told apart by the SHAPE of the marker (a circle
+ *  for prone, a diamond for standing), never by borrowing colours that mean a
+ *  session type elsewhere (blue is Range, green is Dry-fire). */
+const SERIES_COLOUR = 'var(--series-1)'
+const MARKER: Record<Position, 'circle' | 'diamond'> = { prone: 'circle', standing: 'diamond' }
+
+/** How many of the most recent bouts the default view shows. */
+const RECENT_BOUTS = 10
+/** A trend line needs this many points of one position; below it, two or
+ *  three dots joined by a line is the data, not a trend. */
+const MIN_TREND_POINTS = 5
 
 type Granularity = 'week' | 'month' | 'year'
+type View = 'recent' | Granularity
 
 /** Calendar-aligned bounds for one unit of the given granularity, anchored
  *  on any date inside it. Week runs Monday to Sunday. */
@@ -115,31 +126,59 @@ const PAD = { top: 14, right: 14, bottom: 26, left: 52 }
 
 const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
+/** One drawn mark: a circle for prone, a diamond for standing, in the series
+ *  colour with a surface ring so overlapping marks stay readable. */
+function PositionMarker({ position, x, y, r = 6 }: { position: Position; x: number; y: number; r?: number }) {
+  return MARKER[position] === 'circle' ? (
+    <circle cx={x} cy={y} r={r} fill={SERIES_COLOUR} stroke="var(--surface-1)" strokeWidth={2} />
+  ) : (
+    <rect
+      x={x - r * 0.9} y={y - r * 0.9} width={r * 1.8} height={r * 1.8} rx={1}
+      transform={`rotate(45 ${x} ${y})`} fill={SERIES_COLOUR} stroke="var(--surface-1)" strokeWidth={2}
+    />
+  )
+}
+
+interface PlotPoint {
+  key: string
+  /** 0..1 across the plot. */
+  tt: number
+  v: number
+  position: Position
+  at: Date
+  /** Bouts this point stands for (1 in the recent view). */
+  count: number
+}
+
 /**
- * One measure over a calendar window the chart owns and steps through
- * itself — week, month or year, moved backward and forward independently of
- * any other chart on the page — prone against standing, averaged to one
- * point per workout, since a within-workout spread is noise this view isn't
- * meant to show.
+ * One measure for the athlete's bouts, prone against standing.
  *
- * Both series share one axis. Score is already comparable between positions;
- * group size is made comparable by expressing it against the hit zone that
- * position actually shoots at.
+ * The default view is the last ten bouts, one dot per bout in the order they
+ * were shot, each with its value written beside it: most athletes have a
+ * handful of bouts, and a calendar axis with three dots in the left third of an
+ * empty month says less than the three numbers. A single bout is a stat tile,
+ * not a chart. Week, Month and Year views remain for anyone with enough data to
+ * want them, stepping through the calendar and averaged to one point per
+ * workout.
+ *
+ * A trend line (and the previous period's ghost) is only drawn from five
+ * points of a position: fewer than that is the data, not a trend.
  */
 export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workouts: Workout[]; metric: Metric }) {
   const [hover, setHover] = useState<{ x: number; y: number; label: string } | null>(null)
-  const [granularity, setGranularity] = useState<Granularity>('month')
+  const [view, setView] = useState<View>('recent')
   const [anchor, setAnchor] = useState(() => new Date())
   const spec = SPECS[metric]
+  const calendar = view !== 'recent'
+  const granularity: Granularity = calendar ? view : 'month'
 
   const { start: rangeStart, end: rangeEnd } = rangeFor(granularity, anchor)
   const now = new Date()
   const isCurrent = now >= rangeStart && now <= rangeEnd
 
-  type Point = { t: number; v: number; workout: Workout; bouts: Bout[] }
+  type CalPoint = { t: number; v: number; workout: Workout; bouts: Bout[] }
 
-  /** One point per workout per position inside [start, end], with t
-   *  normalised 0..1 across that window. */
+  /** Calendar views: one point per workout per position inside [start, end]. */
   const buildSeries = (start: Date, end: Date) => {
     const a = start.getTime()
     const span = Math.max(end.getTime() - a, 1)
@@ -157,7 +196,6 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
     return (['prone', 'standing'] as Position[])
       .map((position) => ({
         position,
-        colour: SERIES_COLOUR[position],
         points: workouts
           .filter((w) => within(w.startedAt))
           .map((w) => {
@@ -166,69 +204,142 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
             const v = own.reduce((sum, b) => sum + spec.value(b), 0) / own.length
             return { t: (new Date(w.startedAt).getTime() - a) / span, v, workout: w, bouts: own }
           })
-          .filter((p): p is Point => p !== null)
+          .filter((p): p is CalPoint => p !== null)
           .sort((x, y) => x.t - y.t),
       }))
       .filter((s) => s.points.length > 0)
   }
 
-  const series = buildSeries(rangeStart, rangeEnd)
+  // The points on the plot, whichever view.
+  let pts: PlotPoint[]
+  if (!calendar) {
+    const recent = [...bouts].sort((x, y) => x.shotAt.localeCompare(y.shotAt)).slice(-RECENT_BOUTS)
+    const n = recent.length
+    pts = recent.map((b, i) => ({
+      key: b.id, tt: n === 1 ? 0.5 : 0.04 + (i / (n - 1)) * 0.92, v: spec.value(b), position: b.position, at: new Date(b.shotAt), count: 1,
+    }))
+  } else {
+    pts = buildSeries(rangeStart, rangeEnd).flatMap((s) =>
+      s.points.map((p) => ({ key: `${s.position}-${p.workout.id}`, tt: p.t, v: p.v, position: s.position, at: new Date(p.workout.startedAt), count: p.bouts.length })),
+    )
+  }
+  const byPosition = (['prone', 'standing'] as Position[])
+    .map((position) => ({ position, points: pts.filter((p) => p.position === position).sort((x, y) => x.tt - y.tt) }))
+    .filter((s) => s.points.length > 0)
 
-  // The previous period's trend, laid over this window at the same relative
-  // position — so stepping through weeks or months keeps a reference for
-  // where you were, rather than each window standing alone. Only where that
-  // period had enough points for a real slope, and drawn across its own span
-  // (never extrapolated).
-  const prevRange = rangeFor(granularity, step(granularity, anchor, -1))
-  const ghosts = buildSeries(prevRange.start, prevRange.end).flatMap((s) => {
+  // The previous period, only in the calendar views, and only where it had
+  // enough points to be a real slope.
+  const ghosts = !calendar ? [] : buildSeries(
+    rangeFor(granularity, step(granularity, anchor, -1)).start,
+    rangeFor(granularity, step(granularity, anchor, -1)).end,
+  ).flatMap((s) => {
+    if (s.points.length < MIN_TREND_POINTS) return []
     const trend = linearTrend(s.points)
     if (!trend) return []
     const tMin = s.points[0].t
     const tMax = s.points[s.points.length - 1].t
-    return [{ position: s.position, colour: s.colour, tMin, tMax, vMin: trend.at(tMin), vMax: trend.at(tMax) }]
+    return [{ position: s.position, tMin, tMax, vMin: trend.at(tMin), vMax: trend.at(tMax) }]
   })
 
-  const peak = Math.max(spec.axisMax, ...series.flatMap((s) => s.points.map((p) => p.v)), ...ghosts.flatMap((g) => [g.vMin, g.vMax]))
-  const yMax = Math.ceil(peak / spec.tickStep) * spec.tickStep
+  // The last three bouts of a position against the three before, over its whole
+  // history: one number that says which way it is going, where a line would be
+  // two or three dots.
+  const deltas = (['prone', 'standing'] as Position[]).flatMap((position) => {
+    const own = bouts.filter((b) => b.position === position).sort((x, y) => x.shotAt.localeCompare(y.shotAt))
+    if (own.length < 6) return []
+    const avg = (xs: Bout[]) => xs.reduce((n, b) => n + spec.value(b), 0) / xs.length
+    const last = avg(own.slice(-3))
+    const before = avg(own.slice(-6, -3))
+    return [{ position, last, diff: last - before }]
+  })
+
+  // A score of 65–90% on a 0–100% axis is squeezed into a fifth of the plot and
+  // its labels pile up, so a score axis is fitted to the data (and the ticks say
+  // so). A size has a meaningful zero, so group size keeps its baseline.
+  const all = [...pts.map((p) => p.v), ...ghosts.flatMap((g) => [g.vMin, g.vMax])]
+  const lo = Math.min(...all), hi = Math.max(...all)
+  let yMin = 0
+  let yMax = Math.ceil(Math.max(spec.axisMax, hi) / spec.tickStep) * spec.tickStep
+  let tickStep = spec.tickStep
+  if (metric === 'score' && all.length > 0 && lo >= 40) {
+    yMin = Math.max(0, Math.floor((lo - 6) / 10) * 10)
+    yMax = Math.min(100, Math.ceil((hi + 4) / 10) * 10)
+    if (yMax - yMin < 20) yMax = Math.min(100, yMin + 20)
+    tickStep = yMax - yMin <= 30 ? 5 : 10
+  }
 
   const sx = (tt: number) => PAD.left + Math.min(1, Math.max(0, tt)) * (W - PAD.left - PAD.right)
-  const sy = (v: number) => PAD.top + (1 - Math.max(0, v) / yMax) * (H - PAD.top - PAD.bottom)
+  const sy = (v: number) => PAD.top + (1 - (Math.max(yMin, v) - yMin) / (yMax - yMin)) * (H - PAD.top - PAD.bottom)
+  const ticks = Array.from({ length: Math.round((yMax - yMin) / tickStep) + 1 }, (_, i) => yMin + i * tickStep)
 
-  const ticks = Array.from({ length: Math.round(yMax / spec.tickStep) + 1 }, (_, i) => i * spec.tickStep)
+  const trends = byPosition.flatMap((s) => {
+    if (s.points.length < MIN_TREND_POINTS) return []
+    const t = linearTrend(s.points.map((p) => ({ t: p.tt, v: p.v })))
+    if (!t) return []
+    const tMin = s.points[0].tt, tMax = s.points[s.points.length - 1].tt
+    return [{ position: s.position, tMin, tMax, vMin: t.at(tMin), vMax: t.at(tMax) }]
+  })
+
+  // Write every value beside its dot while there are few enough to read; where
+  // two dots stack at one x (prone and standing in the same workout), the
+  // lower one's label goes below it.
+  const labelled = pts.length <= 12
+  const labelBelow = new Set<string>()
+  for (const p of pts) {
+    if (pts.some((o) => o !== p && Math.abs(sx(o.tt) - sx(p.tt)) < 26 && o.v > p.v)) labelBelow.add(p.key)
+  }
+
+  const periodText = calendar ? periodLabel(granularity, rangeStart, rangeEnd) : `Your last ${pts.length} bout${pts.length === 1 ? '' : 's'}`
+  const single = !calendar && pts.length === 1
+
+  const caption =
+    `${calendar ? spec.caption : spec.captionRecent}${trends.length > 0 ? ' The dashed line is the trend.' : ''}` +
+    (ghosts.length > 0 ? ` The dotted line is the trend from the previous ${granularity}.` : '')
+
+  const tableRows = [...pts].sort((x, y) => y.at.getTime() - x.at.getTime())
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 260, margin: '0 auto' }}>
-        <button
-          type="button" aria-label="Previous period"
-          onClick={() => setAnchor(step(granularity, anchor, -1))}
-          className="secondary"
-          style={{ width: 22, height: 22, flex: 'none', padding: 0, fontSize: 12, borderRadius: 6 }}
-        >‹</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 320, margin: '0 auto' }}>
+        {calendar && (
+          <button
+            type="button" aria-label="Previous period"
+            onClick={() => setAnchor(step(granularity, anchor, -1))}
+            className="secondary"
+            style={{ width: 22, height: 22, flex: 'none', padding: 0, fontSize: 12, borderRadius: 6 }}
+          >‹</button>
+        )}
         <div className="seg" style={{ flex: 1, gap: 4 }}>
-          {(['week', 'month', 'year'] as Granularity[]).map((g) => (
+          {(['recent', 'week', 'month', 'year'] as View[]).map((g) => (
             <button
-              key={g} type="button" aria-pressed={granularity === g}
-              onClick={() => { setGranularity(g); setAnchor(new Date()) }}
+              key={g} type="button" aria-pressed={view === g}
+              onClick={() => { setView(g); setAnchor(new Date()) }}
               style={{ padding: '4px 6px', borderRadius: 6, fontSize: 11 }}
             >
-              {g === 'week' ? 'Week' : g === 'month' ? 'Month' : 'Year'}
+              {g === 'recent' ? 'Recent' : g === 'week' ? 'Week' : g === 'month' ? 'Month' : 'Year'}
             </button>
           ))}
         </div>
-        <button
-          type="button" aria-label="Next period" disabled={isCurrent}
-          onClick={() => setAnchor(step(granularity, anchor, 1))}
-          className="secondary"
-          style={{ width: 22, height: 22, flex: 'none', padding: 0, fontSize: 12, borderRadius: 6, opacity: isCurrent ? 0.4 : 1 }}
-        >›</button>
+        {calendar && (
+          <button
+            type="button" aria-label="Next period" disabled={isCurrent}
+            onClick={() => setAnchor(step(granularity, anchor, 1))}
+            className="secondary"
+            style={{ width: 22, height: 22, flex: 'none', padding: 0, fontSize: 12, borderRadius: 6, opacity: isCurrent ? 0.4 : 1 }}
+          >›</button>
+        )}
       </div>
-      <p className="meta" style={{ textAlign: 'center', margin: '6px 0 12px' }}>
-        {periodLabel(granularity, rangeStart, rangeEnd)}
-      </p>
+      <p className="meta" style={{ textAlign: 'center', margin: '6px 0 12px' }}>{periodText}</p>
 
-      {series.length === 0 ? (
-        <p className="meta">Nothing logged in this window.</p>
+      {pts.length === 0 ? (
+        <p className="meta">{calendar ? 'Nothing logged in this window.' : 'Nothing scored yet.'}</p>
+      ) : single ? (
+        // One bout is a number, not a chart.
+        <div className="stat range" style={{ maxWidth: 220, margin: '0 auto' }}>
+          <div className="k">{pts[0].position} · {fmtDate(pts[0].at)}</div>
+          <div className="v">{spec.format(pts[0].v)}</div>
+          <div className="n">1 bout. A trend appears after a few more targets.</div>
+        </div>
       ) : (
         <>
           <svg
@@ -240,10 +351,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
           >
             {ticks.map((v) => (
               <g key={v}>
-                <line x1={PAD.left} y1={sy(v)} x2={W - PAD.right} y2={sy(v)}
-                  stroke={v === spec.reference ? 'var(--axis)' : 'var(--grid)'}
-                  strokeWidth={v === spec.reference ? 1.5 : 1}
-                  strokeDasharray={v === spec.reference ? '4 3' : undefined} />
+                <line x1={PAD.left} y1={sy(v)} x2={W - PAD.right} y2={sy(v)} stroke="var(--grid)" strokeWidth={1} />
                 <text x={PAD.left - 6} y={sy(v)} textAnchor="end" dominantBaseline="central"
                   fontSize={11} fill="var(--text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
                   {spec.format(v)}
@@ -251,78 +359,82 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
               </g>
             ))}
 
-            <text x={PAD.left} y={H - 6} fontSize={11} fill="var(--text-muted)">
-              {fmtDate(rangeStart)}
-            </text>
-            <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">
-              {fmtDate(rangeEnd)}
-            </text>
+            {calendar ? (
+              <>
+                <text x={PAD.left} y={H - 6} fontSize={11} fill="var(--text-muted)">{fmtDate(rangeStart)}</text>
+                <text x={W - PAD.right} y={H - 6} textAnchor="end" fontSize={11} fill="var(--text-muted)">{fmtDate(rangeEnd)}</text>
+              </>
+            ) : (
+              // Dates under the dots, as many as fit.
+              pts.map((p, i) => (pts.length <= 6 || i === 0 || i === pts.length - 1) && (
+                <text key={`d-${p.key}`} x={sx(p.tt)} y={H - 6} fontSize={11} fill="var(--text-muted)"
+                  textAnchor={i === 0 && pts.length > 6 ? 'start' : i === pts.length - 1 && pts.length > 6 ? 'end' : 'middle'}>
+                  {fmtDate(p.at)}
+                </text>
+              ))
+            )}
 
             {ghosts.map((g) => (
               <line
                 key={`ghost-${g.position}`}
                 x1={sx(g.tMin)} y1={sy(g.vMin)} x2={sx(g.tMax)} y2={sy(g.vMax)}
-                stroke={g.colour} strokeWidth={2} strokeDasharray="1 5" strokeLinecap="round" opacity={0.5}
+                stroke={SERIES_COLOUR} strokeWidth={2} strokeDasharray="1 5" strokeLinecap="round" opacity={0.5}
               />
             ))}
 
-            {series.map((s) => {
-              const trend = linearTrend(s.points)
-              const tMin = s.points[0].t
-              const tMax = s.points[s.points.length - 1].t
+            {byPosition.map((s) => (
+              <g key={s.position}>
+                {s.points.length > 1 && (
+                  <path
+                    d={s.points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.tt)},${sy(p.v)}`).join(' ')}
+                    fill="none" stroke={SERIES_COLOUR} strokeWidth={2} opacity={0.55}
+                    strokeLinejoin="round" strokeLinecap="round"
+                  />
+                )}
+              </g>
+            ))}
+            {trends.map((t) => (
+              <line
+                key={`trend-${t.position}`}
+                x1={sx(t.tMin)} y1={sy(t.vMin)} x2={sx(t.tMax)} y2={sy(t.vMax)}
+                stroke={SERIES_COLOUR} strokeWidth={1.5} strokeDasharray="6 4" opacity={0.8}
+              />
+            ))}
+
+            {pts.map((p) => {
+              const x = sx(p.tt), y = sy(p.v)
+              const text = `${fmtDate(p.at)} · ${p.position} · ${spec.format(p.v)} · ${p.count} bout${p.count === 1 ? '' : 's'}`
+              const show = () => setHover({ x, y, label: text })
               return (
-                <g key={s.position}>
-                  {s.points.length > 1 && (
-                    <path
-                      d={s.points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.t)},${sy(p.v)}`).join(' ')}
-                      fill="none" stroke={s.colour} strokeWidth={2}
-                      strokeLinejoin="round" strokeLinecap="round"
-                    />
+                <g
+                  key={p.key} tabIndex={0} role="button" aria-label={text} style={{ cursor: 'pointer', outline: 'none' }}
+                  onMouseEnter={show} onFocus={show} onClick={show}
+                >
+                  {/* A hit area well past the mark, so a thumb can land on it. */}
+                  <circle cx={x} cy={y} r={16} fill="transparent" />
+                  <PositionMarker position={p.position} x={x} y={y} />
+                  {labelled && (
+                    <text
+                      x={x} y={labelBelow.has(p.key) ? y + 22 : y - 12} textAnchor="middle"
+                      fontSize={11} fontWeight={600} fill="var(--text-primary)"
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {spec.format(p.v)}
+                    </text>
                   )}
-                  {trend && (
-                    <line
-                      x1={sx(tMin)} y1={sy(trend.at(tMin))} x2={sx(tMax)} y2={sy(trend.at(tMax))}
-                      stroke={s.colour} strokeWidth={1.5} strokeDasharray="6 4" opacity={0.55}
-                    />
-                  )}
-                  {s.points.map((p, i) => (
-                    <circle
-                      key={i} cx={sx(p.t)} cy={sy(p.v)} r={5}
-                      fill={s.colour} stroke="var(--surface-1)" strokeWidth={2}
-                      onMouseEnter={() =>
-                        setHover({
-                          x: sx(p.t),
-                          y: sy(p.v),
-                          label: `${fmtDate(new Date(p.workout.startedAt))} · ${s.position} · ${spec.format(p.v)} · ${p.bouts.length} bout${p.bouts.length === 1 ? '' : 's'}`,
-                        })
-                      }
-                    />
-                  ))}
-                  {/* Direct label on the last point, so identity never rests on colour. */}
-                  <text
-                    x={sx(s.points[s.points.length - 1].t) - 8}
-                    y={sy(s.points[s.points.length - 1].v) - 10}
-                    textAnchor="end" fontSize={11} fontWeight={600} fill="var(--text-secondary)"
-                  >
-                    {s.position}
-                  </text>
                 </g>
               )
             })}
 
             {hover && (
               <g pointerEvents="none">
-                <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - PAD.bottom}
-                  stroke="var(--axis)" strokeWidth={1} />
+                <line x1={hover.x} y1={PAD.top} x2={hover.x} y2={H - PAD.bottom} stroke="var(--axis)" strokeWidth={1} />
                 <rect
-                  x={Math.min(Math.max(hover.x - 100, 2), W - 202)}
-                  y={Math.max(hover.y - 34, 2)}
-                  width={200} height={24} rx={6}
-                  fill="var(--surface-1)" stroke="var(--border)"
+                  x={Math.min(Math.max(hover.x - 130, 2), W - 262)} y={Math.max(hover.y - 40, 2)}
+                  width={260} height={24} rx={6} fill="var(--surface-1)" stroke="var(--border)"
                 />
                 <text
-                  x={Math.min(Math.max(hover.x - 100, 2), W - 202) + 8}
-                  y={Math.max(hover.y - 34, 2) + 12}
+                  x={Math.min(Math.max(hover.x - 130, 2), W - 262) + 8} y={Math.max(hover.y - 40, 2) + 12}
                   dominantBaseline="central" fontSize={11} fill="var(--text-primary)"
                 >
                   {hover.label}
@@ -332,17 +444,57 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
           </svg>
 
           <div className="legend">
-            {series.map((s) => (
-              <span key={s.position}>
-                <i className="swatch" style={{ background: s.colour }} /> {s.position}
+            {byPosition.map((s) => (
+              <span key={s.position} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
+                  <PositionMarker position={s.position} x={7} y={7} r={4.5} />
+                </svg>
+                {s.position}
               </span>
             ))}
-            <span>
-              {spec.caption} Dashed line is the trend
-              {ghosts.length > 0 && `; the dotted line is the trend from the previous ${granularity}`}.
-            </span>
+            <span>{caption}</span>
           </div>
         </>
+      )}
+
+      {deltas.map((d) => {
+        const better = metric === 'score' ? d.diff > 0 : d.diff < 0
+        const size = Math.abs(d.diff)
+        return (
+          <p key={d.position} className="meta" style={{ margin: '8px 0 0' }}>
+            <strong style={{ textTransform: 'capitalize' }}>{d.position}</strong>: your last 3 bouts average {spec.format(d.last)},{' '}
+            {size < 0.5 ? 'level with' : metric === 'score'
+              ? `${better ? 'up' : 'down'} ${Math.round(size)} points on`
+              : `${better ? 'tighter' : 'looser'} by ${Math.round(size)} mm than`}{' '}
+            the 3 before.
+          </p>
+        )
+      })}
+
+      {pts.length > 0 && !single && (
+        <details style={{ marginTop: 10 }}>
+          <summary className="meta" style={{ cursor: 'pointer' }}>Show the values</summary>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 6 }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>Date</th>
+                <th style={{ padding: '4px 0', fontWeight: 600 }}>Position</th>
+                <th style={{ padding: '4px 0', fontWeight: 600, textAlign: 'right' }}>{metric === 'score' ? 'Score' : 'Mean radius'}</th>
+                {calendar && <th style={{ padding: '4px 0', fontWeight: 600, textAlign: 'right' }}>Bouts</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((p) => (
+                <tr key={p.key} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td style={{ padding: '5px 0' }}>{fmtDate(p.at)}</td>
+                  <td style={{ padding: '5px 0', textTransform: 'capitalize' }}>{p.position}</td>
+                  <td style={{ padding: '5px 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{spec.format(p.v)}</td>
+                  {calendar && <td style={{ padding: '5px 0', textAlign: 'right' }}>{p.count}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
       )}
     </div>
   )

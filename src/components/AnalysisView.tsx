@@ -104,7 +104,10 @@ function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'r
       {stats.map((t) => (
         <div
           className={`stat${tone ? ` ${tone}` : ''}`} key={t.target}
+          title={t.bouts < 3 ? `Only ${t.bouts} bout${t.bouts === 1 ? '' : 's'} so far: treat this as a first look` : undefined}
           style={{
+            // A rate from one or two bouts is a first look, not a finding.
+            opacity: t.bouts < 3 ? 0.55 : 1,
             aspectRatio: '1', borderRadius: '50%', padding: 0, minWidth: 0, textAlign: 'center',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             // The type is sized from the circle itself (cqw = 1% of its width), so
@@ -426,6 +429,17 @@ export function AnalysisView({
       {!readOnly && <h1>Analysis</h1>}
 
       <CollapsibleSection title="Precision" icon={sessionIcon('range')}>
+        {bouts.length === 0 ? (
+          // Most athletes haven't scored a target yet: say so once, and say what
+          // to do, instead of three empty tiles and two empty charts.
+          <div className="card">
+            <p style={{ margin: '0 0 4px' }}><strong>No targets scored yet.</strong></p>
+            <p className="meta" style={{ margin: 0 }}>
+              Photograph a target after a precision session and your score, group size and trend appear here.
+            </p>
+          </div>
+        ) : (
+          <>
         <div className="stats three">
           <div className="stat range">
             <div className="k">Overall</div>
@@ -535,6 +549,8 @@ export function AnalysisView({
         <div className="card">
           <TrendChart bouts={bouts} workouts={workouts} metric="group" />
         </div>
+          </>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
