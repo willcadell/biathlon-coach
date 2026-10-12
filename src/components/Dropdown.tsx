@@ -6,9 +6,23 @@ import { ChevronIcon } from './icons'
  *  (your name, your clubs, your personal coaches) stays visible, and every
  *  form that does something (create, join, follow, invite, switch, sign out)
  *  sits in one of these, closed, so the page stays short and every section
- *  heading is the same size. `help` is a Help popover for the heading. */
-export function Dropdown({ title, help, children }: { title: string; help?: ReactNode; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
+ *  heading is the same size. `help` is a Help popover for the heading.
+ *
+ *  Closed by default and looks after its own state, unless `open` and
+ *  `onOpenChange` are given: then the parent decides, so it can close one
+ *  section and open another (the goal dialogue does this when a goal is set). */
+export function Dropdown({
+  title, help, open: controlledOpen, onOpenChange, children,
+}: {
+  title: string
+  help?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children: ReactNode
+}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+  const setOpen = (next: boolean) => { if (controlledOpen === undefined) setOwnOpen(next); onOpenChange?.(next) }
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '24px 0 0' }}>
@@ -17,7 +31,7 @@ export function Dropdown({ title, help, children }: { title: string; help?: Reac
           className="link"
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
           aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => setOpen(!open)}
         >
           <ChevronIcon direction={open ? 'up' : 'down'} />
         </button>

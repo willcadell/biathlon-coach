@@ -39,6 +39,9 @@ export function GoalsCard() {
   const [saving, setSaving] = useState(false)
   // The goal just set, for the confirmation.
   const [justSet, setJustSet] = useState<{ title: string; deadline: string } | null>(null)
+  // Which dropdowns are open: setting a goal and then "Done" swaps one for the other.
+  const [setOpen, setSetOpen] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
 
   const refresh = () =>
     void myGoals().then(setGoals).catch((e) => setError(errorMessage(e, 'Could not load your goals. Check your connection and try again.')))
@@ -56,6 +59,14 @@ export function GoalsCard() {
     : !endsOn || endsOn < today ? 'Pick an end date from today on.'
     : ''
 
+  function resetForm() {
+    setMetric('metal_hit_rate')
+    setPosition(null)
+    setTarget('')
+    setEndsOn(endOfThisMonth())
+    setShared(false)
+  }
+
   async function add() {
     if (problem) return
     setSaving(true)
@@ -64,8 +75,6 @@ export function GoalsCard() {
       const position_ = isRate ? position : null
       await createGoal({ metric, position: position_, target: targetNumber, endsOn, shared })
       setJustSet({ title: goalTitle({ metric, position: position_, target: targetNumber }), deadline: goalDeadline({ endsOn }) })
-      setTarget('')
-      setShared(false)
       refresh()
     } catch (e) {
       setError(errorMessage(e, 'Could not set that goal. Check your connection and try again.'))
@@ -102,12 +111,15 @@ export function GoalsCard() {
         <GoalSetNotice
           title={justSet.title} deadline={justSet.deadline}
           hint="Follow it on your home screen, under Goals."
-          onClose={() => setJustSet(null)}
+          // Another: back to the start of the form, metal highlighted.
+          onAnother={() => { resetForm(); setJustSet(null) }}
+          // Done: close the form and show the list, with the new goal in it.
+          onDone={() => { resetForm(); setJustSet(null); setSetOpen(false); setListOpen(true) }}
         />
       )}
 
       <Dropdown
-        title="Set a goal"
+        title="Set a goal" open={setOpen} onOpenChange={setSetOpen}
         help={
           <Help>
             Pick something to aim at and a date to reach it by. Your progress shows on your home screen,
@@ -163,7 +175,7 @@ export function GoalsCard() {
       </Dropdown>
 
       {goals && goals.length > 0 && (
-        <Dropdown title="Your goals">
+        <Dropdown title="Your goals" open={listOpen} onOpenChange={setListOpen}>
           <div className="card">
             {newestFirst.map((g, i) => (
               <div key={g.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>

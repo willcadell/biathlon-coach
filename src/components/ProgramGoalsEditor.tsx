@@ -36,6 +36,7 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
   const [endsOn, setEndsOn] = useState(endOfThisMonth)
   const [saving, setSaving] = useState(false)
   const [justSet, setJustSet] = useState<{ title: string; deadline: string } | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
 
   const load = () => {
     void programGoalRows(programId).then(setRows).catch((e) => setError(errorMessage(e, 'Could not load the program goals. Check your connection and try again.')))
@@ -50,6 +51,12 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
     : !endsOn || endsOn < today ? 'Pick an end date from today on.'
     : ''
 
+  function resetForm() {
+    setMetric('dryfire_minutes')
+    setTarget('')
+    setEndsOn(endOfThisMonth())
+  }
+
   async function add() {
     if (problem) return
     setSaving(true)
@@ -57,7 +64,6 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
     try {
       await createProgramGoal(programId, { metric, target: targetNumber, endsOn })
       setJustSet({ title: goalTitle({ metric, position: null, target: targetNumber }), deadline: goalDeadline({ endsOn }) })
-      setTarget('')
       load()
     } catch (e) {
       setError(errorMessage(e, 'Could not set that goal. Check your connection and try again.'))
@@ -102,7 +108,9 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
         <GoalSetNotice
           title={justSet.title} deadline={justSet.deadline}
           hint={`${programName}'s athletes will see it on their home screen.`}
-          onClose={() => setJustSet(null)}
+          // Another: a fresh form. Done: the form closes and the list above shows it.
+          onAnother={() => { resetForm(); setJustSet(null) }}
+          onDone={() => { resetForm(); setJustSet(null); setFormOpen(false) }}
         />
       )}
       {shown.map(({ g, p }) => (
@@ -132,7 +140,7 @@ export function ProgramGoalsEditor({ programId, programName }: { programId: stri
       )}
 
       {(
-        <Dropdown title="Set a program goal">
+        <Dropdown title="Set a program goal" open={formOpen} onOpenChange={setFormOpen}>
           <div className="card">
             <div className="field" style={{ marginBottom: 12 }}>
               <span>Measure</span>
