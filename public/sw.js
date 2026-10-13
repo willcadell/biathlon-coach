@@ -6,7 +6,7 @@
 // the hashed build output: its filename changes whenever its content does,
 // so serving it straight from the cache once it is there is both correct
 // and exactly what makes the range work with no signal.
-const CACHE = 'biathlon-coach-v2'
+const CACHE = 'biathlon-coach-v3'
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (event) => {

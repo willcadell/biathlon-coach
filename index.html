@@ -7,6 +7,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <!-- iOS ignores SVG and the manifest for the home screen icon, and fills any
+         transparency with black, so it gets an opaque PNG of its own. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>545 Coach</title>
     <meta name="description" content="Score biathlon targets from a photo, track metal, dry-fire, and race performance, and give coaches a roster view of every athlete's training." />
 
