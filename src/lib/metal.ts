@@ -125,3 +125,16 @@ export const ZONE_COLOR: Record<number, string> = {
   4: 'var(--series-2)', // orange
   5: 'var(--critical)', // red
 }
+
+/** Each target's outcome, bout by bout, oldest to newest: true is a hit. The
+ *  series a per-target sparkline is drawn from, from whatever bouts are handed
+ *  in (so it follows the same filter and window as the figures beside it). */
+export function targetSeries(bouts: MetalBout[]): Record<MetalTarget, boolean[]> {
+  const ordered = [...bouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
+  const out = Object.fromEntries(METAL_TARGETS.map((t) => [t, [] as boolean[]])) as Record<MetalTarget, boolean[]>
+  for (const b of ordered) {
+    const hits = hitsOf(b)
+    for (const t of METAL_TARGETS) out[t].push(hits[t])
+  }
+  return out
+}

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { Bout, MetalBout, RaceType, Settings, Workout } from '../lib/types'
+import type { Bout, MetalBout, MetalTarget, RaceType, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
 import { ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
-import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetStats, type TargetStat } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
@@ -94,16 +94,70 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
 /** The Race button's colour: also the filter and window chips' in Race performance. */
 const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
 
+type TargetSeries = Record<MetalTarget, boolean[]>
+
+/** One target's run of hit/miss outcomes, oldest to newest, as a small line.
+ *  The line is the running hit rate (0–100%), so it shows whether the rate is
+ *  settling, climbing or sliding; each bout is a dot, filled for a hit and
+ *  hollow for a miss, until there are too many (over eight) to read as separate dots. The
+ *  last point is drawn larger so the eye lands on "now". */
+function TargetSparkline({ target, outcomes, colour }: { target: string; outcomes: boolean[]; colour: string }) {
+  const W = 60
+  const H = 32
+  const PAD = 4
+  const n = outcomes.length
+  // Keep the row's height even when a target has no bouts, so tiles line up.
+  if (n === 0) return <div style={{ height: 'auto', aspectRatio: `${W} / ${H}` }} aria-hidden />
+  let hits = 0
+  const points = outcomes.map((hit, i) => {
+    if (hit) hits += 1
+    const rate = hits / (i + 1)
+    const x = n === 1 ? W / 2 : PAD + (i * (W - PAD * 2)) / (n - 1)
+    return { x, y: H - PAD - rate * (H - PAD * 2), hit }
+  })
+  const showDots = n <= 8
+  const last = outcomes[n - 1]
+  const label = `${target}: hit ${hits} of ${n} bout${n === 1 ? '' : 's'}, most recent ${last ? 'a hit' : 'a miss'}.`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ display: 'block', width: '100%', height: 'auto', overflow: 'visible' }}>
+      <title>{label}</title>
+      {/* the 50% line, faint, so "above or below half" reads at a glance */}
+      <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke="var(--axis)" strokeWidth={1} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+      {n > 1 && (
+        <polyline
+          points={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
+          fill="none" stroke={colour} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+      {points.map((p, i) => {
+        const isLast = i === n - 1
+        if (!showDots && !isLast) return null
+        return (
+          <circle
+            key={i} cx={p.x} cy={p.y} r={isLast ? 2.6 : 1.9}
+            fill={p.hit ? colour : 'var(--raised)'} stroke={colour} strokeWidth={1.25}
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
 /** The five discs' hit rates as circles, alpha to echo, in their session's
- *  colour: Range blue in Metal, Race red in Race performance. */
-function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'race' }) {
+ *  colour: Range blue in Metal, Race red in Race performance. With `series`,
+ *  each circle carries a small line of that target's outcomes beneath it. */
+function TargetTiles({ stats, tone, series }: { stats: TargetStat[]; tone?: 'range' | 'race'; series?: TargetSeries }) {
+  const colour = tone === 'race' ? RACE_COLOUR : 'var(--series-1)'
   // Discs are round, so the tiles are circles. minmax(0, 1fr) and small type so
   // five of them fit a phone's width instead of running off the right edge.
   return (
     <div className="stats" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
       {stats.map((t) => (
+        <div key={t.target} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
         <div
-          className={`stat${tone ? ` ${tone}` : ''}`} key={t.target}
+          className={`stat${tone ? ` ${tone}` : ''}`}
           title={t.bouts < 3 ? `Only ${t.bouts} bout${t.bouts === 1 ? '' : 's'} so far: treat this as a first look` : undefined}
           style={{
             // A rate from one or two bouts is a first look, not a finding.
@@ -119,6 +173,8 @@ function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'r
           <div className="v" style={{ fontSize: 'max(15px, 25cqw)', marginTop: 0, lineHeight: 1.1 }}>{t.hitRatePct}<small style={{ fontSize: '13cqw' }}>%</small></div>
           <div className="n" style={{ fontSize: 'max(9px, 13cqw)' }}>{t.hits}/{t.bouts}</div>
         </div>
+        {series && <TargetSparkline target={t.target} outcomes={series[t.target]} colour={colour} />}
+        </div>
       ))}
     </div>
   )
@@ -128,12 +184,13 @@ function TargetTiles({ stats, tone }: { stats: TargetStat[]; tone?: 'range' | 'r
  *  position, from the most recent 5, 10 or 20 bouts. Used for range metal and,
  *  separately, for race metal. */
 function TargetHitRates({
-  position, kind, stats, windowSize, onWindowChange,
+  position, kind, stats, series, windowSize, onWindowChange,
 }: {
   position: 'prone' | 'standing'
   /** What the bouts are, for the caption: "metal" or "race". */
   kind: string
   stats: TargetStat[]
+  series?: TargetSeries
   windowSize: 5 | 10 | 20
   onWindowChange: (n: 5 | 10 | 20) => void
 }) {
@@ -159,7 +216,7 @@ function TargetHitRates({
       <p className="meta" style={{ marginTop: 6 }}>
         Last {bouts} {position} {kind} bout{bouts === 1 ? '' : 's'}.
       </p>
-      <TargetTiles stats={stats} tone="range" />
+      <TargetTiles stats={stats} tone="range" series={series} />
     </>
   )
 }
@@ -174,10 +231,12 @@ type RaceWindow = 3 | 5 | 10 | 'all'
  * says in the control ("Races: Last 5") and in a "?" that races are what's counted.
  */
 function RaceTargetHitRates({
-  prone, standing, windowValue, onWindowChange,
+  prone, standing, proneSeries, standingSeries, windowValue, onWindowChange,
 }: {
   prone: TargetStat[]
   standing: TargetStat[]
+  proneSeries?: TargetSeries
+  standingSeries?: TargetSeries
   windowValue: RaceWindow
   onWindowChange: (w: RaceWindow) => void
 }) {
@@ -218,13 +277,13 @@ function RaceTargetHitRates({
       {prone.length > 0 && (
         <>
           <p className="meta" style={{ margin: '10px 0 4px' }}>Prone · {bouts(prone)} bout{bouts(prone) === 1 ? '' : 's'}</p>
-          <TargetTiles stats={prone} tone="race" />
+          <TargetTiles stats={prone} tone="race" series={proneSeries} />
         </>
       )}
       {standing.length > 0 && (
         <>
           <p className="meta" style={{ margin: '10px 0 4px' }}>Standing · {bouts(standing)} bout{bouts(standing) === 1 ? '' : 's'}</p>
-          <TargetTiles stats={standing} tone="race" />
+          <TargetTiles stats={standing} tone="race" series={standingSeries} />
         </>
       )}
     </>
@@ -368,14 +427,18 @@ export function AnalysisView({
   // Most recent N bouts for that position specifically, not a day-based
   // window — a coach checking in monthly wants "the last 10 I actually
   // shot", not "whatever fell inside the last 60 days".
-  const targetsProne = useMemo(() => {
-    const sorted = [...metalProne].sort((a, b) => b.shotAt.localeCompare(a.shotAt))
-    return targetStats(sorted.slice(0, proneWindow))
-  }, [metalProne, proneWindow])
-  const targetsStanding = useMemo(() => {
-    const sorted = [...metalStanding].sort((a, b) => b.shotAt.localeCompare(a.shotAt))
-    return targetStats(sorted.slice(0, standingWindow))
-  }, [metalStanding, standingWindow])
+  const proneWindowBouts = useMemo(
+    () => [...metalProne].sort((a, b) => b.shotAt.localeCompare(a.shotAt)).slice(0, proneWindow),
+    [metalProne, proneWindow],
+  )
+  const standingWindowBouts = useMemo(
+    () => [...metalStanding].sort((a, b) => b.shotAt.localeCompare(a.shotAt)).slice(0, standingWindow),
+    [metalStanding, standingWindow],
+  )
+  const targetsProne = useMemo(() => targetStats(proneWindowBouts), [proneWindowBouts])
+  const targetsStanding = useMemo(() => targetStats(standingWindowBouts), [standingWindowBouts])
+  const seriesProne = useMemo(() => targetSeries(proneWindowBouts), [proneWindowBouts])
+  const seriesStanding = useMemo(() => targetSeries(standingWindowBouts), [standingWindowBouts])
 
   // The same per-target read for race shooting, counted in races: the most
   // recent N races (of the chosen format), then both positions from those.
@@ -391,14 +454,18 @@ export function AnalysisView({
     () => new Set(raceWindow === 'all' ? recentRaceIds : recentRaceIds.slice(0, raceWindow)),
     [recentRaceIds, raceWindow],
   )
-  const targetsRaceProne = useMemo(
-    () => targetStats(filteredRace.filter((b) => b.position === 'prone' && chosenRaces.has(b.workoutId))),
+  const raceProneBouts = useMemo(
+    () => filteredRace.filter((b) => b.position === 'prone' && chosenRaces.has(b.workoutId)),
     [filteredRace, chosenRaces],
   )
-  const targetsRaceStanding = useMemo(
-    () => targetStats(filteredRace.filter((b) => b.position === 'standing' && chosenRaces.has(b.workoutId))),
+  const raceStandingBouts = useMemo(
+    () => filteredRace.filter((b) => b.position === 'standing' && chosenRaces.has(b.workoutId)),
     [filteredRace, chosenRaces],
   )
+  const targetsRaceProne = useMemo(() => targetStats(raceProneBouts), [raceProneBouts])
+  const targetsRaceStanding = useMemo(() => targetStats(raceStandingBouts), [raceStandingBouts])
+  const seriesRaceProne = useMemo(() => targetSeries(raceProneBouts), [raceProneBouts])
+  const seriesRaceStanding = useMemo(() => targetSeries(raceStandingBouts), [raceStandingBouts])
 
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
@@ -610,8 +677,8 @@ export function AnalysisView({
           </div>
         </div>
 
-        <TargetHitRates position="prone" kind="metal" stats={targetsProne} windowSize={proneWindow} onWindowChange={setProneWindow} />
-        <TargetHitRates position="standing" kind="metal" stats={targetsStanding} windowSize={standingWindow} onWindowChange={setStandingWindow} />
+        <TargetHitRates position="prone" kind="metal" stats={targetsProne} series={seriesProne} windowSize={proneWindow} onWindowChange={setProneWindow} />
+        <TargetHitRates position="standing" kind="metal" stats={targetsStanding} series={seriesStanding} windowSize={standingWindow} onWindowChange={setStandingWindow} />
       </CollapsibleSection>
 
       {raceCount > 0 && (
@@ -659,6 +726,7 @@ export function AnalysisView({
 
           <RaceTargetHitRates
             prone={targetsRaceProne} standing={targetsRaceStanding}
+            proneSeries={seriesRaceProne} standingSeries={seriesRaceStanding}
             windowValue={raceWindow} onWindowChange={setRaceWindow}
           />
         </CollapsibleSection>
