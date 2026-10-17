@@ -1,0 +1,10 @@
+# Siegfried Mazet speaks about race preparation
+Interview by Sattlecker. Journal of Biathlon Coaching, Issue 1, Jan 2024, pp. 12-13. DOI 10.71006/qigu2910. Read in full (2 pages). Mazet: shooting coach to the French team 2008-2016, then Norway. Practitioner opinion, not research.
+
+- The key day is the day BEFORE the race: agree a strategy in the last training, hold a short meeting about what happened; the hard session the day before tests tracks and the range entry at high speed, to check what heart rate still allows good shooting. Do not lose time on entry but do not arrive too exhausted. Target: first prone shot within about 15 seconds of arriving, first standing shot within about 12.
+- On race day say little. Give only essentials (zero, wind); the important information should have been given the day before. Speak more only if the athlete is struggling.
+- Uncertainty about shooting: athletes fixate on one or two uncomfortable shots rather than the many good ones. Remind them of earlier similar situations they handled, that one miss is allowed, and that there are other races. Focus on procedures, not outcome.
+- Tactics: at an unfamiliar venue (altitude, say) warn athletes the range will feel different; accept more movement in the rifle and take two or three extra breaths before starting. In pursuit and mass start stay neutral and concentrate on the first two prone stages: you cannot win there but you can lose; avoid using up your "jokers" (the spare rounds) early, as they are needed in standing. If an opponent is a faster shooter, do not speed up, that creates misses.
+- Debrief varies by athlete: sometimes immediately, sometimes later; two to 45 minutes.
+- Pitfall: coaches who talk too much. Give a safe atmosphere and simple instructions; be more secure than the athlete is.
+- Five take-aways: share key information but do not talk too much; remind athletes of races they mastered; briefing and debriefing differ by athlete; give security with short, clear instructions; start coaching with young athletes.

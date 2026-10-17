@@ -1,0 +1,5 @@
+# Sandra Flunger speaks about Swiss team preparation for Milano Cortina 2026
+Interview by Sattlecker. Journal of Biathlon Coaching, Issue 2, Jul 2024, pp. 10-11. DOI 10.71006/czhe1498. Read in full (2 pages). Flunger: Swiss women's head coach. Practitioner opinion.
+
+Shooting content (answer 5): in earlier seasons the work was on the basics of shooting and correcting errors; once the athletes were stable, the next step is shooting under high physical load: combo training with shooting stressed a little above competition level, finding solutions that challenge the athletes and combine skiing and shooting at a high level. The last metres before the range matter, so find other ranges and tracks to practise the approach.
+Season content: preparation camps at altitude (about 1,700 m; the team lives at about 1,400 m); build aerobic endurance hours and strength endurance in the preparation period; the main goal for coaches is that athletes are healthy and in good shape at the start of the championships; keep the fun.

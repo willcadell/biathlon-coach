@@ -501,6 +501,82 @@ export function AnalysisView({
       {/* A coach is already under the athlete's name, so "Analysis" would only repeat it. */}
       {!readOnly && <h1>Analysis</h1>}
 
+      {/* The advice reads every kind of shooting, so it sits under the page title
+          rather than inside Precision. */}
+      {recent.length > 0 && (
+        <CollapsibleSection title="Shooting advice">
+          {thin && (
+            <div className="notice">
+              This is a first read from very little recent data. Treat it as a hint until you have three
+              or four bouts in each position — the confidence figures below will climb as you log more.
+            </div>
+          )}
+
+          <h3 style={{ marginTop: 0 }}>
+            What your groups are saying
+            <Help>
+              This reads your target photos and nothing else. It cannot see your position, your
+              breathing or your skis, and it is no substitute for a coach watching you shoot — but it
+              will tell you which question to ask one.
+            </Help>
+          </h3>
+          <p className="lede" style={{ marginTop: -6 }}>
+            {stale
+              ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
+              : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
+          </p>
+          {findings.map((f, i) => (
+            <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
+              <div className="badge">
+                <i className="dot" />
+                {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : f.id === 'no_standout' ? 'Nothing flagged' : 'Doing well'}
+              </div>
+              <h3>{f.title}</h3>
+              <p>{f.evidence}</p>
+              <p className="cause">{f.cause}</p>
+              <p className="meta">
+                {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
+                {f.sampleSize === 1 ? '' : 's'}
+              </p>
+            </div>
+          ))}
+
+          {plan.length > 0 && (
+            <>
+              <h3 style={{ marginTop: 20 }}>
+                Your next two weeks
+                <Help>
+                  In order — the first one or two matter most, doing all six badly is worse than doing two
+                  properly. Keep a session to 15–30 minutes and five to seven variations with one clear
+                  focus, not a long list. Run each rep until it holds steady — usually well under a minute
+                  — and if it never settles after a few tries, it's too hard today; back off rather than
+                  force it. Close every session with a couple of calm dry-fire clips under normal
+                  conditions.
+                </Help>
+              </h3>
+              {plan.map(({ drill, reason }, i) => (
+                <div key={drill.id} className="card">
+                  <div className="badge" style={{ marginBottom: 4 }}>
+                    {i + 1} · {drill.minutes} min · {drill.dryFire ? 'no range needed' : 'range'}
+                  </div>
+                  <h3>{drill.name}</h3>
+                  <p>{drill.purpose}</p>
+                  <p className="meta">Because of: {reason}. {drill.frequency}.</p>
+                  <details open={openDrill === drill.id} onToggle={(e) =>
+                    setOpenDrill((e.currentTarget as HTMLDetailsElement).open ? drill.id : null)
+                  }>
+                    <summary>How to do it</summary>
+                    <ol className="steps">
+                      {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
+                    </ol>
+                  </details>
+                </div>
+              ))}
+            </>
+          )}
+        </CollapsibleSection>
+      )}
+
       <CollapsibleSection title="Precision" icon={sessionIcon('range')}>
         {bouts.length === 0 ? (
           // Most athletes haven't scored a target yet: say so once, and say what
@@ -530,80 +606,6 @@ export function AnalysisView({
             <div className="n">{standing.length} bout{standing.length === 1 ? '' : 's'}</div>
           </div>
         </div>
-
-        {thin && (
-          <div className="notice" style={{ marginTop: 16 }}>
-            This is a first read from very little recent data. Treat it as a hint until you have three
-            or four bouts in each position — the confidence figures below will climb as you log more.
-          </div>
-        )}
-
-        {recent.length > 0 && (
-          <h3 style={{ marginTop: 20 }}>
-            What your groups are saying
-            <Help>
-              This reads your target photos and nothing else. It cannot see your position, your
-              breathing or your skis, and it is no substitute for a coach watching you shoot — but it
-              will tell you which question to ask one.
-            </Help>
-          </h3>
-        )}
-        {recent.length > 0 && (
-          <p className="lede" style={{ marginTop: -6 }}>
-            {stale
-              ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
-              : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
-          </p>
-        )}
-        {findings.map((f, i) => (
-          <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
-            <div className="badge">
-              <i className="dot" />
-              {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : f.id === 'no_standout' ? 'Nothing flagged' : 'Doing well'}
-            </div>
-            <h3>{f.title}</h3>
-            <p>{f.evidence}</p>
-            <p className="cause">{f.cause}</p>
-            <p className="meta">
-              {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
-              {f.sampleSize === 1 ? '' : 's'}
-            </p>
-          </div>
-        ))}
-
-        {plan.length > 0 && (
-          <>
-            <h3 style={{ marginTop: 20 }}>
-              Your next two weeks
-              <Help>
-                In order — the first one or two matter most, doing all six badly is worse than doing two
-                properly. Keep a session to 15–30 minutes and five to seven variations with one clear
-                focus, not a long list. Run each rep until it holds steady — usually well under a minute
-                — and if it never settles after a few tries, it's too hard today; back off rather than
-                force it. Close every session with a couple of calm dry-fire clips under normal
-                conditions.
-              </Help>
-            </h3>
-            {plan.map(({ drill, reason }, i) => (
-              <div key={drill.id} className="card">
-                <div className="badge" style={{ marginBottom: 4 }}>
-                  {i + 1} · {drill.minutes} min · {drill.dryFire ? 'no range needed' : 'range'}
-                </div>
-                <h3>{drill.name}</h3>
-                <p>{drill.purpose}</p>
-                <p className="meta">Because of: {reason}. {drill.frequency}.</p>
-                <details open={openDrill === drill.id} onToggle={(e) =>
-                  setOpenDrill((e.currentTarget as HTMLDetailsElement).open ? drill.id : null)
-                }>
-                  <summary>How to do it</summary>
-                  <ol className="steps">
-                    {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
-                  </ol>
-                </details>
-              </div>
-            ))}
-          </>
-        )}
 
         <h3 style={{ marginTop: 20 }}>
           Score over time (%)
