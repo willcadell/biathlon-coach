@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { Bout, MetalBout, MetalTarget, RaceType, Settings, Workout } from '../lib/types'
-import { RACE_TYPE_LABEL } from '../lib/types'
+import type { Bout, MetalBout, MetalTarget, RaceType, Settings, ShootingDirection, Workout } from '../lib/types'
+import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
 import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
@@ -345,6 +345,7 @@ export function AnalysisView({
   onChanged,
   readOnly,
   onAddCoachNote,
+  shootingDirection,
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
@@ -358,6 +359,8 @@ export function AnalysisView({
   /** Present only for a coach viewing a linked athlete — forwarded straight
    *  through to the nested History section. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
+  /** The order this athlete shoots the five discs, once known. Shown under Metal. */
+  shootingDirection?: ShootingDirection
 }) {
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
@@ -673,6 +676,14 @@ export function AnalysisView({
           </div>
         )}
       >
+        {shootingDirection && (
+          <p className="meta" style={{ marginTop: 0 }}>
+            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>
+            {shootingDirection === 'alpha_to_echo' ? ' (left to right' : ' (right to left'} looking downrange).
+            {!readOnly && ' You can change this in Settings.'}
+          </p>
+        )}
+
         <div className="stats">
           <div className="stat range">
             <div className="k">Prone</div>

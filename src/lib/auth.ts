@@ -101,10 +101,11 @@ export async function ensureAthleteRow(session: Session): Promise<void> {
   if (error) throw error
 }
 
-/** How this athlete shoots the five metal discs. Anything unreadable is the
+/** How an athlete (by default, the signed-in one) shoots the five metal discs. Anything unreadable is the
  *  default, alpha to echo, so a failed load never blocks the settings page. */
-export async function getShootingDirection(): Promise<ShootingDirection> {
-  const id = await currentUserId()
+export async function getShootingDirection(athleteId?: string): Promise<ShootingDirection> {
+  // A coach reads the athlete's row (policy: coach reads linked athletes).
+  const id = athleteId ?? await currentUserId()
   const { data, error } = await supabase.from('athletes').select('shooting_direction').eq('id', id).maybeSingle()
   if (error) throw error
   return data?.shooting_direction === 'echo_to_alpha' ? 'echo_to_alpha' : 'alpha_to_echo'

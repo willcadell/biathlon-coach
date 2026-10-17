@@ -465,7 +465,7 @@ function SignedInApp({
               />
             )}
             {tab === 'analysis' && (
-              <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} />
+              <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} />
             )}
             {tab === 'profile' && (
               <ProfileView

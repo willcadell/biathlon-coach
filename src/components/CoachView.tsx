@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, Position, Workout } from '../lib/types'
+import type { Bout, MetalBout, Position, ShootingDirection, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount } from '../lib/metal'
 import {
@@ -21,6 +21,7 @@ import { logPlatformAccess, platformClubs, recentPlatformAccess, type AccessEntr
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
+import { getShootingDirection } from '../lib/auth'
 import { myPersonalAthletes, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
 import { AdminPill, AdminShield, GoArrow, MegaphoneIcon, RaceMedalIcon, RangeIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
 
@@ -447,6 +448,11 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
+  const [direction, setDirection] = useState<ShootingDirection | undefined>(undefined)
+  useEffect(() => {
+    setDirection(undefined)
+    void getShootingDirection(athlete.athleteId).then(setDirection).catch(() => setDirection(undefined))
+  }, [athlete.athleteId])
 
   const refresh = () => {
     void Promise.all([
@@ -477,6 +483,7 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
         bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
         onChanged={refresh}
         readOnly
+        shootingDirection={direction}
         onAddCoachNote={platform ? undefined : async (workoutId, note) => {
           await addCoachNote(workoutId, note)
           refresh()
