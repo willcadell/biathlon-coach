@@ -8,24 +8,60 @@
     "note": "Read pp. 1-17, 54-56, 62-68, 76-77. Trigger plateau, trigger variations and dry-only notes taken from it. Balance, stability and combined chapters not read in full."
   },
   "issues": [
-    { "number": 1, "date": "2024-01", "doi": "10.71006/ayug8222", "shooting": [], "note": "Not checked." },
-    { "number": 2, "date": "2024-07", "doi": "10.71006/ehfa5359", "shooting": [], "note": "Not checked." },
-    { "number": 3, "date": "2025-01", "doi": "10.71006/mois6946", "shooting": [], "note": "Not checked." },
-    { "number": 4, "date": "2025-09", "doi": "10.71006/kiyo8609", "shooting": [], "note": "Not checked." },
-    { "number": 5, "date": "2026-02", "doi": "10.71006/rvor6290", "shooting": [], "note": "Not checked." },
+    {
+      "number": 1,
+      "date": "2024-01",
+      "doi": "10.71006/ayug8222",
+      "shooting": [],
+      "note": "Not checked."
+    },
+    {
+      "number": 2,
+      "date": "2024-07",
+      "doi": "10.71006/ehfa5359",
+      "shooting": [],
+      "note": "Not checked."
+    },
+    {
+      "number": 3,
+      "date": "2025-01",
+      "doi": "10.71006/mois6946",
+      "shooting": [],
+      "note": "Not checked."
+    },
+    {
+      "number": 4,
+      "date": "2025-09",
+      "doi": "10.71006/kiyo8609",
+      "shooting": [],
+      "note": "Not checked."
+    },
+    {
+      "number": 5,
+      "date": "2026-02",
+      "doi": "10.71006/rvor6290",
+      "shooting": [],
+      "note": "Not checked."
+    },
     {
       "number": 6,
       "date": "2026-06",
-      "doi": "10.71006/BBFH5417",
+      "doi": null,
       "shooting": [
         {
           "title": "From research to practice: Optimising shooting performance in elite biathlon",
           "authors": "Koykka, Sattlecker, Laaksonen",
-          "status": "unreadable",
-          "reason": "DOI did not resolve from the browser pane on 2026-10-17. Retry, including the lowercase form."
+          "doi": "10.71006/VDOL4813",
+          "url": "https://www.ibuacademy.com/science/journal/issue-6-june-2026/article/journal-article-10.71006VDOL4813",
+          "published": "2026-06-30",
+          "status": "abstract only",
+          "reason": "The article page shows the abstract and a cover image; no full text or PDF link is exposed (there is a Subscribe link). Full text, including the ten recommendations, still unread.",
+          "abstractGist": "Interviews with five experienced international coaches on technique, periodising shooting training, range approach and venue preparation. Themes: individualise; keep the core technique constant while adapting breathing to intensity; treat the range approach as a skill of its own."
         }
       ],
-      "proposal": null
+      "proposal": null,
+      "issueDoi": "10.71006/BBFH5417",
+      "issueDoiNote": "Did not resolve on 2026-10-17."
     }
   ]
 }

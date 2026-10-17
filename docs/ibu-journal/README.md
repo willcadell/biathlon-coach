@@ -33,6 +33,11 @@ It finds and summarises; a person decides what ships.
    issue is also worth another look if any shooting article in it has
    `status: "pending"` or `"unreadable"`: retry it (a DOI that failed before may
    resolve now, and a DOI is case-sensitive, so also try the lowercase form).
+   Article pages live at `/science/journal/issue-<n>-<month>-<year>/article/journal-article-<doi-suffix>`
+   (the DOI with the slash removed). An issue's own DOI may not resolve; use the
+   article links on the issue page. Some article pages show only the abstract: if
+   no full text or PDF is linked, record `status: "abstract only"` and use the
+   abstract, saying clearly that the full text was not read.
 3. **Find the shooting content.** For each new issue, open its contents and list the
    articles with their section headings (Training, Shooting, Preparation, ...). Read
    every article in the Shooting section, and any other article whose title or
