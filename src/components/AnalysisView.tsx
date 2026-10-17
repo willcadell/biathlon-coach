@@ -3,7 +3,8 @@ import type { Bout, Finding, MetalBout, MetalTarget, RaceType, Settings, Shootin
 import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
-import { PageTitle, IBU_LIBRARY_URL } from './LibraryLink'
+import { PageTitle, IBU_LIBRARY_URL, useOpenLibrary } from './LibraryLink'
+import { entriesForFinding } from '../lib/library'
 import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
@@ -308,6 +309,8 @@ const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
 
 /** One finding: what the data shows, the likely cause, how much it rests on. */
 function FindingCard({ f }: { f: Finding }) {
+  const openLibrary = useOpenLibrary()
+  const related = entriesForFinding(f.id)
   return (
     <div className={`finding ${f.severity}`}>
       <div className="badge">
@@ -321,6 +324,13 @@ function FindingCard({ f }: { f: Finding }) {
         {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
         {f.sampleSize === 1 ? '' : 's'}
       </p>
+      {openLibrary && related.length > 0 && (
+        <p className="meta" style={{ margin: '6px 0 0' }}>
+          <button className="link" onClick={() => openLibrary({ findingId: f.id, title: f.title })}>
+            Read more in the library ({related.length})
+          </button>
+        </p>
+      )}
     </div>
   )
 }
@@ -395,6 +405,7 @@ export function AnalysisView({
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
   const metalBouts = useMemo(() => ofWorkouts(suppliedMetalBouts, workouts), [suppliedMetalBouts, workouts])
+  const openLibrary = useOpenLibrary()
   const [openDrill, setOpenDrill] = useState<string | null>(null)
   const [proneWindow, setProneWindow] = useState<5 | 10 | 20>(10)
   const [standingWindow, setStandingWindow] = useState<5 | 10 | 20>(10)
@@ -622,12 +633,9 @@ export function AnalysisView({
           )}
 
           <p className="meta" style={{ marginTop: 20, marginBottom: 0 }}>
-            <a
-              href={IBU_LIBRARY_URL} target="_blank" rel="noopener noreferrer"
-              style={{ color: 'var(--series-1)', textDecoration: 'underline' }}
-            >
-              Want to know more?
-            </a>
+            {openLibrary
+              ? <button className="link" onClick={() => openLibrary()}>Want to know more?</button>
+              : <a href={IBU_LIBRARY_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--series-1)', textDecoration: 'underline' }}>Want to know more?</a>}
           </p>
         </CollapsibleSection>
       )}

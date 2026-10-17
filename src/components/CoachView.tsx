@@ -21,6 +21,7 @@ import { logPlatformAccess, platformClubs, recentPlatformAccess, type AccessEntr
 import { AnnounceSheet } from './AnnounceSheet'
 import { FeedView } from './FeedView'
 import { errorMessage } from '../lib/errors'
+import { PageTitle } from './LibraryLink'
 import { getShootingDirection } from '../lib/auth'
 import { myPersonalAthletes, stopCoachingAthlete, type PersonalAthlete } from '../lib/personalCoach'
 import { AdminPill, AdminShield, GoArrow, MegaphoneIcon, RaceMedalIcon, RangeIcon, PlusIcon, ShieldMinusIcon, ShieldPlusIcon, TrashIcon } from './icons'
@@ -283,7 +284,7 @@ function SetUpCoach({ onDone }: { onDone: (coach: Coach) => void }) {
 
   return (
     <>
-      <h1>Coach</h1>
+      <PageTitle>Coach</PageTitle>
       <p className="lede">
         Set up a coaching identity to create a club and see a roster's training — separate from your
         own athlete profile, since plenty of coaches log their own bouts too.
@@ -967,7 +968,7 @@ export function CoachView({ session, onIdentityChanged }: Props) {
 
   return (
     <>
-      <h1 style={{ marginBottom: 8 }}>Coach your clubs</h1>
+      <PageTitle marginBottom={8}>Coach your clubs</PageTitle>
       {clubs.length === 0 && (personal ?? []).length === 0 && (
         <p className="meta">Nothing yet — create or join a club, or follow an athlete, from your Profile.</p>
       )}

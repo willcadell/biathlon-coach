@@ -10,6 +10,7 @@ import {
 import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
+import { ENTRIES, FINDING_LIBRARY, FOCUS_LABEL, SOURCES, entriesForFinding, entriesForPhase, formatReference, shortCitation, sourceById } from '../src/lib/library.ts'
 import { analyseMetal, metalWindow } from '../src/lib/metalAdvice.ts'
 import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../src/lib/seasonPhase.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
@@ -245,6 +246,20 @@ const old = many(10, (i) => mbout('prone', 'HHMHH', 200 + i))
 ok('after a long break the most recent bouts are still read', metalWindow(old).stale && metalWindow(old).bouts.length === 10 && idsOf(old).includes('metal_one_disc'))
 ok('no metal bouts, no metal advice', idsOf([]).length === 0)
 ok('metal findings map to drills', recommend(analyseMetal({ bouts: gapBouts, workouts: [], direction: 'alpha_to_echo' })).some((r) => r.drill.addresses.includes('metal_standing_gap')))
+
+// --- The shooting library: every entry cites real sources, every source is used.
+ok('library entry ids are unique', new Set(ENTRIES.map((e) => e.id)).size === ENTRIES.length)
+ok('every entry names at least one source that exists', ENTRIES.every((e) => e.sources.length > 0 && e.sources.every((x) => sourceById(x.id))), ENTRIES.filter((e) => !e.sources.every((x) => sourceById(x.id))).map((e) => e.id).join())
+ok('every entry has a summary, a title, a topic and a season', ENTRIES.every((e) => e.title && e.summary.length > 60 && FOCUS_LABEL[e.focus] && e.phases.length > 0))
+ok('every source is cited by at least one entry', SOURCES.every((src) => ENTRIES.some((e) => e.sources.some((x) => x.id === src.id))), SOURCES.filter((src) => !ENTRIES.some((e) => e.sources.some((x) => x.id === src.id))).map((x) => x.id).join())
+ok('every source has authors, year, title, venue and a link', SOURCES.every((src) => src.authors && src.year > 2000 && src.title && src.venue && src.url.startsWith('https://')))
+ok('every phase of the year has library entries', (['transition', 'general', 'specific', 'early', 'competition'] as SeasonPhase[]).every((ph) => entriesForPhase(ph).length > 0))
+ok('every finding links only to entries that exist', Object.values(FINDING_LIBRARY).every((ids) => ids!.every((id) => ENTRIES.some((e) => e.id === id))))
+ok('a finding opens its own entries', entriesForFinding('metal_standing_gap').length > 0 && entriesForFinding('early_signs').length === 0)
+ok('every metal finding leads into the library', ['metal_standing_gap', 'metal_standing_volume', 'metal_one_disc', 'metal_scattered', 'metal_late_discs', 'metal_first_disc', 'metal_miss_streaks', 'metal_intensity_drop', 'metal_race_gap'].every((id) => entriesForFinding(id as Parameters<typeof entriesForFinding>[0]).length > 0))
+ok('a reference reads in full', formatReference(sourceById('krueger2026')!).startsWith('Krüger, A., Harbour, E., & Finkenzeller, T. (2026). Breathing patterns'), formatReference(sourceById('krueger2026')!))
+ok('a short citation names the lead author', shortCitation(sourceById('krueger2026')!) === 'Krüger et al. (2026)' && shortCitation(sourceById('koykka2024')!) === 'Köykkä (2024)', shortCitation(sourceById('koykka2024')!))
+ok('drill steps in the library never suggest live fire with a band', !ENTRIES.some((e) => /live ammunition/i.test(e.summary) && !/never|dry/i.test((e.safety ?? '') + e.summary)))
 
 // --- Season phase, from the month alone.
 const phases: SeasonPhase[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => seasonPhase(new Date(2026, m - 1, 15)))

@@ -20,6 +20,8 @@ import { ProfileView } from './components/ProfileView'
 import { ResponsibilitiesGate } from './components/CoachResponsibilities'
 import { CoachView, ClubSettingsView, PlatformAdminView } from './components/CoachView'
 import { SettingsView } from './components/SettingsView'
+import { LibraryView } from './components/LibraryView'
+import { OpenLibraryProvider, type LibraryAbout } from './components/LibraryLink'
 import { PrivacyPolicyView } from './components/PrivacyPolicyView'
 import { TermsView } from './components/TermsView'
 import { FeaturesView } from './components/FeaturesView'
@@ -45,7 +47,7 @@ function saveActiveWorkoutId(id: string | null): void {
   }
 }
 
-type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'club' | 'settings' | 'platform'
+type Tab = 'shoot' | 'analysis' | 'profile' | 'coach' | 'club' | 'settings' | 'platform' | 'library'
 type Role = 'athlete' | 'coach'
 
 const MODE_KEY_PREFIX = 'biathlon-coach:mode:'
@@ -312,6 +314,16 @@ function SignedInApp({
   onSwitchRole?: () => void
 }) {
   const [tab, setTab] = useState<Tab>(mode === 'athlete' ? 'shoot' : 'coach')
+  // The library is reached from the open-book icons, not the tab bar: remember
+  // where it was opened from so Back returns there.
+  const [tabBeforeLibrary, setTabBeforeLibrary] = useState<Tab>('shoot')
+  const [libraryAbout, setLibraryAbout] = useState<LibraryAbout | undefined>(undefined)
+  const openLibrary = useCallback((about?: LibraryAbout) => {
+    setTabBeforeLibrary((prev) => (tab === 'library' ? prev : tab))
+    setLibraryAbout(about)
+    setTab('library')
+    window.scrollTo(0, 0)
+  }, [tab])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [stored, setStored] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
@@ -450,6 +462,7 @@ function SignedInApp({
       )}
       <main className="main">
         <div className="main-inner">
+          <OpenLibraryProvider value={openLibrary}>
           <ErrorBoundary key={tab}>
             {tab === 'shoot' && (
               <WorkoutView
@@ -497,6 +510,7 @@ function SignedInApp({
                 <ClubSettingsView session={session} />
               </ResponsibilitiesGate>
             )}
+            {tab === 'library' && <LibraryView about={libraryAbout} onShowAll={() => setLibraryAbout(undefined)} onBack={() => setTab(tabBeforeLibrary)} />}
             {tab === 'settings' && (
               <SettingsView
                 settings={settings}
@@ -511,6 +525,7 @@ function SignedInApp({
               />
             )}
           </ErrorBoundary>
+          </OpenLibraryProvider>
         </div>
       </main>
 
