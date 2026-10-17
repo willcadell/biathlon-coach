@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { currentUserId } from './auth'
 
 /**
  * A personal coach is one person following one athlete — a parent, or a coach
@@ -8,11 +9,6 @@ import { supabase } from './supabase'
  * end it.
  */
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 export interface PersonalInvite {
   code: string

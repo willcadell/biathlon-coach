@@ -145,12 +145,45 @@ export default function App() {
 
 function AuthenticatedApp() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [endedUnexpectedly, setEndedUnexpectedly] = useState(false)
 
-  useEffect(() => onAuthChange(setSession), [])
+  useEffect(() => onAuthChange((next, unexpected) => {
+    // A refreshed token (and every return to the app) arrives as a new object
+    // for the same person. Keep the one already held, so the whole app isn't
+    // re-rendered, and its effects re-run, each time that happens.
+    setSession((prev) => (prev && next && prev.user.id === next.user.id ? prev : next))
+    if (unexpected) setEndedUnexpectedly(true)
+    else if (next) setEndedUnexpectedly(false)
+  }), [])
 
   if (session === undefined) return null
-  if (session === null) return <SignInView />
+  if (session === null) {
+    return (
+      <SignInView
+        notice={endedUnexpectedly
+          ? 'You were signed out: your session ended on its own, which can happen after a long time away or if you signed out on another device. Everything you logged is saved. Sign in to carry on.'
+          : undefined}
+      />
+    )
+  }
   return <IdentityGate session={session} />
+}
+
+/** The last identities seen for this person, kept on the device so a launch
+ *  with no signal (the range) can still open the app instead of waiting on a
+ *  request that will never answer. */
+const IDENTITIES_KEY_PREFIX = 'biathlon-coach:identities:'
+type Identities = { athlete: boolean; coach: boolean }
+function loadCachedIdentities(userId: string): Identities | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(IDENTITIES_KEY_PREFIX + userId) ?? 'null') as Identities | null
+    return v && typeof v.athlete === 'boolean' && typeof v.coach === 'boolean' ? v : null
+  } catch {
+    return null
+  }
+}
+function saveCachedIdentities(userId: string, v: Identities): void {
+  try { localStorage.setItem(IDENTITIES_KEY_PREFIX + userId, JSON.stringify(v)) } catch { /* not fatal */ }
 }
 
 /**
@@ -162,7 +195,8 @@ function AuthenticatedApp() {
  * long as this browser tab stays open.
  */
 function IdentityGate({ session }: { session: Session }) {
-  const [identities, setIdentities] = useState<{ athlete: boolean; coach: boolean } | undefined>(undefined)
+  const [identities, setIdentities] = useState<Identities | undefined>(undefined)
+  const [identitiesFailed, setIdentitiesFailed] = useState(false)
   const [mode, setMode] = useState<Role | null>(null)
   const [isDev, setIsDev] = useState(false)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
@@ -185,6 +219,8 @@ function IdentityGate({ session }: { session: Session }) {
         next = { ...next, [intent]: true }
       }
 
+      saveCachedIdentities(session.user.id, next)
+      setIdentitiesFailed(false)
       setIdentities(next)
       if (intent) {
         saveMode(session.user.id, intent)
@@ -192,11 +228,37 @@ function IdentityGate({ session }: { session: Session }) {
       } else {
         setMode(next.athlete && next.coach ? loadMode(session.user.id) : null)
       }
+    }).catch(() => {
+      // Couldn't reach the server. Someone seen before opens straight into the
+      // app on what we last knew; anyone else gets a way to try again, not a
+      // blank screen.
+      const cached = loadCachedIdentities(session.user.id)
+      if (cached) {
+        setIdentities(cached)
+        setMode(cached.athlete && cached.coach ? loadMode(session.user.id) : null)
+      } else {
+        setIdentitiesFailed(true)
+      }
     })
   }, [session.user.id])
   useEffect(refreshIdentities, [refreshIdentities])
 
-  if (identities === undefined) return null
+  if (identities === undefined) {
+    if (!identitiesFailed) return null
+    return (
+      <div className="app">
+        <main className="main">
+          <div className="main-inner" style={{ maxWidth: 420, margin: '0 auto', paddingTop: 48, textAlign: 'center' }}>
+            <h1 style={{ margin: '0 0 8px' }}>Can't reach 545 Coach</h1>
+            <p className="lede" style={{ margin: '0 auto 16px' }}>
+              You're still signed in. This device couldn't get through to the server: check your signal and try again.
+            </p>
+            <button className="primary" onClick={() => { setIdentitiesFailed(false); refreshIdentities() }}>Try again</button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   if (!identities.athlete && !identities.coach) {
     return (

@@ -2,6 +2,7 @@ import type { Bout } from './types'
 import { boutPhotoBlob } from './db'
 import { devModeOn } from './dev'
 import { supabase } from './supabase'
+import { currentUserId } from './auth'
 
 /**
  * Anonymous target contributions, to improve automatic hole detection.
@@ -98,11 +99,6 @@ export interface Contribution {
   since: string | null
 }
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 export async function getContribution(): Promise<Contribution> {
   const { data, error } = await supabase

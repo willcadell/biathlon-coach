@@ -44,7 +44,9 @@ function Feature({
   )
 }
 
-export function SignInView() {
+/** `notice` explains why someone is looking at this screen when they didn't
+ *  choose to be: their session ended on its own. */
+export function SignInView({ notice }: { notice?: string }) {
   const [pending, setPending] = useState<Role | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,6 +87,7 @@ export function SignInView() {
           </div>
 
           <div style={{ maxWidth: 420, width: '100%', margin: '0 auto' }}>
+            {notice && <div className="notice" role="status" style={{ marginBottom: 14 }}>{notice}</div>}
             <Feature
               icon={<TargetIcon />}
               title="Log every bout"

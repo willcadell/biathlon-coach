@@ -1,12 +1,8 @@
 import { supabase } from './supabase'
 import { toBout, toMetalBout, toWorkout, type BoutRow, type ClickRow, type CoachNoteRow, type MetalRow, type WorkoutRow } from './db'
 import type { Bout, CoachNote, MetalBout, Workout } from './types'
+import { currentUserId } from './auth'
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 export interface Coach {
   id: string

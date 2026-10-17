@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Club } from './coaching'
+import { currentUserId } from './auth'
 
 /**
  * The platform admin: the operator of the app, who can look at any club
@@ -10,11 +11,6 @@ import type { Club } from './coaching'
  * this file, decides what it can read.
  */
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 export async function amPlatformAdmin(): Promise<boolean> {
   const { data, error } = await supabase.rpc('i_am_platform_admin')

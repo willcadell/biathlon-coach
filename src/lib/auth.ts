@@ -1,14 +1,23 @@
 import type { Session } from '@supabase/supabase-js'
 import { DEV_MODE_KEY, supabase } from './supabase'
 
+/** Set by signOut() so the sign-in screen can tell "you pressed Sign out" from
+ *  "your session ended on its own" and say so. */
+let signOutRequested = false
+
 /**
  * Fires immediately with whatever session already exists (or null), then
  * again on every sign-in/sign-out/token-refresh. Callers don't need to call
- * getSession() themselves first.
+ * getSession() themselves first. The second argument is true only when the
+ * session ended without the person asking (expired, revoked elsewhere).
  */
-export function onAuthChange(cb: (session: Session | null) => void): () => void {
-  void supabase.auth.getSession().then(({ data }) => cb(data.session))
-  const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => cb(session))
+export function onAuthChange(cb: (session: Session | null, endedUnexpectedly: boolean) => void): () => void {
+  void supabase.auth.getSession().then(({ data }) => cb(data.session, false))
+  const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const unexpected = event === 'SIGNED_OUT' && !signOutRequested
+    if (event === 'SIGNED_OUT') signOutRequested = false
+    cb(session, unexpected)
+  })
   return () => sub.subscription.unsubscribe()
 }
 
@@ -19,10 +28,30 @@ export function signInWithGoogle() {
   })
 }
 
+/** Signs out of THIS device only. supabase-js signs out everywhere by default,
+ *  which meant pressing Sign out on a laptop ended the session on the phone
+ *  too, in the middle of whatever the phone was doing. */
 export function signOut() {
   // Dev mode is tied to the tab, so leave it behind with the account.
   try { sessionStorage.removeItem(DEV_MODE_KEY) } catch { /* nothing to clear */ }
-  return supabase.auth.signOut()
+  signOutRequested = true
+  return supabase.auth.signOut({ scope: 'local' })
+}
+
+/** The signed-in person's id, read from the session on this device. It does
+ *  not ask the auth server: getUser() makes a network call every time, which
+ *  fails with no signal at the range, and signs the person out if the server
+ *  answers that the session is gone. Row-level security checks the token on
+ *  the server for every query anyway, so the id here is only for addressing. */
+export async function currentUserIdOrNull(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user.id ?? null
+}
+
+export async function currentUserId(): Promise<string> {
+  const id = await currentUserIdOrNull()
+  if (!id) throw new Error('Not signed in')
+  return id
 }
 
 const ROLE_INTENT_KEY = 'biathlon-coach:role-intent'

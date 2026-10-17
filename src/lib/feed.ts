@@ -181,10 +181,7 @@ export async function deleteFeedPost(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function currentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
-}
+export { currentUserIdOrNull as currentUserId } from './auth'
 
 /** The clubs the signed-in athlete belongs to — null until loaded, so callers
  *  can tell "still checking" from "in no club". */

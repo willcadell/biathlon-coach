@@ -1,14 +1,10 @@
 import { supabase } from './supabase'
 import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
+import { currentUserId as currentAthleteId } from './auth'
 
 const BUCKET = 'target-photos'
 
-async function currentAthleteId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 // --- Workouts ---
 

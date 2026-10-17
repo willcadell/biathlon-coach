@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { evaluateProgramGoal, type Goal, type GoalMetric, type GoalProgress, type NewGoal, type ProgramAggregate } from './goalProgress'
 import type { Position } from './types'
+import { currentUserId } from './auth'
 
 export * from './goalProgress'
 
@@ -42,11 +43,6 @@ const toGoal = (r: GoalRow): Goal => ({
 
 const COLUMNS = 'id, scope, program_id, metric, position, target, starts_on, ends_on, shared, achieved_at, achieved_value, archived_at, celebrated_at, created_at'
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) throw new Error('Not signed in')
-  return data.user.id
-}
 
 /** The signed-in athlete's own goals. Scoped to them on purpose, same as the
  *  workout loaders: a coach can also read the goals their athletes shared, and
