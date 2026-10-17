@@ -12,57 +12,323 @@
       "number": 1,
       "date": "2024-01",
       "doi": "10.71006/ayug8222",
-      "shooting": [],
-      "note": "Not checked."
+      "path": "journal-issue-1-January-2024",
+      "articles": [
+        {
+          "title": "Role of Core Stability in Biathlon Shooting",
+          "doi": "10.71006/nbxe9687",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006nbxe9687",
+          "issuuDoc": "jobc_issue1_nbxe9687",
+          "relevance": "shooting",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Siegfried Mazet speaks about Race Preparation",
+          "doi": "10.71006/qigu2910",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006qigu2910",
+          "issuuDoc": "jobc_issue1_qigu2910",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Ready, Set, Go! Mental Preparation for Competitions",
+          "doi": "10.71006/ksrw3471",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006ksrw3471",
+          "issuuDoc": "jobc_issue1_ksrw3471",
+          "relevance": "mental",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Pacing Patterns in Biathlon Sprints",
+          "doi": "10.71006/frcm6639",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006frcm6639",
+          "issuuDoc": "jobc_issue1_frcm6639",
+          "relevance": "maybe",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Fueling on Competition Days",
+          "doi": "10.71006/ybis8636",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006ybis8636",
+          "issuuDoc": "jobc_issue1_ybis8636",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Sleep - A Main Pillar of Recovery",
+          "doi": "10.71006/rnhy7510",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-1-January-2024/article/journal-article-10.71006rnhy7510",
+          "issuuDoc": "jobc_issue1_rnhy7510",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        }
+      ]
     },
     {
       "number": 2,
       "date": "2024-07",
       "doi": "10.71006/ehfa5359",
-      "shooting": [],
-      "note": "Not checked."
+      "path": "journal-issue-2-july-2024",
+      "articles": [
+        {
+          "title": "Optimising biathlon standing shooting: insights into aiming strategies",
+          "doi": "10.71006/dhfa7074",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006dhfa7074",
+          "issuuDoc": "jobc_issue2_10.71006dhfa7074",
+          "relevance": "shooting",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Coaching the female biathlete",
+          "doi": "10.71006/pere2823",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006pere2823",
+          "issuuDoc": "jobc_issue2_10.71006pere2823",
+          "relevance": "maybe",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Sandra Flunger speaks about Swiss team preparation for Milano Cortina 2026",
+          "doi": "10.71006/czhe1498",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006czhe1498",
+          "issuuDoc": "jobc_issue2_10.71006czhe1498_",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Altitude preparations for the biathlon events at the Olympics Milano Cortina 2026",
+          "doi": "10.71006/jxfy5600",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006jxfy5600",
+          "issuuDoc": "jobc_issue2_10.71006jxfy5600_",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Athlete monitoring - the foundation for informed decision-making",
+          "doi": "10.71006/vrpv5594",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006vrpv5594",
+          "issuuDoc": "jobc_issue2_10.71006vrpv5594",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "The impact of pole length on performance",
+          "doi": "10.71006/aogc9524",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-2-july-2024/article/journal-article-10.71006aogc9524",
+          "issuuDoc": "jobc_issue2_10.71006aogc9524_",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        }
+      ]
     },
     {
       "number": 3,
       "date": "2025-01",
       "doi": "10.71006/mois6946",
-      "shooting": [],
-      "note": "Not checked."
+      "path": "journal-issue-3-january-2025",
+      "articles": [
+        {
+          "title": "Attentional processes in biathlon shooting",
+          "doi": "10.71006/yftc5525",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-3-january-2025/article/journal-article-10.71006yftc5525",
+          "issuuDoc": "jobc_issue3_10.71006yftc5525",
+          "relevance": "shooting",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Tapering and peaking for biathlon competition",
+          "doi": "10.71006/skip4500",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-3-january-2025/article/journal-article-10.71006skip4500",
+          "issuuDoc": "jobc_issue3_10.71006skip4500",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Jonne Kahkonen speaks about his coaching philosophy",
+          "doi": "10.71006/fohg4997",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-3-january-2025/article/journal-article-10.71006fohg4997",
+          "issuuDoc": "jobc_issue3_10.71006fohg4997",
+          "relevance": "maybe",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Mental health in biathlon: the role of the coach",
+          "doi": "10.71006/nhxm2603",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-3-january-2025/article/journal-article-10.71006nhxm2603",
+          "issuuDoc": "jobc_issue3_10.71006nhxm2603",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Underperformance syndrome in endurance sports",
+          "doi": "10.71006/cqes5160",
+          "url": "https://www.ibuacademy.com/science/journal/journal-issue-3-january-2025/article/journal-article-10.71006cqes5160",
+          "issuuDoc": "jobc_issue3_10.71006cqes5160",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        }
+      ]
     },
     {
       "number": 4,
       "date": "2025-09",
       "doi": "10.71006/kiyo8609",
-      "shooting": [],
-      "note": "Not checked."
+      "path": "issue-4-september-2025",
+      "articles": [
+        {
+          "title": "Training progression from junior to senior levels in biathlon",
+          "doi": "10.71006/sgmv2318",
+          "url": "https://www.ibuacademy.com/science/journal/issue-4-september-2025/article/journal-article-10.71006sgmv2318",
+          "issuuDoc": "jobc_issue4_10.71006_sgmv2318",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Sverre Roiseland speaks about the Olympics Milano Cortina 2026",
+          "doi": "10.71006/hunx8891",
+          "url": "https://www.ibuacademy.com/science/journal/issue-4-september-2025/article/journal-article-10.71006hunx8891",
+          "issuuDoc": "jobc_issue4_10.71006_hunx8891",
+          "relevance": "maybe",
+          "status": "unread",
+          "note": ""
+        }
+      ]
     },
     {
       "number": 5,
       "date": "2026-02",
       "doi": "10.71006/rvor6290",
-      "shooting": [],
-      "note": "Not checked."
+      "path": "issue-5-february-2026",
+      "articles": [
+        {
+          "title": "Breathing patterns in biathlon shooting: Stability as the key to accuracy",
+          "doi": "10.71006/pmcs3564",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006pmcs3564",
+          "issuuDoc": "jobc_issue5_10.71006_pmcs3564",
+          "relevance": "shooting",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Performance determinants across different biathlon competitions",
+          "doi": "10.71006/trnn7439",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006trnn7439",
+          "issuuDoc": "jobc_issue5_10.71006_trnn7439",
+          "relevance": "shooting",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Christophe Vassallo speaks about the success factors of the French Biathlon Team",
+          "doi": "10.71006/febo4449",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006febo4449",
+          "issuuDoc": "jobc_issue5_10.71006_febo4449",
+          "relevance": "maybe",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Day-to-Day training load management in biathlon",
+          "doi": "10.71006/wwpy6967",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006wwpy6967",
+          "issuuDoc": "jobc_issue5_10.71006_wwpy6967",
+          "relevance": "season",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Coach vulnerability",
+          "doi": "10.71006/uejl3175",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006uejl3175",
+          "issuuDoc": "jobc_issue5_10.71006_uejl3175",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        },
+        {
+          "title": "Soft skills - hard impact",
+          "doi": "10.71006/ztdg2875",
+          "url": "https://www.ibuacademy.com/science/journal/issue-5-february-2026/article/journal-article-10.71006ztdg2875",
+          "issuuDoc": "jobc_issue5_10.71006_ztdg2875",
+          "relevance": "none",
+          "status": "unread",
+          "note": ""
+        }
+      ]
     },
     {
       "number": 6,
       "date": "2026-06",
       "doi": null,
-      "shooting": [
-        {
-          "title": "From research to practice: Optimising shooting performance in elite biathlon",
-          "authors": "Koykka, Sattlecker, Laaksonen",
-          "doi": "10.71006/VDOL4813",
-          "url": "https://www.ibuacademy.com/science/journal/issue-6-june-2026/article/journal-article-10.71006VDOL4813",
-          "published": "2026-06-30",
-          "status": "read",
-          "reason": "The journal site shows only the abstract; the full text (6 pages, pp. 28-33) was read from the Issuu copy on 2026-10-17.",
-          "abstractGist": "Interviews with five experienced international coaches on technique, periodising shooting training, range approach and venue preparation. Themes: individualise; keep the core technique constant while adapting breathing to intensity; treat the range approach as a skill of its own.",
-          "readFrom": "https://issuu.com/biathlonworld/docs/ibu_jobc_issue_6_july_2026_journal-_556c0beddf815f"
-        }
-      ],
       "proposal": "proposals/2026-10-issue-6.md",
       "issueDoi": "10.71006/BBFH5417",
-      "issueDoiNote": "Did not resolve on 2026-10-17."
+      "issueDoiNote": "Did not resolve on 2026-10-17.",
+      "path": "issue-6-june-2026",
+      "articles": [
+        {
+          "title": "From research to practice: Optimising shooting performance in elite biathlon",
+          "doi": "10.71006/VDOL4813",
+          "relevance": "shooting",
+          "status": "read",
+          "issuuDoc": "ibu_jobc_issue_6_july_2026_journal-_556c0beddf815f",
+          "proposal": "proposals/2026-10-issue-6.md"
+        },
+        {
+          "title": "From Preparation to Performance: Jean-Marc Chabloz lessons from Milano Cortina",
+          "doi": "10.71006/HHGV1360",
+          "relevance": "season",
+          "status": "unread"
+        },
+        {
+          "title": "The Evolution of Biathlon Training: Lessons Learned from the 2026 Winter Olympics",
+          "doi": "10.71006/XXGP7986",
+          "relevance": "season",
+          "status": "unread"
+        },
+        {
+          "title": "Altitude preparation for the Olympic biathlon competitions: Lessons from Antholz 2026",
+          "doi": "10.71006/LJHU3371",
+          "relevance": "season",
+          "status": "unread"
+        },
+        {
+          "title": "Coaching inside out: Why mindfulness matters",
+          "doi": "10.71006/DVZR7371",
+          "relevance": "mental",
+          "status": "unread"
+        },
+        {
+          "title": "Alpes 2023 - The Olympic venue",
+          "doi": "10.71006/DAIA5913",
+          "relevance": "none",
+          "status": "unread"
+        }
+      ]
     }
-  ]
+  ],
+  "issuuPattern": {
+    "howFound": "Each article page on ibuacademy.com embeds an Issuu reader. The Issuu document name is in the page HTML: embed.html?d=<issuuDoc>&u=biathlonworld. A plain fetch of the article page is enough.",
+    "docPage": "https://issuu.com/biathlonworld/docs/<issuuDoc>",
+    "pageImages": "https://image.isu.pub/<doc-id>/jpg/page_<n>.jpg, where <doc-id> is in the doc page og:image tag. Pages are 2115x2990 JPEGs; each article is a short document (about 6 pages).",
+    "slugPatterns": "Issues 1-5: jobc_issue<n>_<doi-suffix> (issue 1 has no 10.71006_ part). Issue 6: ibu_jobc_issue_6_july_2026_journal-_<hash> (read it from the page, it cannot be guessed).",
+    "issuePagePaths": "Issue 1: journal-issue-1-January-2024; 2: journal-issue-2-july-2024; 3: journal-issue-3-january-2025; 4: issue-4-september-2025; 5: issue-5-february-2026; 6: issue-6-june-2026. Take them from the /science/journal index.",
+    "publisherPage": "https://issuu.com/biathlonworld lists IBU documents (activity reports, guides, the exercise catalogue) but not the per-article journal documents."
+  }
 }

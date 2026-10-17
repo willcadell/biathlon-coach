@@ -38,8 +38,9 @@ It finds and summarises; a person decides what ships.
    article links on the issue page. Some article pages show only the abstract: if
    no full text or PDF is linked, record `status: "abstract only"` and use the
    abstract, saying clearly that the full text was not read.
-   The full text may be on Issuu (search the IBU's Issuu page, `issuu.com/biathlonworld`,
-   for the article's DOI). Issuu does not expose text, but each page is an image at
+   The full text is on Issuu: each article page embeds the Issuu reader, and its document
+   name is in the page HTML (`embed.html?d=<name>&u=biathlonworld`). See `issuuPattern` in
+   `tracker.json`, which also lists every article found so far with its document name. Issuu does not expose text, but each page is an image at
    `https://image.isu.pub/<doc-id>/jpg/page_<n>.jpg`, where `<doc-id>` is in the
    document page's `og:image` meta tag. Open the page images in the browser and read
    them (a tall viewport, about 1100x1560, makes them legible).
