@@ -649,13 +649,13 @@ export function AnalysisView({
         headerExtraBelow
         titleExtra={shootingDirection && (
           <span className="meta" style={{ margin: 0 }}>
-            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>.
+            {readOnly && 'Shoots '}<strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>
             {!readOnly && (
               <>
-                {' '}You can change this in{' '}
+                {' · '}
                 {onOpenSettings
                   ? <button className="link" onClick={onOpenSettings}>Settings</button>
-                  : 'Settings'}.
+                  : 'Settings'}
               </>
             )}
           </span>
