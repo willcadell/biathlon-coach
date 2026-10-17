@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import type { Bout, MetalBout, MetalTarget, RaceType, Settings, ShootingDirection, Workout } from '../lib/types'
+import type { Bout, Finding, MetalBout, MetalTarget, RaceType, Settings, ShootingDirection, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
+import { PageTitle, IBU_LIBRARY_URL } from './LibraryLink'
 import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
+import { analyseMetal, metalWindow } from '../lib/metalAdvice'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
 import { HistoryView } from './HistoryView'
@@ -304,6 +306,25 @@ const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
   return <span style={{ color: colour, display: 'inline-flex' }}><Icon size={22} /></span>
 }
 
+/** One finding: what the data shows, the likely cause, how much it rests on. */
+function FindingCard({ f }: { f: Finding }) {
+  return (
+    <div className={`finding ${f.severity}`}>
+      <div className="badge">
+        <i className="dot" />
+        {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : f.id === 'no_standout' ? 'Nothing flagged' : 'Doing well'}
+      </div>
+      <h3>{f.title}</h3>
+      <p>{f.evidence}</p>
+      <p className="cause">{f.cause}</p>
+      <p className="meta">
+        {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
+        {f.sampleSize === 1 ? '' : 's'}
+      </p>
+    </div>
+  )
+}
+
 export function CollapsibleSection({
   title, icon, defaultOpen = true, headerExtra, headerExtraBelow = false, titleExtra, children,
 }: {
@@ -440,7 +461,12 @@ export function AnalysisView({
   const dryfire = dryfireMinutes(workouts)
 
   const findings = useMemo(() => analyse(recent, settings, workouts), [recent, settings, workouts])
-  const plan = useMemo(() => recommend(findings), [findings])
+  const metalFindings = useMemo(
+    () => analyseMetal({ bouts: metalBouts, workouts, direction: shootingDirection }),
+    [metalBouts, workouts, shootingDirection],
+  )
+  const metalRead = useMemo(() => metalWindow(metalBouts), [metalBouts])
+  const plan = useMemo(() => recommend([...findings, ...metalFindings]), [findings, metalFindings])
 
   // Most recent N bouts for that position specifically, not a day-based
   // window — a coach checking in monthly wants "the last 10 I actually
@@ -488,7 +514,7 @@ export function AnalysisView({
   if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
     return (
       <>
-        {!readOnly && <h1>Analysis</h1>}
+        {!readOnly && <PageTitle>Analysis</PageTitle>}
         <div className="empty">
           <p>Nothing to analyse yet.</p>
           <p className="meta">
@@ -511,11 +537,11 @@ export function AnalysisView({
   return (
     <>
       {/* A coach is already under the athlete's name, so "Analysis" would only repeat it. */}
-      {!readOnly && <h1>Analysis</h1>}
+      {!readOnly && <PageTitle>Analysis</PageTitle>}
 
       {/* The advice reads every kind of shooting, so it sits under the page title
           rather than inside Precision. */}
-      {recent.length > 0 && (
+      {(recent.length > 0 || metalFindings.length > 0) && (
         <CollapsibleSection title="Shooting advice" icon={<AppMark />}>
           {thin && (
             <div className="notice">
@@ -524,34 +550,42 @@ export function AnalysisView({
             </div>
           )}
 
-          <h3 style={{ marginTop: 0 }}>
-            What your groups are saying
-            <Help>
-              This reads your target photos and nothing else. It cannot see your position, your
-              breathing or your skis, and it is no substitute for a coach watching you shoot — but it
-              will tell you which question to ask one.
-            </Help>
-          </h3>
-          <p className="lede" style={{ marginTop: -6 }}>
-            {stale
-              ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
-              : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
-          </p>
-          {findings.map((f, i) => (
-            <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
-              <div className="badge">
-                <i className="dot" />
-                {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : f.id === 'no_standout' ? 'Nothing flagged' : 'Doing well'}
-              </div>
-              <h3>{f.title}</h3>
-              <p>{f.evidence}</p>
-              <p className="cause">{f.cause}</p>
-              <p className="meta">
-                {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
-                {f.sampleSize === 1 ? '' : 's'}
+          {recent.length > 0 && (
+            <>
+              <h3 style={{ marginTop: 0 }}>
+                What your groups are saying
+                <Help>
+                  This reads your target photos. It cannot see your position, your breathing or your skis, and it
+                  is no substitute for a coach watching you shoot — but it will tell you which question to ask one.
+                </Help>
+              </h3>
+              <p className="lede" style={{ marginTop: -6 }}>
+                {stale
+                  ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
+                  : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
               </p>
-            </div>
-          ))}
+              {findings.map((f, i) => <FindingCard key={`${f.id}-${i}`} f={f} />)}
+            </>
+          )}
+
+          {metalFindings.length > 0 && (
+            <>
+              <h3 style={{ marginTop: recent.length > 0 ? 20 : 0 }}>
+                What your metal shooting is saying
+                <Help>
+                  This reads which discs you hit, in which position and under what load. It cannot see how a shot
+                  was released or where a miss went, so it points at steadiness and timing and leaves the rest to a coach.
+                  Rules about your first and last shots need your shooting direction, set in Settings.
+                </Help>
+              </h3>
+              <p className="lede" style={{ marginTop: -6 }}>
+                {metalRead.stale
+                  ? `Built from your ${metalRead.bouts.length} most recent metal bouts, older than the ${WINDOW_DAYS}-day window this read normally uses.`
+                  : `Built from your last ${metalRead.bouts.length} metal bout${metalRead.bouts.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
+              </p>
+              {metalFindings.map((f, i) => <FindingCard key={`${f.id}-${i}`} f={f} />)}
+            </>
+          )}
 
           {plan.length > 0 && (
             <>
@@ -586,6 +620,15 @@ export function AnalysisView({
               ))}
             </>
           )}
+
+          <p className="meta" style={{ marginTop: 20, marginBottom: 0 }}>
+            <a
+              href={IBU_LIBRARY_URL} target="_blank" rel="noopener noreferrer"
+              style={{ color: 'var(--series-1)', textDecoration: 'underline' }}
+            >
+              Want to know more?
+            </a>
+          </p>
         </CollapsibleSection>
       )}
 

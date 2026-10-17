@@ -203,6 +203,16 @@ export function AppMark({ size = 22 }: { size?: number }) {
   )
 }
 
+/** An open book: the IBU coaching library. */
+export function BookOpenIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
+      <path d="M12 6.5C10.2 5.2 7.6 4.6 4 4.8v12.6c3.6-.2 6.2.4 8 1.7 1.8-1.3 4.4-1.9 8-1.7V4.8c-3.6-.2-6.2.4-8 1.7z" />
+      <path d="M12 6.5v12.6" />
+    </svg>
+  )
+}
+
 export function RangeIcon({ size = 26 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">

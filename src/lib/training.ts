@@ -53,7 +53,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '3× per week, dry',
-    addresses: ['vertical_stringing', 'fatigue_drift'],
+    addresses: ['vertical_stringing', 'fatigue_drift', 'metal_scattered', 'metal_late_discs', 'metal_intensity_drop'],
     dryFire: true,
   },
   {
@@ -69,7 +69,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 10,
     frequency: 'Before every single bout, and 3× per week as a drill',
-    addresses: ['horizontal_stringing', 'unstable_npa', 'fatigue_drift'],
+    addresses: ['horizontal_stringing', 'unstable_npa', 'fatigue_drift', 'metal_one_disc'],
     dryFire: true,
   },
   {
@@ -134,7 +134,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: 'Every live session',
-    addresses: ['flier', 'trigger_bias', 'vertical_stringing', 'no_standout'],
+    addresses: ['flier', 'trigger_bias', 'vertical_stringing', 'no_standout', 'metal_late_discs', 'metal_miss_streaks'],
     dryFire: false,
   },
   {
@@ -150,7 +150,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '3–4× per week, dry',
-    addresses: ['wide_group', 'standing_gap', 'horizontal_stringing', 'no_standout'],
+    addresses: ['wide_group', 'standing_gap', 'horizontal_stringing', 'no_standout', 'metal_standing_gap', 'metal_scattered', 'metal_late_discs'],
     dryFire: true,
   },
   {
@@ -166,7 +166,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '2–3× per week if standing is a weak point, otherwise weekly',
-    addresses: ['wide_group', 'standing_gap'],
+    addresses: ['wide_group', 'standing_gap', 'metal_standing_gap', 'metal_standing_volume'],
     dryFire: true,
   },
   {
@@ -183,7 +183,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '2× per week, dry',
-    addresses: ['wide_group', 'fatigue_drift'],
+    addresses: ['wide_group', 'fatigue_drift', 'metal_scattered'],
     dryFire: true,
   },
   {
@@ -200,7 +200,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '2× per week, dry',
-    addresses: ['vertical_stringing', 'wide_group'],
+    addresses: ['vertical_stringing', 'wide_group', 'metal_scattered'],
     dryFire: true,
   },
   {
@@ -232,7 +232,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 20,
     frequency: '3× per week, dry',
-    addresses: ['unstable_npa', 'fatigue_drift', 'standing_gap', 'no_standout'],
+    addresses: ['unstable_npa', 'fatigue_drift', 'standing_gap', 'no_standout', 'metal_one_disc', 'metal_standing_gap'],
     dryFire: true,
   },
   {
@@ -248,7 +248,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 30,
     frequency: '2× per week',
-    addresses: ['cold_first_shot', 'unstable_npa'],
+    addresses: ['cold_first_shot', 'unstable_npa', 'metal_first_disc', 'metal_intensity_drop'],
     dryFire: false,
   },
   {
@@ -264,7 +264,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 60,
     frequency: '1–2× per week',
-    addresses: ['cold_first_shot', 'standing_gap', 'solid'],
+    addresses: ['cold_first_shot', 'standing_gap', 'solid', 'metal_first_disc', 'metal_intensity_drop', 'metal_race_gap'],
     dryFire: false,
   },
   {
@@ -280,7 +280,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 30,
     frequency: '4-week block',
-    addresses: ['standing_gap', 'wide_group'],
+    addresses: ['standing_gap', 'wide_group', 'metal_standing_gap', 'metal_standing_volume'],
     dryFire: true,
   },
   {
@@ -296,7 +296,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 10,
     frequency: 'Every session for two weeks',
-    addresses: ['flier', 'cold_first_shot'],
+    addresses: ['flier', 'cold_first_shot', 'metal_first_disc', 'metal_late_discs', 'metal_miss_streaks', 'metal_race_gap'],
     dryFire: true,
   },
   {
@@ -311,7 +311,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 45,
     frequency: '1× per week',
-    addresses: ['solid'],
+    addresses: ['solid', 'metal_race_gap'],
     dryFire: false,
   },
 ]

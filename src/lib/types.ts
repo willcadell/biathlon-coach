@@ -383,6 +383,16 @@ export type FindingId =
   | 'wind_sensitivity'
   | 'early_signs'
   | 'no_standout'
+  // Metal findings: where in a bout, in which position and under what load the misses fall.
+  | 'metal_standing_gap'
+  | 'metal_standing_volume'
+  | 'metal_one_disc'
+  | 'metal_scattered'
+  | 'metal_late_discs'
+  | 'metal_first_disc'
+  | 'metal_miss_streaks'
+  | 'metal_intensity_drop'
+  | 'metal_race_gap'
   | 'solid'
 
 export interface Finding {

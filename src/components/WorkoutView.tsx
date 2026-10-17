@@ -14,6 +14,7 @@ import { PersonalCoachRequests } from './PersonalCoachRequests'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
+import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
@@ -774,7 +775,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
     return (
       <>
         <PersonalCoachRequests />
-        <h1>Start a session</h1>
+        <PageTitle>Start a session</PageTitle>
         <p className="lede">
           A range session holds any number of precision and metal bouts, with wind and clicks
           logged once for the whole session. A dry-fire session just tracks time and notes.

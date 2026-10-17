@@ -10,6 +10,7 @@ import {
 import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
+import { analyseMetal, metalWindow } from '../src/lib/metalAdvice.ts'
 import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../src/lib/seasonPhase.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
@@ -178,6 +179,72 @@ f = analyse(gap, DEFAULT_SETTINGS)
 ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.id).join(','))
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
+
+// --- Metal advice: stability and timing from which discs fall.
+// A pattern string is five letters in the order alpha..echo: H hit, M miss.
+const mbout = (position: Position, pattern: string, daysAgo = 1, workoutId = 'wm', heartRate = 0): MetalBout => ({
+  kind: 'metal', id: crypto.randomUUID(), workoutId,
+  shotAt: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+  position, heartRate, comboId: null, targetZone: null,
+  hits: Object.fromEntries(METAL_TARGETS.map((t, i) => [t, pattern[i] === 'H'])) as Record<MetalTarget, boolean>,
+})
+const many = (n: number, make: (i: number) => MetalBout) => Array.from({ length: n }, (_, i) => make(i))
+const idsOf = (bs: MetalBout[], dir: 'alpha_to_echo' | 'echo_to_alpha' | 'unknown' = 'alpha_to_echo', ws: Workout[] = []) =>
+  analyseMetal({ bouts: bs, workouts: ws, direction: dir === 'unknown' ? undefined : dir }).map((x) => x.id)
+
+const clean = [...many(12, (i) => mbout('prone', 'HHHHH', i + 1)), ...many(12, (i) => mbout('standing', 'HHHHH', i + 1))]
+ok('clean metal shooting gets no metal advice', idsOf(clean).length === 0, idsOf(clean).join())
+
+const gapBouts = [...many(7, (i) => mbout('prone', 'HHHHH', i + 1)), ...many(7, (i) => mbout('standing', 'HHMHM', i + 1))]
+ok('standing far behind prone is flagged', idsOf(gapBouts).includes('metal_standing_gap'), idsOf(gapBouts).join())
+ok('standing gap this big is a priority', analyseMetal({ bouts: gapBouts, workouts: [], direction: 'alpha_to_echo' }).find((x) => x.id === 'metal_standing_gap')?.severity === 'priority')
+ok('standing gap stays quiet on too few bouts', !idsOf([...many(5, (i) => mbout('prone', 'HHHHH', i + 1)), ...many(5, (i) => mbout('standing', 'HHMHM', i + 1))]).includes('metal_standing_gap'))
+
+const volume = [...many(9, (i) => mbout('prone', 'HHHHH', i + 1)), ...many(2, (i) => mbout('standing', 'HHHHH', i + 1))]
+ok('far fewer standing than prone bouts is flagged', idsOf(volume).includes('metal_standing_volume'), idsOf(volume).join())
+ok('prone-only shooting is not nagged about standing volume', !idsOf(many(10, (i) => mbout('prone', 'HHHHH', i + 1))).includes('metal_standing_volume'))
+
+const oneDisc = many(10, (i) => mbout('prone', 'HHMHH', i + 1))
+const oneIds = idsOf(oneDisc)
+ok('one disc missed every time is named', oneIds.includes('metal_one_disc') && !oneIds.includes('metal_scattered'), oneIds.join())
+ok('and the disc is Charlie', analyseMetal({ bouts: oneDisc, workouts: [], direction: undefined }).some((x) => x.title.startsWith('Charlie')))
+
+const scattered = many(12, (i) => {
+  const pat = ['H', 'H', 'H', 'H', 'H']
+  pat[i % 5] = 'M'
+  pat[(i + 2) % 5] = 'M'
+  return mbout('prone', pat.join(''), i + 1)
+})
+const scIds = idsOf(scattered)
+ok('misses spread over every disc read as steadiness', scIds.includes('metal_scattered') && !scIds.includes('metal_one_disc'), scIds.join())
+
+const late = many(10, (i) => mbout('prone', i < 7 ? 'HHHMM' : 'HHHHH', i + 1))
+ok('late-disc misses are flagged for alpha to echo', idsOf(late, 'alpha_to_echo').includes('metal_late_discs'), idsOf(late, 'alpha_to_echo').join())
+ok('two discs at the end are not reported as one disc', !idsOf(late, 'alpha_to_echo').includes('metal_one_disc'))
+ok('end-of-bout misses are not also reported as streaks', !idsOf(late, 'alpha_to_echo').includes('metal_miss_streaks'))
+ok('the same bouts read as first-disc misses for echo to alpha', idsOf(late, 'echo_to_alpha').includes('metal_first_disc') && !idsOf(late, 'echo_to_alpha').includes('metal_late_discs'), idsOf(late, 'echo_to_alpha').join())
+ok('firing order unknown: first and last shot rules stay silent', !idsOf(late, 'unknown').some((id) => id === 'metal_late_discs' || id === 'metal_first_disc' || id === 'metal_miss_streaks'), idsOf(late, undefined).join())
+
+const streaks = [...many(6, (i) => mbout('prone', 'MMMMM', i + 1)), ...many(6, (i) => mbout('prone', 'HHHHH', i + 7))]
+ok('a miss followed by more misses is flagged', idsOf(streaks).includes('metal_miss_streaks'), idsOf(streaks).join())
+
+const hr = [...many(6, (i) => mbout('prone', 'HHHHH', i + 1, 'wm', 120)), ...many(6, (i) => mbout('standing', 'HHMMH', i + 1, 'wm', 170))]
+ok('hit rate falling at high heart rate is flagged', idsOf(hr).includes('metal_intensity_drop'), idsOf(hr).join())
+ok('no heart rates recorded means no heart rate advice', !idsOf(gapBouts).includes('metal_intensity_drop'))
+
+const plainWorkout = (id: string): Workout => ({
+  id, startedAt: new Date().toISOString(), name: '', workoutType: 'range', wind: 'none', windDirection: '3', clickLog: [], notes: '', coachNotes: [], raceType: null, dryfireMinutes: 0,
+})
+const raceWorkout: Workout = { ...plainWorkout('wr'), raceType: 'sprint' }
+const rangeWorkout = plainWorkout('wm')
+const raceBouts = [...many(6, (i) => mbout('prone', 'HHMMH', i + 1, 'wr')), ...many(6, (i) => mbout('prone', 'HHHHH', i + 1, 'wm'))]
+ok('race hit rate well under range is flagged', idsOf(raceBouts, 'alpha_to_echo', [raceWorkout, rangeWorkout]).includes('metal_race_gap'))
+ok('without workouts to say which are races, no race advice', !idsOf(raceBouts, 'alpha_to_echo', []).includes('metal_race_gap'))
+
+const old = many(10, (i) => mbout('prone', 'HHMHH', 200 + i))
+ok('after a long break the most recent bouts are still read', metalWindow(old).stale && metalWindow(old).bouts.length === 10 && idsOf(old).includes('metal_one_disc'))
+ok('no metal bouts, no metal advice', idsOf([]).length === 0)
+ok('metal findings map to drills', recommend(analyseMetal({ bouts: gapBouts, workouts: [], direction: 'alpha_to_echo' })).some((r) => r.drill.addresses.includes('metal_standing_gap')))
 
 // --- Season phase, from the month alone.
 const phases: SeasonPhase[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => seasonPhase(new Date(2026, m - 1, 15)))
