@@ -11,9 +11,11 @@ export function LibraryLink() {
       href={IBU_LIBRARY_URL} target="_blank" rel="noopener noreferrer"
       aria-label="IBU library of coaching articles (opens in a new tab)"
       title="IBU library of coaching articles"
-      style={{ color: 'var(--text-secondary)', display: 'inline-flex', flex: 'none', padding: 4 }}
+      // Set up like the Profile cog's button (inline-block, inherited font), so the two
+      // icons sit at exactly the same height beside their titles.
+      style={{ color: 'var(--text-secondary)', display: 'inline-block', font: 'inherit', textDecoration: 'none', flex: 'none', padding: 0 }}
     >
-      <BookOpenIcon size={24} />
+      <BookOpenIcon size={22} />
     </a>
   )
 }
@@ -21,8 +23,10 @@ export function LibraryLink() {
 /** A page title with the library link at its right. */
 export function PageTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <h1>{children}</h1>
+    // Laid out like the Profile title and its cog: the h1 has no margin of its own
+    // here, so the icon centres on the text; the 4px it normally has sits on the row.
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
+      <h1 style={{ margin: 0 }}>{children}</h1>
       <LibraryLink />
     </div>
   )
