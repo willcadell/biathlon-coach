@@ -305,20 +305,24 @@ const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
 }
 
 export function CollapsibleSection({
-  title, icon, defaultOpen = true, headerExtra, children,
+  title, icon, defaultOpen = true, headerExtra, headerExtraBelow = false, titleExtra, children,
 }: {
   title: string
   /** Shown before the title, e.g. a session kind's icon. */
   icon?: React.ReactNode
   defaultOpen?: boolean
   headerExtra?: React.ReactNode
+  /** Put headerExtra on its own row under the title instead of beside it. */
+  headerExtraBelow?: boolean
+  /** Small text alongside the title, shown only while the section is open. */
+  titleExtra?: React.ReactNode
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 12, rowGap: 6, marginTop: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, rowGap: 2, minWidth: 0 }}>
           {icon}
           <h2 style={{ margin: 0 }}>{title}</h2>
           <button
@@ -329,8 +333,10 @@ export function CollapsibleSection({
           >
             <ChevronIcon direction={open ? 'up' : 'down'} />
           </button>
+          {open && titleExtra}
         </div>
-        {open && headerExtra}
+        {open && !headerExtraBelow && headerExtra}
+        {open && headerExtraBelow && headerExtra && <div style={{ flexBasis: '100%', display: 'flex' }}>{headerExtra}</div>}
       </div>
       {open && <div style={{ marginTop: 12 }}>{children}</div>}
     </>
@@ -639,6 +645,21 @@ export function AnalysisView({
         title="Metal"
         icon={sessionIcon('range')}
         defaultOpen={false}
+        // The order the discs are shot sits beside the title; the zone filters get the row below.
+        headerExtraBelow
+        titleExtra={shootingDirection && (
+          <span className="meta" style={{ margin: 0 }}>
+            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>.
+            {!readOnly && (
+              <>
+                {' '}You can change this in{' '}
+                {onOpenSettings
+                  ? <button className="link" onClick={onOpenSettings}>Settings</button>
+                  : 'Settings'}.
+              </>
+            )}
+          </span>
+        )}
         headerExtra={presentZones.length > 0 && (
           <div className="seg" style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {(
@@ -679,20 +700,6 @@ export function AnalysisView({
           </div>
         )}
       >
-        {shootingDirection && (
-          <p className="meta" style={{ marginTop: 0 }}>
-            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>.
-            {!readOnly && (
-              <>
-                {' '}You can change this in{' '}
-                {onOpenSettings
-                  ? <button className="link" onClick={onOpenSettings}>Settings</button>
-                  : 'Settings'}.
-              </>
-            )}
-          </p>
-        )}
-
         <div className="stats">
           <div className="stat range">
             <div className="k">Prone</div>
