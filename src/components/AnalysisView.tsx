@@ -346,6 +346,7 @@ export function AnalysisView({
   readOnly,
   onAddCoachNote,
   shootingDirection,
+  onOpenSettings,
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
@@ -361,6 +362,8 @@ export function AnalysisView({
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
   /** The order this athlete shoots the five discs, once known. Shown under Metal. */
   shootingDirection?: ShootingDirection
+  /** Takes the athlete to Settings, where the shooting direction is changed. */
+  onOpenSettings?: () => void
 }) {
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
@@ -678,9 +681,15 @@ export function AnalysisView({
       >
         {shootingDirection && (
           <p className="meta" style={{ marginTop: 0 }}>
-            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>
-            {shootingDirection === 'alpha_to_echo' ? ' (left to right' : ' (right to left'} looking downrange).
-            {!readOnly && ' You can change this in Settings.'}
+            {readOnly ? 'This athlete shoots' : 'You shoot'} <strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>.
+            {!readOnly && (
+              <>
+                {' '}You can change this in{' '}
+                {onOpenSettings
+                  ? <button className="link" onClick={onOpenSettings}>Settings</button>
+                  : 'Settings'}.
+              </>
+            )}
           </p>
         )}
 

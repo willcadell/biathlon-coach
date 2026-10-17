@@ -465,7 +465,7 @@ function SignedInApp({
               />
             )}
             {tab === 'analysis' && (
-              <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} />
+              <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} onOpenSettings={() => setTab('settings')} />
             )}
             {tab === 'profile' && (
               <ProfileView
