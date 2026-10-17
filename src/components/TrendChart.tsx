@@ -1,11 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Bout, Position, Workout } from '../lib/types'
+import type { Bout, MetalBout, Position, Workout } from '../lib/types'
+import { DISCS_PER_METAL_BOUT, hitsOf, missCount } from '../lib/metal'
 
-export type Metric = 'score' | 'group'
+export type Metric = 'score' | 'group' | 'metal'
+
+/** A bout of either kind: the chart only needs a value, a position and a date. */
+type Entry = Bout | MetalBout
 
 interface Spec {
   /** Value for one bout, on this metric's own scale. */
-  value: (b: Bout) => number
+  value: (b: Entry) => number
+  /** Whether a bigger number is the better one (a score, a hit rate) or the
+   *  smaller (a group's size). */
+  higherIsBetter: boolean
+  /** Fit the axis to the data when it all sits high: for a percentage, where
+   *  65–90% on a 0–100% axis would be squeezed into a fifth of the plot. A size
+   *  has a meaningful zero, so it keeps its baseline. */
+  fitAxis: boolean
+  /** The values column's heading in the table twin, and the unit a change is
+   *  quoted in. */
+  columnLabel: string
   axisMax: number
   tickStep: number
   /** A meaningful line to draw across the plot, or null. */
@@ -21,7 +35,10 @@ interface Spec {
 
 const SPECS: Record<Metric, Spec> = {
   score: {
-    value: (b) => (b.metrics.ringTotal / Math.max(1, b.metrics.ringPossible)) * 100,
+    value: (b) => (b.kind === 'precision' ? (b.metrics.ringTotal / Math.max(1, b.metrics.ringPossible)) * 100 : 0),
+    higherIsBetter: true,
+    fitAxis: true,
+    columnLabel: 'Score',
     axisMax: 100,
     tickStep: 25,
     reference: null,
@@ -32,7 +49,10 @@ const SPECS: Record<Metric, Spec> = {
     format: (v) => `${Math.round(v)}%`,
   },
   group: {
-    value: (b) => b.metrics.meanRadius,
+    value: (b) => (b.kind === 'precision' ? b.metrics.meanRadius : 0),
+    higherIsBetter: false,
+    fitAxis: false,
+    columnLabel: 'Mean radius',
     axisMax: 20,
     tickStep: 5,
     reference: null,
@@ -41,6 +61,21 @@ const SPECS: Record<Metric, Spec> = {
     label: 'Group mean radius in millimetres, one point per workout, split by shooting position',
     tickFormat: (v) => `${Math.round(v)}`,
     format: (v) => `${Math.round(v)} mm`,
+  },
+  metal: {
+    // Discs hit out of five, as a percentage: the same units as the score.
+    value: (b) => (b.kind === 'metal' ? ((DISCS_PER_METAL_BOUT - missCount(hitsOf(b))) / DISCS_PER_METAL_BOUT) * 100 : 0),
+    higherIsBetter: true,
+    fitAxis: true,
+    columnLabel: 'Hit rate',
+    axisMax: 100,
+    tickStep: 25,
+    reference: null,
+    caption: 'Discs hit out of five, averaged across each workout. Higher is better.',
+    captionRecent: 'Discs hit out of five, one mark per bout. Higher is better.',
+    label: 'Metal hit rate as a percentage of the five discs, one point per workout, split by shooting position',
+    tickFormat: (v) => `${Math.round(v)}`,
+    format: (v) => `${Math.round(v)}%`,
   },
 }
 
@@ -172,7 +207,7 @@ interface PlotPoint {
  * A trend line (and the previous period's ghost) is only drawn from five
  * points of a position: fewer than that is the data, not a trend.
  */
-export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workouts: Workout[]; metric: Metric }) {
+export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workouts: Workout[]; metric: Metric }) {
   const [hover, setHover] = useState<{ x: number; y: number; value: string; rest: string } | null>(null)
   // Drawn at the width it's shown at, so text is true pixel size on a phone
   // instead of a 640-wide drawing shrunk to a third of that.
@@ -200,7 +235,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   const now = new Date()
   const isCurrent = now >= rangeStart && now <= rangeEnd
 
-  type CalPoint = { t: number; v: number; workout: Workout; bouts: Bout[] }
+  type CalPoint = { t: number; v: number; workout: Workout; bouts: Entry[] }
 
   /** Calendar views: one point per workout per position inside [start, end]. */
   const buildSeries = (start: Date, end: Date) => {
@@ -210,7 +245,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
       const tt = new Date(iso).getTime()
       return tt >= a && tt <= end.getTime()
     }
-    const byWorkout = new Map<string, Bout[]>()
+    const byWorkout = new Map<string, Entry[]>()
     for (const b of bouts) {
       if (!within(b.shotAt)) continue
       const list = byWorkout.get(b.workoutId)
@@ -295,21 +330,21 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
   const deltas = (['prone', 'standing'] as Position[]).flatMap((position) => {
     const own = bouts.filter((b) => b.position === position).sort((x, y) => x.shotAt.localeCompare(y.shotAt))
     if (own.length < 6) return []
-    const avg = (xs: Bout[]) => xs.reduce((n, b) => n + spec.value(b), 0) / xs.length
+    const avg = (xs: Entry[]) => xs.reduce((n, b) => n + spec.value(b), 0) / xs.length
     const last = avg(own.slice(-3))
     const before = avg(own.slice(-6, -3))
     return [{ position, last, diff: last - before }]
   })
 
-  // A score of 65–90% on a 0–100% axis is squeezed into a fifth of the plot and
-  // its labels pile up, so a score axis is fitted to the data (and the ticks say
-  // so). A size has a meaningful zero, so group size keeps its baseline.
+  // A rate of 65–90% on a 0–100% axis is squeezed into a fifth of the plot and
+  // its labels pile up, so a percentage axis is fitted to the data (and the
+  // ticks say so). A size has a meaningful zero, so group size keeps its baseline.
   const all = [...pts.map((p) => p.v), ...ghosts.flatMap((g) => [g.vMin, g.vMax])]
   const lo = Math.min(...all), hi = Math.max(...all)
   let yMin = 0
   let yMax = Math.ceil(Math.max(spec.axisMax, hi) / spec.tickStep) * spec.tickStep
   let tickStep = spec.tickStep
-  if (metric === 'score' && all.length > 0 && lo >= 40) {
+  if (spec.fitAxis && all.length > 0 && lo >= 40) {
     yMin = Math.max(0, Math.floor((lo - 6) / 10) * 10)
     yMax = Math.min(100, Math.ceil((hi + 4) / 10) * 10)
     if (yMax - yMin < 20) yMax = Math.min(100, yMin + 20)
@@ -565,12 +600,12 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
       )}
 
       {deltas.map((d) => {
-        const better = metric === 'score' ? d.diff > 0 : d.diff < 0
+        const better = spec.higherIsBetter ? d.diff > 0 : d.diff < 0
         const size = Math.abs(d.diff)
         return (
           <p key={d.position} className="meta" style={{ margin: '8px 0 0' }}>
             <strong style={{ textTransform: 'capitalize' }}>{d.position}</strong>: your last 3 bouts average {spec.format(d.last)},{' '}
-            {size < 0.5 ? 'level with' : metric === 'score'
+            {size < 0.5 ? 'level with' : spec.higherIsBetter
               ? `${better ? 'up' : 'down'} ${Math.round(size)} point${Math.round(size) === 1 ? '' : 's'} on`
               : `${better ? 'tighter' : 'looser'} by ${Math.round(size)} mm than`}{' '}
             the 3 before.
@@ -586,7 +621,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Bout[]; workout
               <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '4px 0', fontWeight: 600 }}>Date</th>
                 <th style={{ padding: '4px 0', fontWeight: 600 }}>Position</th>
-                <th style={{ padding: '4px 0', fontWeight: 600, textAlign: 'right' }}>{metric === 'score' ? 'Score' : 'Mean radius'}</th>
+                <th style={{ padding: '4px 0', fontWeight: 600, textAlign: 'right' }}>{spec.columnLabel}</th>
                 {calendar && <th style={{ padding: '4px 0', fontWeight: 600, textAlign: 'right' }}>Bouts</th>}
               </tr>
             </thead>

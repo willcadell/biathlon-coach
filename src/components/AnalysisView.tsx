@@ -388,9 +388,15 @@ export function AnalysisView({
   const metalProne = filteredMetal.filter((b) => b.position === 'prone')
   const metalStanding = filteredMetal.filter((b) => b.position === 'standing')
 
-  const recent = useMemo(() => {
+  // The coaching read is built from the last 60 days. After a longer break (the
+  // off-season) nothing falls in that window, and the whole section used to
+  // vanish: so fall back to the most recent bouts there are, and say so.
+  const { recent, stale, daysSince } = useMemo(() => {
     const cutoff = Date.now() - WINDOW_DAYS * 86400_000
-    return bouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff).slice(0, MAX_BOUTS)
+    const inWindow = bouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff).slice(0, MAX_BOUTS)
+    if (inWindow.length > 0 || bouts.length === 0) return { recent: inWindow, stale: false, daysSince: 0 }
+    const latest = Math.max(...bouts.map((b) => new Date(b.shotAt).getTime()))
+    return { recent: bouts.slice(0, MAX_BOUTS), stale: true, daysSince: Math.max(1, Math.round((Date.now() - latest) / 86400_000)) }
   }, [bouts])
 
   // Race metal bouts, grouped by the format they were raced under — a coach
@@ -544,15 +550,16 @@ export function AnalysisView({
         )}
         {recent.length > 0 && (
           <p className="lede" style={{ marginTop: -6 }}>
-            Built from your last {recent.length} precision bout{recent.length === 1 ? '' : 's'} —
-            the last {WINDOW_DAYS} days, not your all-time record.
+            {stale
+              ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
+              : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
           </p>
         )}
         {findings.map((f, i) => (
           <div key={`${f.id}-${i}`} className={`finding ${f.severity}`}>
             <div className="badge">
               <i className="dot" />
-              {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : 'Doing well'}
+              {f.severity === 'priority' ? 'Work on this' : f.severity === 'watch' ? 'Keep an eye on' : f.id === 'no_standout' ? 'Nothing flagged' : 'Doing well'}
             </div>
             <h3>{f.title}</h3>
             <p>{f.evidence}</p>
@@ -676,6 +683,23 @@ export function AnalysisView({
             <div className="n">{metalStanding.length} bout{metalStanding.length === 1 ? '' : 's'}</div>
           </div>
         </div>
+
+        {filteredMetal.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 20 }}>
+              Hit rate over time (%)
+              <Help>
+                Discs hit out of five, as a percentage. Recent shows one mark per bout. The 7 days and 4
+                weeks views average each workout to one point, and the 12 months view averages each month.
+                Prone is a circle and standing a diamond. With a zone selected above, only that zone's
+                bouts are drawn.
+              </Help>
+            </h3>
+            <div className="card">
+              <TrendChart bouts={filteredMetal} workouts={workouts} metric="metal" />
+            </div>
+          </>
+        )}
 
         <TargetHitRates position="prone" kind="metal" stats={targetsProne} series={seriesProne} windowSize={proneWindow} onWindowChange={setProneWindow} />
         <TargetHitRates position="standing" kind="metal" stats={targetsStanding} series={seriesStanding} windowSize={standingWindow} onWindowChange={setStandingWindow} />
