@@ -38,6 +38,11 @@ It finds and summarises; a person decides what ships.
    article links on the issue page. Some article pages show only the abstract: if
    no full text or PDF is linked, record `status: "abstract only"` and use the
    abstract, saying clearly that the full text was not read.
+   The full text may be on Issuu (search the IBU's Issuu page, `issuu.com/biathlonworld`,
+   for the article's DOI). Issuu does not expose text, but each page is an image at
+   `https://image.isu.pub/<doc-id>/jpg/page_<n>.jpg`, where `<doc-id>` is in the
+   document page's `og:image` meta tag. Open the page images in the browser and read
+   them (a tall viewport, about 1100x1560, makes them legible).
 3. **Find the shooting content.** For each new issue, open its contents and list the
    articles with their section headings (Training, Shooting, Preparation, ...). Read
    every article in the Shooting section, and any other article whose title or

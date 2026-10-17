@@ -54,12 +54,13 @@
           "doi": "10.71006/VDOL4813",
           "url": "https://www.ibuacademy.com/science/journal/issue-6-june-2026/article/journal-article-10.71006VDOL4813",
           "published": "2026-06-30",
-          "status": "abstract only",
-          "reason": "The article page shows the abstract and a cover image; no full text or PDF link is exposed (there is a Subscribe link). Full text, including the ten recommendations, still unread.",
-          "abstractGist": "Interviews with five experienced international coaches on technique, periodising shooting training, range approach and venue preparation. Themes: individualise; keep the core technique constant while adapting breathing to intensity; treat the range approach as a skill of its own."
+          "status": "read",
+          "reason": "The journal site shows only the abstract; the full text (6 pages, pp. 28-33) was read from the Issuu copy on 2026-10-17.",
+          "abstractGist": "Interviews with five experienced international coaches on technique, periodising shooting training, range approach and venue preparation. Themes: individualise; keep the core technique constant while adapting breathing to intensity; treat the range approach as a skill of its own.",
+          "readFrom": "https://issuu.com/biathlonworld/docs/ibu_jobc_issue_6_july_2026_journal-_556c0beddf815f"
         }
       ],
-      "proposal": null,
+      "proposal": "proposals/2026-10-issue-6.md",
       "issueDoi": "10.71006/BBFH5417",
       "issueDoiNote": "Did not resolve on 2026-10-17."
     }
