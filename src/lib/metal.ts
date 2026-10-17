@@ -1,4 +1,4 @@
-import type { MetalBout, MetalTarget, Position, WorkoutEntry } from './types'
+import type { MetalBout, MetalTarget, Position, ShootingDirection, WorkoutEntry } from './types'
 
 /** The five targets, left to right, in the order they're always named. */
 export const METAL_TARGETS: readonly MetalTarget[] = ['alpha', 'beta', 'charlie', 'delta', 'echo']
@@ -137,4 +137,10 @@ export function targetSeries(bouts: MetalBout[]): Record<MetalTarget, boolean[]>
     for (const t of METAL_TARGETS) out[t].push(hits[t])
   }
   return out
+}
+
+/** The discs in the order they are fired. Alpha is the leftmost and echo the
+ *  rightmost looking downrange, so alpha to echo is left to right. */
+export function shotOrder(direction: ShootingDirection): MetalTarget[] {
+  return direction === 'echo_to_alpha' ? [...METAL_TARGETS].reverse() : [...METAL_TARGETS]
 }

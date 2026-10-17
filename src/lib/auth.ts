@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { DEV_MODE_KEY, supabase } from './supabase'
+import type { ShootingDirection } from './types'
 
 /** Set by signOut() so the sign-in screen can tell "you pressed Sign out" from
  *  "your session ended on its own" and say so. */
@@ -97,6 +98,21 @@ export async function ensureAthleteRow(session: Session): Promise<void> {
   const { error } = await supabase
     .from('athletes')
     .upsert({ id: session.user.id, display_name: displayNameFromSession(session) })
+  if (error) throw error
+}
+
+/** How this athlete shoots the five metal discs. Anything unreadable is the
+ *  default, alpha to echo, so a failed load never blocks the settings page. */
+export async function getShootingDirection(): Promise<ShootingDirection> {
+  const id = await currentUserId()
+  const { data, error } = await supabase.from('athletes').select('shooting_direction').eq('id', id).maybeSingle()
+  if (error) throw error
+  return data?.shooting_direction === 'echo_to_alpha' ? 'echo_to_alpha' : 'alpha_to_echo'
+}
+
+export async function setShootingDirection(direction: ShootingDirection): Promise<void> {
+  const id = await currentUserId()
+  const { error } = await supabase.from('athletes').update({ shooting_direction: direction }).eq('id', id)
   if (error) throw error
 }
 

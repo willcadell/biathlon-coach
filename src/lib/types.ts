@@ -360,6 +360,15 @@ export interface SightCorrection {
   horizontalDir: 'left' | 'right'
 }
 
+/** The order an athlete shoots the five metal discs: alpha (leftmost) first, or
+ *  echo (rightmost) first. Kept on the athlete's row so a coach sees it too. */
+export type ShootingDirection = 'alpha_to_echo' | 'echo_to_alpha'
+
+export const SHOOTING_DIRECTION_LABEL: Record<ShootingDirection, string> = {
+  alpha_to_echo: 'Alpha to Echo',
+  echo_to_alpha: 'Echo to Alpha',
+}
+
 export type FindingId =
   | 'zero_offset'
   | 'vertical_stringing'

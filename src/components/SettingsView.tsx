@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { Settings } from '../lib/types'
-import { faceById, TARGET_FACES } from '../lib/types'
+import type { Settings, ShootingDirection } from '../lib/types'
+import { SHOOTING_DIRECTION_LABEL, faceById, TARGET_FACES } from '../lib/types'
 import { ringRadii } from '../lib/scoring'
 import { COST_PER_IMAGE, testApiKey, type KeyCheck } from '../lib/vision'
 import { clearImages, exportAll } from '../lib/db'
@@ -19,9 +19,13 @@ interface Props {
   /** The athlete's choice about contributing targets; undefined until loaded. */
   contribution: Contribution | undefined
   onContributionChange: (next: Contribution) => void
+  /** The order the athlete shoots the five metal discs; undefined until loaded. */
+  shootingDirection: ShootingDirection | undefined
+  onShootingDirectionChange: (next: ShootingDirection) => Promise<void>
 }
 
-export function SettingsView({ settings, onChange, boutCount, onDataChanged, onBack, contribution, onContributionChange }: Props) {
+export function SettingsView({ settings, onChange, boutCount, onDataChanged, onBack, contribution, onContributionChange, shootingDirection, onShootingDirectionChange }: Props) {
+  const [directionError, setDirectionError] = useState<string | null>(null)
   const [check, setCheck] = useState<KeyCheck | null>(null)
   const [checking, setChecking] = useState(false)
 
@@ -146,6 +150,32 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
             ))}
           </div>
         </label>
+
+        {shootingDirection !== undefined && (
+          <label className="field" style={{ margin: '14px 0 0' }}>
+            <span>
+              Shooting direction
+              <small>
+                The order you shoot the five metal discs, looking downrange: Alpha is the leftmost, Echo the
+                rightmost. So advice about your first or last shots knows which discs those were.
+              </small>
+            </span>
+            <div className="seg" role="group" aria-label="Shooting direction">
+              {(['alpha_to_echo', 'echo_to_alpha'] as const).map((d) => (
+                <button
+                  key={d} aria-pressed={shootingDirection === d}
+                  onClick={() => {
+                    setDirectionError(null)
+                    onShootingDirectionChange(d).catch(() => setDirectionError('Could not save that. Check your signal and try again.'))
+                  }}
+                >
+                  {SHOOTING_DIRECTION_LABEL[d]}
+                </button>
+              ))}
+            </div>
+            {directionError && <div className="notice error" style={{ marginTop: 8 }}>{directionError}</div>}
+          </label>
+        )}
       </div>
 
       <h2>Reading photos</h2>

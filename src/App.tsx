@@ -5,12 +5,12 @@ import { amPlatformAdmin } from './lib/platformAdmin'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
-import { scoringContext } from './lib/types'
+import { scoringContext, type ShootingDirection } from './lib/types'
 import { allBouts, allMetalBouts, allWorkouts, deleteWorkout, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
 import { uuid } from './lib/id'
 import { loadSettings, saveSettings } from './lib/settings'
-import { onAuthChange, getAthlete, ensureAthleteRow, consumeRoleIntent, displayNameFromSession } from './lib/auth'
+import { onAuthChange, getAthlete, ensureAthleteRow, consumeRoleIntent, displayNameFromSession, getShootingDirection, setShootingDirection } from './lib/auth'
 import { getCoach, becomeCoach } from './lib/coaching'
 import { SignInView } from './components/SignInView'
 import { ChooseRoleView } from './components/ChooseRoleView'
@@ -329,6 +329,26 @@ function SignedInApp({
     void getContribution().then(setContribution).catch(() => setContribution(undefined))
   }, [identities.athlete, session.user.id])
 
+  // The order this athlete shoots the metal discs; undefined until loaded.
+  const [shootingDirection, setDirection] = useState<ShootingDirection | undefined>(undefined)
+  useEffect(() => {
+    if (!identities.athlete) {
+      setDirection(undefined)
+      return
+    }
+    void getShootingDirection().then(setDirection).catch(() => setDirection(undefined))
+  }, [identities.athlete, session.user.id])
+  const changeShootingDirection = useCallback(async (next: ShootingDirection) => {
+    const before = shootingDirection
+    setDirection(next)
+    try {
+      await setShootingDirection(next)
+    } catch (e) {
+      setDirection(before)
+      throw e
+    }
+  }, [shootingDirection])
+
   const refresh = useCallback(() => {
     // Logged rather than silently dropped — a rejection here used to vanish
     // entirely, leaving stale state with no clue why (e.g. a table a new
@@ -486,6 +506,8 @@ function SignedInApp({
                 onBack={() => setTab('profile')}
                 contribution={contribution}
                 onContributionChange={setContribution}
+                shootingDirection={shootingDirection}
+                onShootingDirectionChange={changeShootingDirection}
               />
             )}
           </ErrorBoundary>

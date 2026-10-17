@@ -315,10 +315,7 @@ number of bouts before it speaks (suggest 8 per position, 6 in a comparison):
 | M8 race_vs_range | Race hit rate 15+ points under range | Pressure | L15, L16, L24 |
 | M9 standing_volume | Few standing bouts next to prone | Practice volume | L21, standing-volume |
 
-**Open data question, M4 to M6:** the app records which discs fell but not the order they
-were shot. Do athletes shoot left to right, alpha to echo? If so M4 to M6 can assume
-that order; if not, those rules need a shot-order field first, or they stay off.
-M1, M2, M3, M7, M8 and M9 work with today's data.
+**Shot order, M4 to M6:** answered. Athletes set Alpha to Echo or Echo to Alpha in Settings (stored on their athlete row, readable by their coaches), and `shotOrder()` in `src/lib/metal.ts` turns that into the firing order. The app still records which discs fell but not the order, so M4 to M6 rest on that stated preference. M1, M2, M3, M7, M8 and M9 do not need it.
 
 ## 6. Not yet read
 
@@ -332,6 +329,6 @@ entries, especially for altitude and the transition phase (L30 is thin).
 1. Phases: are April and May "transition", and November to December "early season",
    the right split for your athletes?
 2. Entries: anything to cut or soften? L30 is the thinnest and L29 touches on equipment.
-3. Metal: which of M1 to M9 would you want first? Do athletes shoot left to right?
+3. Metal: which of M1 to M9 would you want first?
 4. Wording and reading level: these are written for an informed athlete and a coach.
    Should athlete-facing text be shorter, with the detail one tap away?

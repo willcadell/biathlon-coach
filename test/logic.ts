@@ -10,7 +10,7 @@ import {
 import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
-import { METAL_TARGETS, hitCount, metalStats, missCount, targetStats } from '../src/lib/metal.ts'
+import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
@@ -177,6 +177,11 @@ f = analyse(gap, DEFAULT_SETTINGS)
 ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.id).join(','))
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
+
+// --- Shooting direction: alpha is leftmost, echo rightmost.
+ok('alpha to echo fires alpha first', shotOrder('alpha_to_echo').join() === 'alpha,beta,charlie,delta,echo')
+ok('echo to alpha fires echo first', shotOrder('echo_to_alpha').join() === 'echo,delta,charlie,beta,alpha')
+ok('shot order never touches the master list', METAL_TARGETS.join() === 'alpha,beta,charlie,delta,echo')
 
 // --- Never silent once there is enough to judge: an ordinary round group,
 // centred, with nothing a rule can name and too loose for the "nothing broken"
