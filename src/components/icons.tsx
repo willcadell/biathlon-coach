@@ -189,6 +189,20 @@ export function CoachMark({ size = 28 }: { size?: number }) {
 /** The three kinds of session a workout can be, told apart at a glance:
  *  a scope reticle for range, a stopwatch for dry-fire (time, no shooting),
  *  a medal for a race. */
+/** The 545 Coach mark, as on the home screen icon: two rings and three holes,
+ *  in the app's own blue and orange (not the currentColor of the line icons). */
+export function AppMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg viewBox="30 30 132 132" width={size} height={size} aria-hidden="true">
+      <circle cx="96" cy="96" r="60" fill="none" stroke="#3987e5" strokeWidth="14" />
+      <circle cx="96" cy="96" r="34" fill="none" stroke="#3987e5" strokeWidth="11" opacity="0.55" />
+      <circle cx="82" cy="86" r="11" fill="#d95926" />
+      <circle cx="104" cy="100" r="11" fill="#d95926" />
+      <circle cx="92" cy="110" r="11" fill="#d95926" />
+    </svg>
+  )
+}
+
 export function RangeIcon({ size = 26 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">

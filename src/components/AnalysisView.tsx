@@ -3,7 +3,7 @@ import type { Bout, MetalBout, MetalTarget, RaceType, Settings, Workout } from '
 import { RACE_TYPE_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
-import { ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
+import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { recommend } from '../lib/training'
@@ -504,7 +504,7 @@ export function AnalysisView({
       {/* The advice reads every kind of shooting, so it sits under the page title
           rather than inside Precision. */}
       {recent.length > 0 && (
-        <CollapsibleSection title="Shooting advice">
+        <CollapsibleSection title="Shooting advice" icon={<AppMark />}>
           {thin && (
             <div className="notice">
               This is a first read from very little recent data. Treat it as a hint until you have three
