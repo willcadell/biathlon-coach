@@ -326,8 +326,9 @@ entries, especially for altitude and the transition phase (L30 is thin).
 
 ## 7. Questions for you
 
-1. Phases: are April and May "transition", and November to December "early season",
-   the right split for your athletes?
+1. Phases: settled for now (April and May transition, June to August general, September
+   and October specific, November and December early season, January to March
+   competition). To be refined later. Implemented in `src/lib/seasonPhase.ts`.
 2. Entries: anything to cut or soften? L30 is the thinnest and L29 touches on equipment.
 3. Metal: which of M1 to M9 would you want first?
 4. Wording and reading level: these are written for an informed athlete and a coach.

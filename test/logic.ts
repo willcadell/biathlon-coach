@@ -10,6 +10,7 @@ import {
 import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
+import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../src/lib/seasonPhase.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
@@ -177,6 +178,12 @@ f = analyse(gap, DEFAULT_SETTINGS)
 ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.id).join(','))
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
+
+// --- Season phase, from the month alone.
+const phases: SeasonPhase[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => seasonPhase(new Date(2026, m - 1, 15)))
+ok('season phases by month', phases.join() === 'competition,competition,competition,transition,transition,general,general,general,specific,specific,early,early', phases.join())
+ok('every phase has a label', (['transition', 'general', 'specific', 'early', 'competition'] as SeasonPhase[]).every((p) => SEASON_PHASE_LABEL[p].length > 0))
+ok('month edges: 1 June is general, 31 August too, 1 September specific', seasonPhase(new Date(2026, 5, 1)) === 'general' && seasonPhase(new Date(2026, 7, 31)) === 'general' && seasonPhase(new Date(2026, 8, 1)) === 'specific')
 
 // --- Shooting direction: alpha is leftmost, echo rightmost.
 ok('alpha to echo fires alpha first', shotOrder('alpha_to_echo').join() === 'alpha,beta,charlie,delta,echo')
