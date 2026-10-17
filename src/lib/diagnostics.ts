@@ -68,6 +68,32 @@ export function analyse(bouts: Bout[], settings: Settings, workouts: Workout[] =
       })
     }
   }
+
+  // Enough bouts to judge, no rule firing, and not scoring high enough for the
+  // "nothing broken" note: say that plainly, with the numbers, rather than
+  // leaving a coaching section with a heading and nothing under it. Silence
+  // reads as the app being broken; the truth is that no one fault stands out.
+  if (ranked.length === 0 && bouts.length >= 3) {
+    const shots = bouts.reduce((n, b) => n + b.shots.length, 0)
+    const perShot = shots ? bouts.reduce((n, b) => n + b.metrics.ringTotal, 0) / shots : 0
+    const sizes = (['prone', 'standing'] as Position[]).flatMap((position) => {
+      const own = bouts.filter((b) => b.position === position)
+      if (own.length === 0) return []
+      const radius = mean(own.map((b) => b.metrics.meanRadius))
+      return [`${position} ${mm(radius)} mean radius against a ${mm(HIT_ZONE_MM[position] / 2)} hit zone`]
+    })
+    ranked.push({
+      id: 'no_standout',
+      title: 'No single fault stands out',
+      evidence: `${perShot.toFixed(1)} points a shot across ${bouts.length} bouts; ${sizes.join(', ')}.`,
+      cause:
+        'The zero, the shape of the groups, the trigger, fliers, the ski-in shot, drift between and within bouts, wind and standing against prone were all checked, and none shows a pattern strong enough to name. At this score that usually means the groups are ordinary in every direction at once, so there is nothing to remove, and the gain comes from steadier position work and more bouts. A pattern shows up when it repeats, so keep logging.',
+      severity: 'info',
+      confidence: 0.5 * weight(bouts.length),
+      sampleSize: bouts.length,
+      position: 'both',
+    })
+  }
   return ranked
 }
 

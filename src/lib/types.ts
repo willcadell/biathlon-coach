@@ -373,6 +373,7 @@ export type FindingId =
   | 'unstable_npa'
   | 'wind_sensitivity'
   | 'early_signs'
+  | 'no_standout'
   | 'solid'
 
 export interface Finding {

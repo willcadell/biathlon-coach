@@ -178,6 +178,19 @@ ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
 
+// --- Never silent once there is enough to judge: an ordinary round group,
+// centred, with nothing a rule can name and too loose for the "nothing broken"
+// note, still gets an honest answer instead of an empty section.
+const ordinary = (i: number) => bout('standing', [0, 1, 2, 3, 4].map((k) => {
+  const a = (k / 5) * 2 * Math.PI + i
+  return { x: 30 * Math.cos(a), y: 30 * Math.sin(a) }
+}), false, i + 1)
+f = analyse([0, 1, 2, 3].map(ordinary), DEFAULT_SETTINGS)
+ok('an unremarkable group still gets a read', f.length === 1 && f[0].id === 'no_standout', f.map((x) => x.id).join(','))
+ok('that read points at drills', recommend(f).length > 0)
+ok('two ordinary bouts stay quiet rather than guess', analyse([0, 1].map(ordinary), DEFAULT_SETTINGS).every((x) => x.id !== 'no_standout'))
+ok('a clean group gets the progression note, not "no standout"', !analyse(good, DEFAULT_SETTINGS).some((x) => x.id === 'no_standout'))
+
 // --- Early signs: too few bouts (n<3) for any confirmed rule to fire, but
 // the group is meaningfully off-centre — should say so rather than stay
 // silent. Standing hit radius is 57.5 mm; 17 mm offset clears the 0.25x

@@ -101,7 +101,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: 'Every live session',
-    addresses: ['flier', 'trigger_bias', 'vertical_stringing'],
+    addresses: ['flier', 'trigger_bias', 'vertical_stringing', 'no_standout'],
     dryFire: false,
   },
   {
@@ -117,7 +117,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 15,
     frequency: '3–4× per week, dry',
-    addresses: ['wide_group', 'standing_gap', 'horizontal_stringing'],
+    addresses: ['wide_group', 'standing_gap', 'horizontal_stringing', 'no_standout'],
     dryFire: true,
   },
   {
@@ -197,7 +197,7 @@ export const DRILLS: Drill[] = [
     ],
     minutes: 20,
     frequency: '3× per week, dry',
-    addresses: ['unstable_npa', 'fatigue_drift', 'standing_gap'],
+    addresses: ['unstable_npa', 'fatigue_drift', 'standing_gap', 'no_standout'],
     dryFire: true,
   },
   {
