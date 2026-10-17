@@ -649,15 +649,10 @@ export function AnalysisView({
         headerExtraBelow
         titleExtra={shootingDirection && (
           <span className="meta" style={{ margin: 0 }}>
-            {readOnly && 'Shoots '}<strong>{SHOOTING_DIRECTION_LABEL[shootingDirection]}</strong>
-            {!readOnly && (
-              <>
-                {' · '}
-                {onOpenSettings
-                  ? <button className="link" onClick={onOpenSettings}>Settings</button>
-                  : 'Settings'}
-              </>
-            )}
+            {/* The whole phrase is the link to Settings, where it is changed. */}
+            {!readOnly && onOpenSettings
+              ? <button className="link" onClick={onOpenSettings}>Shooting {SHOOTING_DIRECTION_LABEL[shootingDirection]}</button>
+              : <>Shooting {SHOOTING_DIRECTION_LABEL[shootingDirection]}</>}
           </span>
         )}
         headerExtra={presentZones.length > 0 && (
