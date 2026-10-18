@@ -341,7 +341,7 @@ function SignedInApp({
     void getContribution().then(setContribution).catch(() => setContribution(undefined))
   }, [identities.athlete, session.user.id])
 
-  // The order this athlete shoots the metal discs; undefined until loaded.
+  // The order this athlete shoots the metal targets; undefined until loaded.
   const [shootingDirection, setDirection] = useState<ShootingDirection | undefined>(undefined)
   useEffect(() => {
     if (!identities.athlete) {

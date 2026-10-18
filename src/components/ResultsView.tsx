@@ -84,7 +84,7 @@ export function ResultsView({
                 {m.splitterShots} shot{m.splitterShots === 1 ? '' : 's'} in this bout landed right on
                 the edge of that circle — within a bullet&rsquo;s width of the true boundary, marked
                 as a splitter below. On a real steel target, contact that close to the edge is a coin
-                flip on whether the disc actually falls, so don&rsquo;t read {m.splitterShots === 1 ? 'it' : 'them'} as
+                flip on whether the target actually falls, so don&rsquo;t read {m.splitterShots === 1 ? 'it' : 'them'} as
                 a clean hit or a clean miss.
               </p>
             </details>

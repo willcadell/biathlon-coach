@@ -63,7 +63,7 @@ const SPECS: Record<Metric, Spec> = {
     format: (v) => `${Math.round(v)} mm`,
   },
   metal: {
-    // Discs hit out of five, as a percentage: the same units as the score.
+    // Targets hit out of five, as a percentage: the same units as the score.
     value: (b) => (b.kind === 'metal' ? ((DISCS_PER_METAL_BOUT - missCount(hitsOf(b))) / DISCS_PER_METAL_BOUT) * 100 : 0),
     higherIsBetter: true,
     fitAxis: true,
@@ -71,9 +71,9 @@ const SPECS: Record<Metric, Spec> = {
     axisMax: 100,
     tickStep: 25,
     reference: null,
-    caption: 'Discs hit out of five, averaged across each workout. Higher is better.',
-    captionRecent: 'Discs hit out of five, one mark per bout. Higher is better.',
-    label: 'Metal hit rate as a percentage of the five discs, one point per workout, split by shooting position',
+    caption: 'Targets hit out of five, averaged across each workout. Higher is better.',
+    captionRecent: 'Targets hit out of five, one mark per bout. Higher is better.',
+    label: 'Metal hit rate as a percentage of the five targets, one point per workout, split by shooting position',
     tickFormat: (v) => `${Math.round(v)}`,
     format: (v) => `${Math.round(v)}%`,
   },

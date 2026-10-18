@@ -56,7 +56,7 @@ function AthleteFeatures() {
       </Feature>
       <Feature title="Metal bouts and combos">
         <p {...p}>
-          Five discs, prone or standing: tap each one that fell. Over time you see your hit rate by
+          Five targets, prone or standing: tap each one that fell. Over time you see your hit rate by
           position and which target you miss most. A combo groups repeated ski-and-shoot rounds so they
           read together.
         </p>

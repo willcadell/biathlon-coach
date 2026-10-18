@@ -38,7 +38,7 @@ export interface MetalContext {
   /** Local calendar date of the session the bout belongs to. */
   sessionDate: string
   position: 'prone' | 'standing'
-  /** Disc 1..5 = alpha..echo, left to right downrange. */
+  /** Target 1..5 = alpha..echo, left to right downrange. */
   discHits: boolean[]
   /** Opaque grouping key shared by every round of one ski-and-shoot combo. */
   comboGroup: string | null

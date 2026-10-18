@@ -148,12 +148,12 @@ function TargetSparkline({ target, outcomes, colour }: { target: string; outcome
   )
 }
 
-/** The five discs' hit rates as circles, alpha to echo, in their session's
+/** The five targets' hit rates as circles, alpha to echo, in their session's
  *  colour: Range blue in Metal, Race red in Race performance. With `series`,
  *  each circle carries a small line of that target's outcomes beneath it. */
 function TargetTiles({ stats, tone, series }: { stats: TargetStat[]; tone?: 'range' | 'race'; series?: TargetSeries }) {
   const colour = tone === 'race' ? RACE_COLOUR : 'var(--series-1)'
-  // Discs are round, so the tiles are circles. minmax(0, 1fr) and small type so
+  // Targets are round, so the tiles are circles. minmax(0, 1fr) and small type so
   // five of them fit a phone's width instead of running off the right edge.
   return (
     <div className="stats" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
@@ -183,7 +183,7 @@ function TargetTiles({ stats, tone, series }: { stats: TargetStat[]; tone?: 'ran
   )
 }
 
-/** "Which targets get hit": the hit rate of each of the five discs for one
+/** "Which targets get hit": the hit rate of each of the five targets for one
  *  position, from the most recent 5, 10 or 20 bouts. Used for range metal and,
  *  separately, for race metal. */
 function TargetHitRates({
@@ -397,7 +397,7 @@ export function AnalysisView({
   /** Present only for a coach viewing a linked athlete — forwarded straight
    *  through to the nested History section. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
-  /** The order this athlete shoots the five discs, once known. Shown under Metal. */
+  /** The order this athlete shoots the five targets, once known. Shown under Metal. */
   shootingDirection?: ShootingDirection
   /** Takes the athlete to Settings, where the shooting direction is changed. */
   onOpenSettings?: () => void
@@ -584,7 +584,7 @@ export function AnalysisView({
               <h3 style={{ marginTop: recent.length > 0 ? 20 : 0 }}>
                 What your metal shooting is saying
                 <Help>
-                  This reads which discs you hit, in which position and under what load. It cannot see how a shot
+                  This reads which targets you hit, in which position and under what load. It cannot see how a shot
                   was released or where a miss went, so it points at steadiness and timing and leaves the rest to a coach.
                   Rules about your first and last shots need your shooting direction, set in Settings.
                 </Help>
@@ -696,7 +696,7 @@ export function AnalysisView({
         title="Metal"
         icon={sessionIcon('range')}
         defaultOpen={false}
-        // The order the discs are shot sits beside the title; the zone filters get the row below.
+        // The order the targets are shot sits beside the title; the zone filters get the row below.
         headerExtraBelow
         titleExtra={shootingDirection && (
           <span className="meta" style={{ margin: 0 }}>
@@ -764,7 +764,7 @@ export function AnalysisView({
             <h3 style={{ marginTop: 20 }}>
               Hit rate over time (%)
               <Help>
-                Discs hit out of five, as a percentage. Recent shows one mark per bout. The 7 days and 4
+                Targets hit out of five, as a percentage. Recent shows one mark per bout. The 7 days and 4
                 weeks views average each workout to one point, and the 12 months view averages each month.
                 Prone is a circle and standing a diamond. With a zone selected above, only that zone's
                 bouts are drawn.

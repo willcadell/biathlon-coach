@@ -3,7 +3,7 @@ import type { MetalBout, MetalTarget, Position, ShootingDirection, WorkoutEntry 
 /** The five targets, left to right, in the order they're always named. */
 export const METAL_TARGETS: readonly MetalTarget[] = ['alpha', 'beta', 'charlie', 'delta', 'echo']
 
-/** Discs on the range. Fixed by the discipline, not configurable. */
+/** Targets on the range. Fixed by the discipline, not configurable. */
 export const DISCS_PER_METAL_BOUT = METAL_TARGETS.length
 
 /** All five hit — the state a fresh bout starts from is all missed instead;
@@ -139,7 +139,7 @@ export function targetSeries(bouts: MetalBout[]): Record<MetalTarget, boolean[]>
   return out
 }
 
-/** The discs in the order they are fired. Alpha is the leftmost and echo the
+/** The targets in the order they are fired. Alpha is the leftmost and echo the
  *  rightmost looking downrange, so alpha to echo is left to right. */
 export function shotOrder(direction: ShootingDirection): MetalTarget[] {
   return direction === 'echo_to_alpha' ? [...METAL_TARGETS].reverse() : [...METAL_TARGETS]

@@ -101,7 +101,7 @@ export async function ensureAthleteRow(session: Session): Promise<void> {
   if (error) throw error
 }
 
-/** How an athlete (by default, the signed-in one) shoots the five metal discs. Anything unreadable is the
+/** How an athlete (by default, the signed-in one) shoots the five metal targets. Anything unreadable is the
  *  default, alpha to echo, so a failed load never blocks the settings page. */
 export async function getShootingDirection(athleteId?: string): Promise<ShootingDirection> {
   // A coach reads the athlete's row (policy: coach reads linked athletes).

@@ -19,7 +19,7 @@ interface Props {
   /** The athlete's choice about contributing targets; undefined until loaded. */
   contribution: Contribution | undefined
   onContributionChange: (next: Contribution) => void
-  /** The order the athlete shoots the five metal discs; undefined until loaded. */
+  /** The order the athlete shoots the five metal targets; undefined until loaded. */
   shootingDirection: ShootingDirection | undefined
   onShootingDirectionChange: (next: ShootingDirection) => Promise<void>
 }
@@ -156,8 +156,8 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
             <span>
               Shooting direction
               <small>
-                The order you shoot the five metal discs, looking downrange: Alpha is the leftmost, Echo the
-                rightmost. So advice about your first or last shots knows which discs those were.
+                The order you shoot the five metal targets, looking downrange: Alpha is the leftmost, Echo the
+                rightmost. So advice about your first or last shots knows which targets those were.
               </small>
             </span>
             <div className="seg" role="group" aria-label="Shooting direction">

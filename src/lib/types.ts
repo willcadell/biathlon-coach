@@ -181,7 +181,7 @@ export interface Bout {
 }
 
 /**
- * One metal bout: the biathlon range itself, five falling discs, prone or
+ * One metal bout: the biathlon range itself, five falling targets, prone or
  * standing. There is no photo and no shot position — a miss is a miss,
  * wherever on the plate it landed — so this cannot feed the shape-based
  * coaching diagnostics a precision bout can. What it tracks instead is hit
@@ -344,7 +344,7 @@ export interface BoutMetrics {
   /**
    * True for a shot whose hole straddles the true edge of the hit zone
    * (HIT_ZONE_MM) — a "splitter". On a real steel target, contact right at
-   * the edge is a coin flip on whether the disc actually falls, the same way
+   * the edge is a coin flip on whether the target actually falls, the same way
    * a hole touching a printed ring line is a coin flip on which ring it
    * counts for. Parallel to shots, in firing order.
    */
@@ -360,7 +360,7 @@ export interface SightCorrection {
   horizontalDir: 'left' | 'right'
 }
 
-/** The order an athlete shoots the five metal discs: alpha (leftmost) first, or
+/** The order an athlete shoots the five metal targets: alpha (leftmost) first, or
  *  echo (rightmost) first. Kept on the athlete's row so a coach sees it too. */
 export type ShootingDirection = 'alpha_to_echo' | 'echo_to_alpha'
 

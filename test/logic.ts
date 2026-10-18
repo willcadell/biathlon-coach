@@ -181,7 +181,7 @@ ok('standing gap diagnosed', f.some((x) => x.id === 'standing_gap'), f.map(x=>x.
 
 ok('no findings from no bouts', analyse([], DEFAULT_SETTINGS).length === 0)
 
-// --- Metal advice: stability and timing from which discs fall.
+// --- Metal advice: stability and timing from which targets fall.
 // A pattern string is five letters in the order alpha..echo: H hit, M miss.
 const mbout = (position: Position, pattern: string, daysAgo = 1, workoutId = 'wm', heartRate = 0): MetalBout => ({
   kind: 'metal', id: crypto.randomUUID(), workoutId,
@@ -207,8 +207,8 @@ ok('prone-only shooting is not nagged about standing volume', !idsOf(many(10, (i
 
 const oneDisc = many(10, (i) => mbout('prone', 'HHMHH', i + 1))
 const oneIds = idsOf(oneDisc)
-ok('one disc missed every time is named', oneIds.includes('metal_one_disc') && !oneIds.includes('metal_scattered'), oneIds.join())
-ok('and the disc is Charlie', analyseMetal({ bouts: oneDisc, workouts: [], direction: undefined }).some((x) => x.title.startsWith('Charlie')))
+ok('one target missed every time is named', oneIds.includes('metal_one_disc') && !oneIds.includes('metal_scattered'), oneIds.join())
+ok('and the target is Charlie', analyseMetal({ bouts: oneDisc, workouts: [], direction: undefined }).some((x) => x.title.startsWith('Charlie')))
 
 const scattered = many(12, (i) => {
   const pat = ['H', 'H', 'H', 'H', 'H']
@@ -217,13 +217,13 @@ const scattered = many(12, (i) => {
   return mbout('prone', pat.join(''), i + 1)
 })
 const scIds = idsOf(scattered)
-ok('misses spread over every disc read as steadiness', scIds.includes('metal_scattered') && !scIds.includes('metal_one_disc'), scIds.join())
+ok('misses spread over every target read as steadiness', scIds.includes('metal_scattered') && !scIds.includes('metal_one_disc'), scIds.join())
 
 const late = many(10, (i) => mbout('prone', i < 7 ? 'HHHMM' : 'HHHHH', i + 1))
-ok('late-disc misses are flagged for alpha to echo', idsOf(late, 'alpha_to_echo').includes('metal_late_discs'), idsOf(late, 'alpha_to_echo').join())
-ok('two discs at the end are not reported as one disc', !idsOf(late, 'alpha_to_echo').includes('metal_one_disc'))
+ok('late-target misses are flagged for alpha to echo', idsOf(late, 'alpha_to_echo').includes('metal_late_discs'), idsOf(late, 'alpha_to_echo').join())
+ok('two targets at the end are not reported as one target', !idsOf(late, 'alpha_to_echo').includes('metal_one_disc'))
 ok('end-of-bout misses are not also reported as streaks', !idsOf(late, 'alpha_to_echo').includes('metal_miss_streaks'))
-ok('the same bouts read as first-disc misses for echo to alpha', idsOf(late, 'echo_to_alpha').includes('metal_first_disc') && !idsOf(late, 'echo_to_alpha').includes('metal_late_discs'), idsOf(late, 'echo_to_alpha').join())
+ok('the same bouts read as first-target misses for echo to alpha', idsOf(late, 'echo_to_alpha').includes('metal_first_disc') && !idsOf(late, 'echo_to_alpha').includes('metal_late_discs'), idsOf(late, 'echo_to_alpha').join())
 ok('firing order unknown: first and last shot rules stay silent', !idsOf(late, 'unknown').some((id) => id === 'metal_late_discs' || id === 'metal_first_disc' || id === 'metal_miss_streaks'), idsOf(late, undefined).join())
 
 const streaks = [...many(6, (i) => mbout('prone', 'MMMMM', i + 1)), ...many(6, (i) => mbout('prone', 'HHHHH', i + 7))]
@@ -430,7 +430,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   paintDisc(img, 100, 100, 60, 10)
   const r = locateBlack(img)
   ok(
-    'finds a plain black disc on white',
+    'finds a plain black target on white',
     r !== null && Math.abs(r.cx - 100) < 2 && Math.abs(r.cy - 100) < 2 && Math.abs(r.semiMajor - 60) < 2,
     JSON.stringify(r),
   )
@@ -444,7 +444,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   paintDisc(img, 90, 90, 8, 255)
   const r = locateBlack(img)
   ok(
-    'a small enclosed flash hole is filled, not left fragmenting the disc',
+    'a small enclosed flash hole is filled, not left fragmenting the target',
     r !== null && Math.abs(r.semiMajor - 60) < 3 && r.fillRatio > 0.9,
     JSON.stringify(r),
   )
@@ -542,7 +542,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('coach-context: shape and version', ctx.format === 'coach-context' && ctx.formatVersion === 1 && ctx.source.app === '545-coach')
   ok('coach-context: dry-fire sessions are left out', ctx.windConditions.length === 2 && ctx.metalSessions.length === 2)
   ok('coach-context: range spans the exported sessions', ctx.range.from === '2026-09-20' && ctx.range.to === '2026-09-21')
-  ok('coach-context: disc order is alpha..echo', JSON.stringify(ctx.metalSessions[0].discHits) === '[true,false,true,true,false]')
+  ok('coach-context: target order is alpha..echo', JSON.stringify(ctx.metalSessions[0].discHits) === '[true,false,true,true,false]')
   ok('coach-context: hit rate is hits over five', Math.abs(ctx.metalSessions[0].hitRate - 0.6) < 1e-9)
   ok('coach-context: combo, zone and race carry through', ctx.metalSessions[0].comboGroup === 'combo-1' && ctx.metalSessions[0].targetZone === 2 && ctx.metalSessions[1].race === 'sprint')
   ok('coach-context: clicks are signed, up/right positive', ctx.zeroAdjustments[0].verticalClicks === -3 && ctx.zeroAdjustments[0].horizontalClicks === 2 && ctx.zeroAdjustments[1].verticalClicks === 1 && ctx.zeroAdjustments[1].horizontalClicks === -4)
