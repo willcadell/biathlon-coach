@@ -13,18 +13,18 @@ import { SEASON_PHASE_LABEL } from '../lib/seasonPhase'
  * than rely on colour alone.
  */
 
-const INK = 'var(--text-primary)'
-const SOFT = 'var(--text-secondary)'
-const MUTED = 'var(--text-muted)'
-const LINE = 'var(--axis)'
-const BLUE = 'var(--series-1)'
-const HALO = 'var(--surface-1)'
+export const INK = 'var(--text-primary)'
+export const SOFT = 'var(--text-secondary)'
+export const MUTED = 'var(--text-muted)'
+export const LINE = 'var(--axis)'
+export const BLUE = 'var(--series-1)'
+export const HALO = 'var(--surface-1)'
 
-const text = (size = 11): React.CSSProperties => ({ fontSize: size, fill: SOFT, fontFamily: 'inherit' })
+export const text = (size = 11): React.CSSProperties => ({ fontSize: size, fill: SOFT, fontFamily: 'inherit' })
 /** Text that stays readable where it crosses a line: a halo in the card colour. */
-const haloed: React.CSSProperties = { stroke: HALO, strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }
+export const haloed: React.CSSProperties = { stroke: HALO, strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }
 
-function Figure({
+export function Figure({
   label, caption, viewBox, children,
 }: {
   label: string
