@@ -5,6 +5,7 @@ import {
 } from '../lib/library'
 import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../lib/seasonPhase'
 import { AppMark } from './icons'
+import { Diagram, SeasonRibbon } from './LibraryDiagrams'
 import { IBU_LIBRARY_URL, type LibraryAbout } from './LibraryLink'
 
 const PHASE_ORDER: SeasonPhase[] = ['transition', 'general', 'specific', 'early', 'competition']
@@ -40,6 +41,7 @@ function EntryCard({ e, onCite }: { e: LibraryEntry; onCite: (sourceId: string) 
       </div>
       <h3 id={`lib-${e.id}`}>{e.title}</h3>
       <p>{e.summary}</p>
+      {e.diagram && <Diagram id={e.diagram} />}
       {e.doThis && e.doThis.length > 0 && (
         <details>
           <summary>What to do</summary>
@@ -121,6 +123,7 @@ export function LibraryView({
         Each entry is a summary in our words and names its source; the full references are at the end.
       </p>
 
+      <SeasonRibbon month={new Date().getMonth() + 1} selected={phase} onSelect={setPhase} />
       <Chips
         label="Time of year"
         value={phase}

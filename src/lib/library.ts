@@ -10,6 +10,9 @@ import type { SeasonPhase } from './seasonPhase'
  * reproduce them. The IBU has not reviewed or endorsed it.
  */
 
+/** The schematic an entry can carry: see LibraryDiagrams. */
+export type DiagramId = 'breath-cycle' | 'aiming-approaches' | 'trigger-curve' | 'range-approach'
+
 export type SourceKind = 'research' | 'review' | 'interview' | 'catalogue' | 'practice'
 
 export interface Source {
@@ -144,6 +147,8 @@ export interface LibraryEntry {
   position: 'prone' | 'standing' | 'both'
   /** What it says, in our words. */
   summary: string
+  /** A small schematic that shows the idea. */
+  diagram?: DiagramId
   /** What to do about it: short steps or a cue. */
   doThis?: string[]
   /** Anything that has to be said before trying it. */
@@ -162,6 +167,7 @@ export const ENTRIES: LibraryEntry[] = [
   // --- Breathing and stability
   {
     id: 'same-breath-prone', title: 'Same breath, every shot', phases: NOT_TRANSITION, focus: 'breathing', position: 'prone',
+    diagram: 'breath-cycle',
     summary:
       'Prone, the steadier a shooter’s breathing pattern from one shot to the next, the higher the hit rate. In the study the elite athletes mostly released on the exhale (about three in four); the juniors mostly mid-breath. The exact point in the cycle can vary from person to person. What matters is choosing one and repeating it.',
     doThis: [
@@ -173,6 +179,7 @@ export const ENTRIES: LibraryEntry[] = [
   },
   {
     id: 'not-on-the-inhale', title: 'Don’t release on the inhale', phases: NOT_TRANSITION, focus: 'breathing', position: 'standing',
+    diagram: 'breath-cycle',
     summary:
       'Standing, shots released at the top of an inhale were rare but cost accuracy: about 13% overall and 23% among the junior athletes. Breathing in raises arousal and tension; breathing out settles the muscles and steadies the hold.',
     doThis: [
@@ -242,6 +249,7 @@ export const ENTRIES: LibraryEntry[] = [
   // --- Aiming (standing)
   {
     id: 'hold-or-timing', title: 'Know your aiming approach: hold or timing', phases: ['general', 'specific'], focus: 'aiming', position: 'standing',
+    diagram: 'aiming-approaches',
     summary:
       'Standing, shooters approach the target in one of two ways. A holder settles the aim inside the hit area and triggers just after it stabilises. A timer comes in straight and triggers while the aim is still moving towards the centre, without fully settling. Both work, and neither was found better. What matters is that the athlete knows which they use and practises that one, in light and hard sessions alike, because switching to the other in a race rarely works.',
     evidence: 'research', sources: [{ id: 'koykka2024', where: 'pp. 26-29' }],
@@ -266,6 +274,7 @@ export const ENTRIES: LibraryEntry[] = [
   // --- Trigger
   {
     id: 'trigger-plateau', title: 'Trigger plateau', phases: ['general', 'specific'], focus: 'trigger', position: 'both',
+    diagram: 'trigger-curve',
     summary:
       'Take 80 to 90% of the trigger weight quickly and smoothly, then stop on that plateau. The less force and movement left before the break, the less the rifle is disturbed. From the plateau, add a slight, steady increase until the shot breaks, then take the finger off quickly but without a jerk.',
     doThis: ['Dry, on the aiming point: quick first stage to the plateau, hold, then press through.', 'Twenty repetitions, then two or three normal live series.'],
@@ -314,6 +323,7 @@ export const ENTRIES: LibraryEntry[] = [
   // --- Range approach and efficiency
   {
     id: 'range-approach-skill', title: 'The range approach is a skill', phases: ['specific', 'early', 'competition'], focus: 'arrival', position: 'both',
+    diagram: 'range-approach',
     summary:
       'Arrive with your breathing feeling normal and under control. Ease the pace over the last 200 to 300 metres to get there. Skiing in too hard increased rifle movement, lengthened aiming time and slowed heart-rate recovery. Add a short mental shift to the present moment and a read of the conditions.',
     evidence: 'practice', sources: [{ id: 'koykka2026', where: 'pp. 30-31' }],
