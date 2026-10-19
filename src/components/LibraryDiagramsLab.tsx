@@ -161,50 +161,69 @@ const limb = (pts: [number, number][], width = 7, colour = BODY): React.ReactNod
   <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke={colour} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
 )
 
-const hand = (x: number, y: number, colour = BODY): React.ReactNode => <circle cx={x} cy={y} r={4.6} fill={colour} />
-/** A boot seen from the side: toe to the right. */
+const hand = (x: number, y: number, colour = BODY): React.ReactNode => <circle cx={x} cy={y} r={5} fill={colour} />
+
+/** A head seen from the side, facing right, with a nose and a hat so the direction reads at a glance. */
+const head = (cx: number, cy: number, r = 13, colour = BODY): React.ReactNode => (
+  <g>
+    <circle cx={cx} cy={cy} r={r} fill={colour} />
+    <path d={`M${cx + r - 1},${cy - 2} l${r * 0.45},${r * 0.3} l-${r * 0.45},${r * 0.3} z`} fill={colour} />
+    <path d={`M${cx - r},${cy - 1} a${r},${r} 0 0 1 ${2 * r - 1},-${r * 0.55} v${r * 0.45} h-${2 * r} z`} fill={INK} opacity={0.85} />
+  </g>
+)
+
+/** A ski boot from the side, toe to the right: sole, shaft and toe cap. */
 const boot = (x: number, y: number, colour = BODY): React.ReactNode => (
-  <rect x={x - 8} y={y - 8} width={30} height={9} rx={4} fill={colour} />
+  <g>
+    <rect x={x - 11} y={y - 13} width={36} height={13} rx={5} fill={colour} />
+    <rect x={x - 11} y={y - 3} width={36} height={3.5} rx={1.5} fill={INK} opacity={0.55} />
+  </g>
 )
 
 // 5. The standing position, from the side, shooting to the right.
 export function StandingFigure() {
   return (
     <Figure
-      viewBox="24 34 262 152"
-      label="A shooter in the standing position seen from the side, facing the target on the right. Feet about shoulder-width apart, body upright, the rifle at the shoulder with the support arm's elbow resting on the hip."
-      caption="The standing position from the side. The rifle sits at the shoulder and the support arm’s elbow rests on the hip, so the arm is held up by the body. Feet are about shoulder-width apart."
+      viewBox="20 8 262 216"
+      label="A shooter in the standing position seen from the right side, facing the target on the right. Feet about shoulder-width apart, body upright, the rifle at the right shoulder with the left arm's elbow resting on the hip and the forearm raised to hold the fore-end."
+      caption="The standing position from the right side. The rifle sits at the shoulder, and the elbow of the arm under the rifle (on the far side) rests on the hip, so that arm is held up by the body. Feet are about shoulder-width apart."
     >
-      <line x1={26} y1={181} x2={284} y2={181} stroke={LINE} strokeWidth={1} />
-      {/* far leg and boot */}
-      {limb([[120, 120], [118, 152], [120, 172]], 8, BODY_FAR)}
-      {boot(112, 181, BODY_FAR)}
-      {/* near leg and boot */}
-      {limb([[130, 120], [132, 152], [130, 172]], 9)}
-      {boot(124, 181)}
-      {/* torso, leaning back a little */}
-      {limb([[127, 122], [121, 76]], 17)}
-      {/* head, cheek down on the stock */}
-      <circle cx={130} cy={55} r={11.5} fill={BODY} />
-      {/* trigger arm: elbow out and back, hand at the grip */}
-      {limb([[122, 80], [110, 98], [139, 86]], 6, BODY_FAR)}
-      {hand(139, 86, BODY_FAR)}
-      {/* rifle */}
-      <line x1={110} y1={79} x2={264} y2={72} stroke={INK} strokeWidth={5} strokeLinecap="round" />
-      <path d="M150,77 l-3,10 h6 z" fill={INK} />
-      {/* support arm: elbow on the hip, forearm up to the rifle */}
-      {limb([[122, 82], [142, 111], [188, 79]], 7)}
-      {hand(188, 78)}
-      <circle cx={142} cy={112} r={9.5} fill="none" stroke={BLUE} strokeWidth={2} />
+      <line x1={24} y1={214} x2={282} y2={214} stroke={LINE} strokeWidth={1} />
+      {/* far leg, lighter, a little behind */}
+      {limb([[112, 118], [110, 160], [112, 200]], 15, BODY_FAR)}
+      {boot(104, 214, BODY_FAR)}
+      {/* far (support) arm: shoulder, elbow on the hip, forearm up to the fore-end */}
+      {limb([[122, 66], [146, 108], [192, 70]], 9, BODY_FAR)}
+      {hand(192, 69, BODY_FAR)}
+      {/* torso and neck */}
+      {limb([[118, 62], [126, 112]], 27)}
+      {limb([[123, 52], [120, 62]], 9)}
+      {/* near leg */}
+      {limb([[128, 118], [130, 160], [128, 200]], 17)}
+      {boot(120, 214)}
+      {/* head with the cheek on the stock */}
+      {head(128, 36)}
+      {/* rifle: stock at the shoulder, barrel out to the target */}
+      <path d="M100,60 L152,60 L152,69 L100,74 Z" fill={INK} />
+      <line x1={150} y1={63} x2={276} y2={63} stroke={INK} strokeWidth={5} strokeLinecap="round" />
+      <rect x={140} y={52} width={14} height={7} rx={2} fill={INK} />
+      {/* near (trigger) arm: elbow out and back, hand at the grip */}
+      {limb([[118, 66], [101, 88], [140, 74]], 9)}
+      {hand(140, 73)}
+      {/* the support elbow on the hip */}
+      <circle cx={146} cy={108} r={11} fill="none" stroke={BLUE} strokeWidth={2.2} />
       {/* line of fire */}
-      <line x1={196} y1={52} x2={272} y2={52} stroke={LINE} strokeWidth={1} strokeDasharray="5 4" />
-      <path d="M272,52 l-8,-4 v8 z" fill={LINE} />
-      <text x={234} y={44} textAnchor="middle" style={{ ...text(10.5), fill: MUTED }}>line of fire</text>
+      <line x1={200} y1={36} x2={274} y2={36} stroke={LINE} strokeWidth={1} strokeDasharray="5 4" />
+      <path d="M274,36 l-8,-4 v8 z" fill={LINE} />
+      <text x={237} y={28} textAnchor="middle" style={{ ...text(11), fill: MUTED }}>line of fire</text>
       {/* labels */}
-      <text x={160} y={134} style={{ ...text(10.5), fill: BLUE, fontWeight: 600, ...haloed }}>elbow on the hip</text>
-      <text x={100} y={150} textAnchor="end" style={{ ...text(10.5), fill: INK }}>feet about</text>
-      <text x={100} y={163} textAnchor="end" style={{ ...text(10.5), fill: INK }}>shoulder-width</text>
-      <path d="M103,162 L112,172" stroke={LINE} strokeWidth={1} fill="none" />
+      <text x={166} y={128} style={{ ...text(11), fill: BLUE, fontWeight: 700, ...haloed }}>elbow on the hip</text>
+      <text x={24} y={170} style={{ ...text(11), fill: INK }}>feet about</text>
+      <text x={24} y={184} style={{ ...text(11), fill: INK }}>shoulder-width</text>
+      <path d="M92,182 L104,196" stroke={LINE} strokeWidth={1} fill="none" />
+      <text x={24} y={92} style={{ ...text(11), fill: INK }}>rifle at</text>
+      <text x={24} y={105} style={{ ...text(11), fill: INK }}>the shoulder</text>
+      <path d="M86,88 L100,72" stroke={LINE} strokeWidth={1} fill="none" />
     </Figure>
   )
 }
@@ -213,91 +232,96 @@ export function StandingFigure() {
 export function ProneFigure() {
   return (
     <Figure
-      viewBox="8 70 284 86"
-      label="A shooter in the prone position seen from the side, lying on a mat facing the target on the right, head up behind the rifle, with both elbows on the mat under the rifle."
-      caption="The prone position from the side. The body is on the mat with the elbows underneath the rifle, so the rifle is held up by bone and the mat, not by muscle."
+      viewBox="8 40 284 100"
+      label="A shooter in the prone position seen from the right side, lying on a mat facing the target on the right, head up behind the rifle, with both elbows on the mat under the rifle."
+      caption="The prone position from the right side. The body is down on the mat with both elbows on it under the rifle, so the rifle rests on bone and the mat, not on muscle."
     >
       {/* mat */}
-      <rect x={12} y={126} width={276} height={8} rx={3} fill={BLUE} fillOpacity={0.16} />
-      {/* legs back to the left, boots */}
-      {limb([[88, 118], [34, 121]], 9, BODY_FAR)}
-      {limb([[88, 121], [34, 124]], 9)}
-      <rect x={18} y={115} width={14} height={12} rx={4} fill={BODY} />
-      {/* torso rising to the shoulders */}
-      {limb([[90, 119], [144, 108]], 16)}
+      <rect x={12} y={116} width={276} height={9} rx={3} fill={BLUE} fillOpacity={0.18} />
+      {/* far leg, lighter */}
+      {limb([[98, 104], [44, 108]], 14, BODY_FAR)}
+      {/* far (support) arm: elbow on the mat under the rifle, hand under the fore-end */}
+      {limb([[156, 92], [190, 112], [216, 90]], 9, BODY_FAR)}
+      {hand(216, 89, BODY_FAR)}
+      {/* near leg and boot */}
+      {limb([[98, 106], [44, 111]], 15)}
+      {boot(26, 114)}
+      {/* torso, raised on the elbows */}
+      {limb([[98, 102], [152, 88]], 27)}
       {/* head up behind the sight */}
-      <circle cx={160} cy={86} r={11} fill={BODY} />
-      {/* rifle, butt at the shoulder, muzzle to the right */}
-      <line x1={146} y1={100} x2={276} y2={104} stroke={INK} strokeWidth={5} strokeLinecap="round" />
-      {/* trigger arm: elbow on the mat, hand at the grip */}
-      {limb([[146, 110], [136, 125], [163, 106]], 6, BODY_FAR)}
-      {hand(163, 106, BODY_FAR)}
-      {/* support arm: elbow on the mat under the rifle, hand under the fore-end */}
-      {limb([[148, 112], [192, 125], [214, 107]], 7)}
-      {hand(214, 106)}
-      <circle cx={192} cy={125} r={8.5} fill="none" stroke={BLUE} strokeWidth={2} />
-      <text x={200} y={150} textAnchor="middle" style={{ ...text(10.5), fill: BLUE, fontWeight: 600, ...haloed }}>elbow on the mat</text>
-      <text x={56} y={104} textAnchor="middle" style={{ ...text(10.5), fill: INK }}>legs relaxed</text>
-      <line x1={222} y1={86} x2={278} y2={88} stroke={LINE} strokeWidth={1} strokeDasharray="5 4" />
-      <path d="M278,88 l-8,-4 v8 z" fill={LINE} />
-      <text x={250} y={80} textAnchor="middle" style={{ ...text(10.5), fill: MUTED }}>line of fire</text>
+      {head(172, 70)}
+      {/* rifle: stock at the shoulder, barrel to the target, resting forward on the support hand */}
+      <path d="M146,80 L186,80 L186,88 L146,92 Z" fill={INK} />
+      <line x1={184} y1={84} x2={282} y2={84} stroke={INK} strokeWidth={5} strokeLinecap="round" />
+      <rect x={174} y={73} width={14} height={7} rx={2} fill={INK} />
+      {/* near (trigger) arm: elbow on the mat, hand at the grip */}
+      {limb([[150, 92], [138, 112], [176, 90]], 9)}
+      {hand(176, 89)}
+      {/* both elbows on the mat */}
+      <circle cx={190} cy={112} r={10} fill="none" stroke={BLUE} strokeWidth={2.2} />
+      <circle cx={138} cy={112} r={10} fill="none" stroke={BLUE} strokeWidth={2.2} />
+      <text x={164} y={140} textAnchor="middle" style={{ ...text(11), fill: BLUE, fontWeight: 700, ...haloed }}>both elbows on the mat</text>
+      <text x={60} y={86} textAnchor="middle" style={{ ...text(11), fill: INK }}>legs relaxed</text>
+      <line x1={222} y1={62} x2={280} y2={62} stroke={LINE} strokeWidth={1} strokeDasharray="5 4" />
+      <path d="M280,62 l-8,-4 v8 z" fill={LINE} />
+      <text x={250} y={54} textAnchor="middle" style={{ ...text(11), fill: MUTED }}>line of fire</text>
     </Figure>
   )
 }
 
-// 7. The four stances of the balance ladder, as feet seen from the side, two by two.
+// 7. The four stances of the balance ladder, seen from above (forward is up), two by two.
 export function StanceVignettes() {
-  const cellW = 144, cellH = 92
-  const origin = (i: number) => ({ ox: 6 + (i % 2) * (cellW + 4), oy: 4 + Math.floor(i / 2) * (cellH + 6) })
-  const g = 58 // ground, inside a cell
-  const leg = (x: number, y: number, colour: string, tilt = 0): React.ReactNode => (
-    <g transform={`rotate(${tilt} ${x} ${y})`}>
-      {limb([[x - 4, y - 40], [x - 3, y - 9]], 9, colour)}
-      <rect x={x - 9} y={y - 9} width={32} height={10} rx={4.5} fill={colour} />
+  const cellW = 144, cellH = 140
+  const origin = (i: number) => ({ ox: 6 + (i % 2) * (cellW + 4), oy: 2 + Math.floor(i / 2) * (cellH + 26) })
+  /** One foot from above: toe at the top. */
+  const foot = (x: number, y: number, colour: string): React.ReactNode => (
+    <g>
+      <rect x={x - 8} y={y} width={16} height={42} rx={7} fill={colour} />
+      <rect x={x - 6} y={y + 30} width={12} height={12} rx={5} fill={INK} opacity={0.35} />
     </g>
   )
   const names = ['Flat, normal stance', 'Staggered stance', 'Heels on a beam', 'Unstable sole']
   return (
     <Figure
-      viewBox="0 0 300 200"
-      label="Four stances for standing balance work, shown as feet seen from the side: flat and normal; staggered with the front heel level with the back toes; heels on a low beam; and standing on an unstable sole such as a pool noodle."
-      caption="Four stances, as feet and lower legs from the side. Move to the next only when the one before holds steady. Dry only."
+      viewBox="0 0 300 332"
+      label="Four stances for standing balance work, drawn as footprints seen from above with forward at the top: feet side by side; one foot ahead so its heel is level with the back foot's toes; heels resting on a low beam; and the middle of the feet on an unstable roll such as a pool noodle."
+      caption="Four stances seen from above, forward at the top. Move to the next only when the one before holds steady. Dry only."
     >
       {names.map((n, i) => {
         const { ox, oy } = origin(i)
         const c = cellW / 2 // inside the cell's own group, which is already translated
         return (
           <g key={n} transform={`translate(${ox} ${oy})`}>
-            <text x={6} y={14} style={{ ...text(11), fill: INK, fontWeight: 700 }}>{i + 1}</text>
-            <text x={cellW / 2} y={cellH + 2} textAnchor="middle" style={{ ...text(10.5), fill: SOFT }}>{n}</text>
-            {/* ground */}
-            {i < 2 && <line x1={10} y1={g + 1} x2={cellW - 10} y2={g + 1} stroke={LINE} strokeWidth={1} />}
-            {i === 0 && <>{leg(c - 22, g, BODY_FAR)}{leg(c - 6, g, BODY)}</>}
+            <rect x={0} y={0} width={cellW} height={cellH} rx={8} fill="var(--grid)" fillOpacity={0.45} />
+            <text x={8} y={17} style={{ ...text(12), fill: INK, fontWeight: 700 }}>{i + 1}</text>
+            <text x={cellW / 2} y={cellH + 15} textAnchor="middle" style={{ ...text(11), fill: SOFT }}>{n}</text>
+            <path d={`M${cellW - 14},30 v-14 m0,0 l-3.5,5 m3.5,-5 l3.5,5`} stroke={MUTED} strokeWidth={1.3} fill="none" strokeLinecap="round" />
+            <text x={cellW - 14} y={42} textAnchor="middle" style={{ ...text(9.5), fill: MUTED }}>front</text>
+            {i === 0 && <>{foot(c - 18, 40, BODY)}{foot(c + 18, 40, BODY)}</>}
             {i === 1 && (
               <>
-                {leg(c - 40, g, BODY_FAR)}
-                {leg(c - 6, g, BODY)}
-                <line x1={c - 7} y1={g - 54} x2={c - 7} y2={g + 5} stroke={BLUE} strokeWidth={1.2} strokeDasharray="3 2" />
-                <text x={c + 22} y={g - 38} style={{ ...text(10), fill: BLUE, fontWeight: 600 }}>heel level</text>
-                <text x={c + 22} y={g - 27} style={{ ...text(10), fill: BLUE, fontWeight: 600 }}>with toes</text>
+                {foot(c - 18, 62, BODY_FAR)}
+                {foot(c + 18, 20, BODY)}
+                <line x1={c - 40} y1={62} x2={c + 40} y2={62} stroke={BLUE} strokeWidth={1.4} strokeDasharray="3 2" />
+                <text x={c} y={123} textAnchor="middle" style={{ ...text(10), fill: BLUE, fontWeight: 700 }}>front heel level</text>
+                <text x={c} y={134} textAnchor="middle" style={{ ...text(10), fill: BLUE, fontWeight: 700 }}>with back toes</text>
               </>
             )}
             {i === 2 && (
               <>
-                <line x1={10} y1={g + 1} x2={cellW - 10} y2={g + 1} stroke={LINE} strokeWidth={1} />
-                <circle cx={c - 28} cy={g - 5} r={6} fill={BLUE} fillOpacity={0.3} stroke={BLUE} />
-                <circle cx={c - 12} cy={g - 5} r={6} fill={BLUE} fillOpacity={0.3} stroke={BLUE} />
-                {leg(c - 28, g - 10, BODY_FAR, -5)}
-                {leg(c - 12, g - 10, BODY, -5)}
+                {foot(c - 18, 28, BODY)}
+                {foot(c + 18, 28, BODY)}
+                <rect x={c - 42} y={62} width={84} height={9} rx={4.5} fill={BLUE} fillOpacity={0.4} stroke={BLUE} />
+                <text x={c} y={128} textAnchor="middle" style={{ ...text(10), fill: BLUE, fontWeight: 700 }}>beam under the heels</text>
               </>
             )}
             {i === 3 && (
               <>
-                <line x1={10} y1={g + 1} x2={cellW - 10} y2={g + 1} stroke={LINE} strokeWidth={1} />
-                <circle cx={c - 6} cy={g - 8} r={9} fill={BLUE} fillOpacity={0.28} stroke={BLUE} />
-                {leg(c - 18, g - 16, BODY_FAR, 3)}
-                {leg(c - 2, g - 16, BODY, 3)}
-                <path d={`M${c - 46},${g - 44} q-7,10 0,20 M${c + 36},${g - 44} q7,10 0,20`} fill="none" stroke={MUTED} strokeWidth={1.3} strokeLinecap="round" />
+                {foot(c - 18, 28, BODY)}
+                {foot(c + 18, 28, BODY)}
+                <rect x={c - 42} y={44} width={84} height={14} rx={7} fill={BLUE} fillOpacity={0.3} stroke={BLUE} />
+                <path d={`M${c - 54},50 q-6,6 0,12 M${c + 54},50 q6,6 0,12`} fill="none" stroke={MUTED} strokeWidth={1.4} strokeLinecap="round" />
+                <text x={c} y={128} textAnchor="middle" style={{ ...text(10), fill: BLUE, fontWeight: 700 }}>roll under the feet</text>
               </>
             )}
           </g>
