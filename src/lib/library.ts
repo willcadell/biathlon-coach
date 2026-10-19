@@ -11,7 +11,9 @@ import type { SeasonPhase } from './seasonPhase'
  */
 
 /** The schematic an entry can carry: see LibraryDiagrams. */
-export type DiagramId = 'breath-cycle' | 'aiming-approaches' | 'trigger-curve' | 'range-approach'
+export type DiagramId =
+  | 'breath-cycle' | 'aiming-approaches' | 'trigger-curve' | 'range-approach'
+  | 'aim-paths' | 'sway-axes' | 'stability-ladder' | 'hold-over-time'
 
 export type SourceKind = 'research' | 'review' | 'interview' | 'catalogue' | 'practice'
 
@@ -209,6 +211,7 @@ export const ENTRIES: LibraryEntry[] = [
   },
   {
     id: 'core-stability-standing', title: 'Core stability for standing', phases: ['general', 'specific'], focus: 'stability', position: 'standing',
+    diagram: 'sway-axes',
     summary:
       'Athletes whose torso was less steady when disturbed showed more body and rifle movement in the last half-second before the shot, and more so at a raised heart rate. Core stability here means holding the torso steady against a push, which is different from strength. Standing performance matters because it comes last in a race, with little time to recover.',
     doThis: [
@@ -219,10 +222,11 @@ export const ENTRIES: LibraryEntry[] = [
     coachNote:
       'An aim-trace device can stand in for a force plate, and a Y-balance test is a simple stand-in again. The authors note that research on how best to train this is still early.',
     evidence: 'research',
-    sources: [{ id: 'becker2024', where: 'pp. 6-9' }, { id: 'catalogue2018', where: 'pp. 18, 21-22, 56-59' }],
+    sources: [{ id: 'becker2024', where: 'pp. 6-9' }, { id: 'catalogue2018', where: 'pp. 12-13, 18, 21-22, 56-59' }],
   },
   {
     id: 'standing-balance', title: 'Standing balance work', phases: ['general'], focus: 'stability', position: 'standing',
+    diagram: 'stability-ladder',
     summary:
       'Balance is one of the main coordination skills in biathlon, and any unintended movement of the body passes to the rifle. The catalogue builds instability in small steps: a staggered stance, heel and toe variations, heels on a low beam, an unstable sole.',
     doThis: [
@@ -236,6 +240,7 @@ export const ENTRIES: LibraryEntry[] = [
   },
   {
     id: 'rifle-stability-under-load', title: 'Rifle stability under load', phases: ['general', 'specific'], focus: 'stability', position: 'both',
+    diagram: 'aim-paths',
     summary:
       'Hold the aim on the target while something disturbs the rifle: a band pulling from the front or from above, a weight hanging from the barrel, or shooting prone without the sling. Change the pull once the aim is steady, so the body learns to resist a disturbance.',
     doThis: [
@@ -357,6 +362,7 @@ export const ENTRIES: LibraryEntry[] = [
   },
   {
     id: 'build-load-when-steady', title: 'Build load only when it is steady', phases: ['general', 'specific'], focus: 'season', position: 'both',
+    diagram: 'hold-over-time',
     summary:
       'Move from shooting at rest, to low intensity, to race intensity in steps. A drill that cannot be held steady for 30 to 45 seconds after a few tries is too hard for today. After six to eight weeks of real progress, make it harder. One coach’s summary of the year: shooting needs the same kind of periodisation as fitness, easy and long, intense and short, and recovery as well.',
     evidence: 'catalogue', sources: [{ id: 'catalogue2018', where: 'pp. 9-11' }, { id: 'koykka2026', where: 'p. 29' }],
