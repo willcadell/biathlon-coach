@@ -102,12 +102,16 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
     return { index: pulls.length + 1, total: set.length, current: set[Math.min(pulls.length, set.length - 1)], taken, wanted, note }
   }, [])
 
-  // The calibration lights: every light off, and a target's turns green once its pulls are taken.
-  const calibrationLights = useCallback(() => {
+  // The calibration lights: every light off, a target's light flashing green when a pull of it is accepted, and steady green once all its pulls are taken.
+  const blinkRef = useRef(0)
+  const calibrationLights = useCallback((accepted = -1) => {
     const { set, pulls } = calRef.current
     let done = 0
     for (const a of new Set(set)) if (set.every((x, i) => x !== a || i < pulls.length)) done |= 1 << a
-    lights(0, done)
+    const id = ++blinkRef.current
+    const bit = accepted < 0 ? 0 : 1 << accepted
+    if (!bit || done & bit) { lights(0, done); return }
+    [done | bit, done, done | bit, done].forEach((g, i) => setTimeout(() => { if (blinkRef.current === id) lights(0, g) }, i * 220))   // two flashes, ending as it was
   }, [lights])
 
   const beginCalibration = useCallback((note = '') => {
@@ -121,6 +125,7 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
   }, [viewOf, calibrationLights])
 
   const flash = useCallback((times: number) => {
+    blinkRef.current++
     let i = 0
     const step = () => {
       if (i >= times * 2) { lights(0x1f, 0); return }
@@ -141,7 +146,7 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
       }
       c.pulls.push(hold)
       if (needsExtraPull(c.set, c.pulls)) c.set.splice(c.pulls.length, 0, c.set[c.pulls.length - 1])   // a pair that disagrees earns a third pull
-      if (c.pulls.length < c.set.length) { setCal(viewOf()); calibrationLights(); return }
+      if (c.pulls.length < c.set.length) { setCal(viewOf()); calibrationLights(c.set[c.pulls.length - 1]); return }
       const out = solveCalibration(c.set, c.pulls, c.saved, modelRef.current)
       if ('rejected' in out) { beginCalibration(`${out.rejected} Starting again.`); return }
       c.saved = out.saved
