@@ -573,3 +573,16 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .sensor-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sensor-controls > * { flex: none; }
 .sensor-controls button { width: auto; }
+.st-leg { fill: none; stroke: currentColor; stroke-width: 2.4px; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+.st-arrow { fill: currentColor; opacity: 0.95; }
+.sensor-legend { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.sensor-legend i { display: inline-block; width: 16px; height: 4px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+.sensor-route-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 6px; }
+.sensor-route-head h3 { margin: 0; }
+.sensor-route-head .seg button { padding: 5px 10px; font-size: 12px; width: auto; }
+.sensor-replay { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.sensor-replay > * { flex: none; }
+.sensor-replay button { width: auto; padding: 8px 12px; font-size: 13px; }
+.sensor-replay input[type='range'] { flex: 1; min-width: 80px; accent-color: var(--series-1); }
+.sensor-replay select { width: auto; padding: 7px 6px; font-size: 13px; }
+.sensor-route-head button.secondary { width: auto; padding: 5px 10px; font-size: 12px; margin-left: auto; }

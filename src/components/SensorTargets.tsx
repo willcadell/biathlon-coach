@@ -2,7 +2,7 @@ import { DISC_DIAMETER_MM, TARGET_NAMES, targetCentre, TARGET_SPACING_MM, type P
 import type { Position } from '../lib/types'
 
 /** One shot on the targets, in millimetres (+x right, +y up, origin at Charlie). */
-export interface ShotMark { n: number; x: number; y: number; hit: boolean }
+export interface ShotMark { n: number; x: number; y: number; hit: boolean; /** Receiver time of the shot, ms. */ t?: number }
 
 /** Where the calibration is: which targets are part of it and how many pulls each has had. */
 export interface GuideState {
@@ -41,7 +41,7 @@ export function SensorTargets({ position, aim, trace, shots, guide }: {
             <circle cx={c.x} cy={0} r={Math.max(disc, 1.2)} className="st-disc" />
             {now && <circle cx={c.x} cy={0} r={board + 1.4} className="st-now" />}
             {now && <text x={c.x} y={-board - 3} className="st-aimhere" textAnchor="middle">Aim here</text>}
-            <text x={c.x} y={board + 6} className="st-name" textAnchor="middle">{TARGET_NAMES[i]}</text>
+            <text x={c.x} y={board + 6} className="st-name" textAnchor="middle">{TARGET_NAMES[i][0]}</text>
             {inGuide && Array.from({ length: total }, (_, k) => (
               <circle key={k} cx={c.x + (k - (total - 1) / 2) * 3.4} cy={board + 10.5} r={1.1} className={k < taken ? 'st-pull done' : 'st-pull'} />
             ))}

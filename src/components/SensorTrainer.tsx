@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CALIBRATION_PULLS, STEADY_SECONDS, STEADY_SPEED, SensorConnection, TARGET_NAMES, TARGET_SPACING_MM, TargetMap,
-  aimSpeed, currentModel, holdBefore, needsExtraPull, observeBout, refineModel, scoreShot, sensorSupport, solveCalibration,
-  type ConnectionState, type HoldSample, type Model, type Point, type Pull, type Quality, type SavedCalibration, type Sample,
+  aimSpeed, currentModel, holdBefore, legStats, needsExtraPull, observeBout, refineModel, scoreShot, sensorSupport, solveCalibration,
+  type ConnectionState, type HoldSample, type Model, type Point, type Pull, type Quality, type SavedCalibration, type Sample, type TrackRow,
 } from '../lib/sensor'
 import type { Position } from '../lib/types'
 import { DryfireIcon } from './icons'
+import { SensorReplay } from './SensorReplay'
+import { RouteLegend, SensorRoute } from './SensorRoute'
 import { SensorTargets, type GuideState, type ShotMark } from './SensorTargets'
 
 /** What a finished sensor session hands back to the dry-fire session it belongs to. */
@@ -29,7 +31,7 @@ function saveModel(m: Model): void {
   try { localStorage.setItem(MODEL_KEY, JSON.stringify(m)) } catch { /* a model that is not remembered starts from the defaults next time */ }
 }
 
-type Phase = 'idle' | 'connecting' | 'calibrating' | 'shooting'
+type Phase = 'idle' | 'connecting' | 'calibrating' | 'shooting' | 'review'
 
 interface CalView { index: number; total: number; current: number; taken: Record<number, number>; wanted: Record<number, number>; note: string }
 
@@ -69,6 +71,9 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
   const [quality, setQuality] = useState<Quality | null>(null)
   const [details, setDetails] = useState(false)
   const [held, setHeld] = useState(0)
+  const [tick, setTick] = useState(0)                 // bumped as the track grows, to redraw the route
+  const [routeBout, setRouteBout] = useState<number | null>(null)
+  const [replaying, setReplaying] = useState(false)
 
   // Everything the event handlers need, as refs, because they are registered once.
   const phaseRef = useRef<Phase>('idle')
@@ -77,6 +82,7 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
   const aimRef = useRef<Point | null>(null)
   const traceRef = useRef<(Point & { t: number })[]>([])
   const shotsRef = useRef<ShotMark[]>([])
+  const trackRef = useRef<TrackRow[]>([])           // every aim sample since shooting began, with the number of shots fired so far (its leg)
   const uxRef = useRef<number[]>([])
   const calRef = useRef<{ set: number[]; pulls: Pull[]; saved: SavedCalibration | null }>({ set: [...CALIBRATION_PULLS], pulls: [], saved: null })
   const modelRef = useRef<Model>(loadModel())
@@ -151,10 +157,11 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
     if (phaseRef.current !== 'shooting') return
     const r = scoreShot(shot.x, shot.y, positionRef.current)
     const n = shotsRef.current.length + 1
-    const mark: ShotMark = { n, x: shot.x, y: shot.y, hit: r.hit }
+    const mark: ShotMark = { n, x: shot.x, y: shot.y, hit: r.hit, t: shot.t }
     shotsRef.current = [...shotsRef.current, mark]
     uxRef.current = [...uxRef.current, shot.ux]
     setShots(shotsRef.current)
+    setTick((t) => t + 1)
     if ((n - 1) % BOUT === 0) greenRef.current = 0
     if (r.hit) greenRef.current |= 1 << r.target
     lights(0x1f & ~greenRef.current, greenRef.current)
@@ -178,11 +185,14 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
         while (buf.current.length && buf.current[0].t < s.t - 3000) buf.current.shift()
         aimRef.current = { x: s.x, y: s.y }
         traceRef.current.push({ x: s.x, y: s.y, t: s.t })
+        if (phaseRef.current === 'shooting') trackRef.current.push([s.t, s.x, s.y, shotsRef.current.length])
         while (traceRef.current.length && traceRef.current[0].t < s.t - 2500) traceRef.current.shift()
       }),
       c.on('shot', onShot),
     ]
+    let frames = 0
     const timer = window.setInterval(() => {
+      if (++frames % 15 === 0 && phaseRef.current === 'shooting') setTick((t) => t + 1)
       setAim(aimRef.current)
       setTrace(traceRef.current.map((p) => ({ x: p.x, y: p.y })))
       if (phaseRef.current === 'calibrating') {
@@ -202,7 +212,7 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
       await conn.current.connect()
       await conn.current.start({ ...GEOMETRY, map: null })
       await conn.current.setTargets(0x1f)
-      shotsRef.current = []; uxRef.current = []; setShots([])
+      shotsRef.current = []; uxRef.current = []; trackRef.current = []; setShots([]); setRouteBout(null); setReplaying(false)
       calRef.current = { set: [...CALIBRATION_PULLS], pulls: [], saved: null }
       startedAt.current = Date.now()
       beginCalibration()
@@ -217,16 +227,29 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
     const hits = all.filter((s) => s.hit).length
     const minutes = Math.max(1, Math.round((Date.now() - startedAt.current) / 60000))
     await conn.current.disconnect()
-    setPhase('idle')
-    if (all.length) {
-      onFinish({ minutes, shots: all.length, hits, line: `Sensor trainer: ${hits} of ${all.length} shots hit${position === 'prone' ? ' (prone)' : ' (standing)'}.` })
-    }
-    onClose()
+    if (!all.length) { setPhase('idle'); onClose(); return }
+    setPhase('review')                                                          // the session stays on screen to be replayed until it is closed
+    onFinish({ minutes, shots: all.length, hits, line: `Sensor trainer: ${hits} of ${all.length} shots hit${position === 'prone' ? ' (prone)' : ' (standing)'}.` })
   }
 
   const running = phase === 'calibrating' || phase === 'shooting'
   const guide: GuideState | null = phase === 'calibrating' && cal ? { current: cal.current, total: cal.wanted, taken: cal.taken } : null
   const bouts = Math.ceil(shots.length / BOUT)
+  const routeShown = Math.min(routeBout ?? bouts - 1, bouts - 1)
+  const route = useMemo(() => {
+    const lo = Math.max(0, routeShown) * BOUT, hi = lo + BOUT
+    return legStats(trackRef.current.filter((q) => q[3] >= lo && q[3] < hi))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick, routeShown])
+  // What a replay plays: the bout's aim track up to its last shot, frozen when the replay is opened.
+  const replaySnap = useMemo(() => {
+    if (!replaying && phase !== 'review') return null
+    const lo = Math.max(0, routeShown) * BOUT
+    const inBout = shotsRef.current.slice(lo, lo + BOUT)
+    const endT = inBout.length ? inBout[inBout.length - 1].t ?? 0 : 0
+    return { rows: trackRef.current.filter((q) => q[3] >= lo && q[3] < lo + BOUT && q[0] <= endT + 500), shots: inBout }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replaying, phase, routeShown])
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -234,13 +257,13 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
       <div className="sensor-controls">
         <div className="seg" role="group" aria-label="Position">
           {(['prone', 'standing'] as Position[]).map((p) => (
-            <button key={p} aria-pressed={position === p} disabled={running} onClick={() => setPosition(p)}>{p === 'prone' ? 'Prone' : 'Standing'}</button>
+            <button key={p} aria-pressed={position === p} disabled={running || phase === 'review'} onClick={() => setPosition(p)}>{p === 'prone' ? 'Prone' : 'Standing'}</button>
           ))}
         </div>
-        {!running && <button className="primary" disabled={phase === 'connecting'} onClick={() => void start()}>{phase === 'connecting' ? 'Connecting…' : 'Connect and start'}</button>}
+        {!running && <button className="primary" disabled={phase === 'connecting'} onClick={() => void start()}>{phase === 'connecting' ? 'Connecting…' : phase === 'review' ? 'Start another' : 'Connect and start'}</button>}
         {running && phase === 'shooting' && <button className="secondary" onClick={() => beginCalibration()}>Calibrate again</button>}
         {running && <button className="secondary" onClick={() => void finish()}>Finish</button>}
-        {!running && phase === 'idle' && <button className="secondary" onClick={onClose}>Close</button>}
+        {(phase === 'idle' || phase === 'review') && <button className="secondary" onClick={onClose}>Close</button>}
       </div>
 
       {status === 'ready' && !running && <p className="meta">Receiver connected.</p>}
@@ -279,6 +302,28 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
             ))}
           </tbody>
         </table>
+      )}
+
+      {(phase === 'shooting' || phase === 'review') && shots.length > 0 && (
+        <div>
+          <div className="sensor-route-head">
+            <h3>Route to each shot</h3>
+            {phase === 'shooting' && <button className="secondary" onClick={() => setReplaying(!replaying)}>{replaying ? 'Live route' : 'Replay'}</button>}
+            {bouts > 1 && (
+              <div className="seg" role="group" aria-label="Bout">
+                {Array.from({ length: bouts }, (_, b) => <button key={b} aria-pressed={routeShown === b} onClick={() => setRouteBout(b)}>{b + 1}</button>)}
+              </div>
+            )}
+          </div>
+          {replaySnap ? (
+            <SensorReplay key={`${routeShown}|${replaySnap.rows.length}`} position={position} rows={replaySnap.rows} shots={replaySnap.shots} bout={routeShown} />
+          ) : (
+            <>
+              <SensorRoute position={position} legs={route} shots={shots.slice(routeShown * BOUT, (routeShown + 1) * BOUT)} bout={routeShown} />
+              <RouteLegend legs={route} />
+            </>
+          )}
+        </div>
       )}
 
       {shots.length > 0 && (
