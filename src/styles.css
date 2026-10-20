@@ -530,3 +530,46 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .goal-box .goal-bar { background: rgba(255, 255, 255, 0.28); }
 .goal-box .goal-bar > i { background: #fff; }
 .goal-box .goal-bar.missed > i { background: rgba(255, 255, 255, 0.55); }
+
+/* Sensor trainer (dry-fire, computers only) */
+.sensor-targets { display: block; width: 100%; height: auto; background: var(--page); border: 1px solid var(--border); border-radius: var(--radius); }
+.st-board { fill: var(--surface-1); stroke: var(--axis); stroke-width: 0.5; }
+.st-disc { fill: var(--mark-fill); }
+.st-now { fill: none; stroke: var(--series-3); stroke-width: 0.8; }
+.st-aimhere { fill: var(--series-3); font-size: 4px; font-weight: 700; }
+.st-name { fill: var(--text-muted); font-size: 4px; }
+.st-pull { fill: none; stroke: var(--axis); stroke-width: 0.5; }
+.st-pull.done { fill: var(--good); stroke: var(--good); }
+.st-tick { fill: var(--good); }
+.st-tickmark { fill: none; stroke: #fff; stroke-width: 0.8; stroke-linecap: round; stroke-linejoin: round; }
+.st-trace { fill: none; stroke: var(--series-1); stroke-width: 0.5; opacity: 0.55; stroke-linejoin: round; }
+.st-shot.hit { fill: var(--good); }
+.st-shot.miss { fill: var(--critical); }
+.st-shotn { fill: #fff; font-size: 2.4px; font-weight: 700; }
+.st-aim circle { fill: var(--series-1); }
+.st-aim path { stroke: var(--series-1); stroke-width: 0.5; fill: none; }
+
+.sensor-guide { background: var(--page); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
+.sensor-guide .sg-step { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.sensor-guide .sg-title { font-size: 18px; font-weight: 700; margin: 2px 0 8px; }
+.sg-pips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.sg-pip { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--axis); color: var(--text-secondary); }
+.sg-pip.now { border-color: var(--series-3); color: var(--series-3); font-weight: 600; }
+.sg-pip.done { border-color: var(--good); color: var(--good); background: var(--good-wash); }
+.sg-meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; margin-bottom: 6px; }
+.sg-meter i { display: block; height: 100%; background: var(--series-1); transition: width 0.1s linear; }
+.sg-meter i.ready { background: var(--good); }
+
+.sensor-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+.sensor-table th { text-align: left; font-weight: 500; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.sensor-table th, .sensor-table td { padding: 4px 6px 4px 0; border-bottom: 1px solid var(--border); }
+.sensor-bout { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.sensor-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--critical); color: var(--critical); }
+.sensor-chip.hit { border-color: var(--good); color: var(--good); background: var(--good-wash); }
+.sensor-head { display: flex; align-items: center; gap: 12px; }
+.sensor-head > svg { flex: none; }
+.sensor-head > div { flex: 1; min-width: 0; }
+.sensor-head > button { flex: none; width: auto; padding-left: 18px; padding-right: 18px; }
+.sensor-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.sensor-controls > * { flex: none; }
+.sensor-controls button { width: auto; }

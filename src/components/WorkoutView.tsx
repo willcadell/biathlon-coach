@@ -16,6 +16,7 @@ import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
+import { SensorTrainerCard } from './SensorTrainer'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
@@ -854,6 +855,15 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
             onChange={(e) => onWorkoutChanged({ ...workout, dryfireMinutes: Number(e.target.value) || 0 })}
           />
         </label>
+
+        <SensorTrainerCard
+          position="prone"
+          onFinish={(r) => onWorkoutChanged({
+            ...workout,
+            dryfireMinutes: (workout.dryfireMinutes || 0) + r.minutes,
+            notes: workout.notes ? `${workout.notes}\n${r.line}` : r.line,
+          })}
+        />
 
         <h2>Notes</h2>
         <textarea

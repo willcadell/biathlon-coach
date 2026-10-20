@@ -7,7 +7,7 @@
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host",
-    "test": "esbuild test/logic.ts --bundle --format=esm --platform=node --log-level=error --outfile=node_modules/.cache/logic.mjs && node node_modules/.cache/logic.mjs",
+    "test": "npm run test:logic && npm run test:sensor",
     "typecheck": "tsc -b",
     "cv-check": "esbuild test/cv-check.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-check.mjs && node node_modules/.cache/cv-check.mjs",
     "cv-progress": "esbuild test/cv-progress.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-progress.mjs && node node_modules/.cache/cv-progress.mjs",
@@ -16,7 +16,9 @@
     "cv-synth-library": "esbuild test/synth/library.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/synth-library.mjs && node node_modules/.cache/synth-library.mjs",
     "cv-synth-generate": "esbuild test/synth/generate.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/synth-generate.mjs && node node_modules/.cache/synth-generate.mjs",
     "cv-synth-learn": "esbuild test/synth/learn.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/synth-learn.mjs && node node_modules/.cache/synth-learn.mjs",
-    "cv-tune": "esbuild test/cv-tune.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-tune.mjs && node node_modules/.cache/cv-tune.mjs"
+    "cv-tune": "esbuild test/cv-tune.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-tune.mjs && node node_modules/.cache/cv-tune.mjs",
+    "test:logic": "esbuild test/logic.ts --bundle --format=esm --platform=node --log-level=error --outfile=node_modules/.cache/logic.mjs && node node_modules/.cache/logic.mjs",
+    "test:sensor": "esbuild test/sensor.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/sensor.mjs && node node_modules/.cache/sensor.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
