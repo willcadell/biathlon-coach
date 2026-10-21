@@ -11,6 +11,7 @@ import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
 import { recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
 import { ENTRIES, FINDING_LIBRARY, FOCUS_LABEL, SOURCES, entriesForFinding, entriesForPhase, formatReference, shortCitation, sourceById } from '../src/lib/library.ts'
+import { legsOf, rowsFromLegs, sensorAsBouts, sensorBouts, sensorLine, sensorShotsFrom, sensorSummary } from '../src/lib/sensorStats.ts'
 import { analyseMetal, metalWindow } from '../src/lib/metalAdvice.ts'
 import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../src/lib/seasonPhase.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
@@ -246,6 +247,40 @@ const old = many(10, (i) => mbout('prone', 'HHMHH', 200 + i))
 ok('after a long break the most recent bouts are still read', metalWindow(old).stale && metalWindow(old).bouts.length === 10 && idsOf(old).includes('metal_one_disc'))
 ok('no metal bouts, no metal advice', idsOf([]).length === 0)
 ok('metal findings map to drills', recommend(analyseMetal({ bouts: gapBouts, workouts: [], direction: 'alpha_to_echo' })).some((r) => r.drill.addresses.includes('metal_standing_gap')))
+
+// --- Sensor sessions: what is saved from a session, and what is read back.
+// Five shots Alpha to Echo, 25 mm apart at the 5 m scale, each reached over 1.5 s of aim samples every 20 ms.
+const sensorCentres = [-50, -25, 0, 25, 50]
+const sensorMarks = sensorCentres.map((x, i) => ({ n: i + 1, x, y: 0, hit: true, t: (i + 1) * 1500 }))
+const sensorTrack: [number, number, number, number][] = []
+sensorCentres.forEach((x, i) => {
+  const from = i === 0 ? -80 : sensorCentres[i - 1]
+  // The rifle arrives within half a second and then holds, with a little wobble: the last second is a hold.
+  for (let k = 0; k < 75; k++) sensorTrack.push([i * 1500 + k * 20, from + (x - from) * Math.min(1, k / 20) + Math.sin(k * 1.7) * 0.4, Math.cos(k * 2.3) * 0.3, i])
+})
+const savedShots = sensorShotsFrom(sensorMarks, sensorTrack)
+ok('every shot is saved with its nearest target', savedShots.map((x) => x.target).join() === '0,1,2,3,4')
+ok('each shot keeps its leg time and a simplified route', savedShots.every((x) => x.legMs > 1000 && x.route.length >= 2 && x.route.length < 30), savedShots.map((x) => `${x.legMs}/${x.route.length}`).join(' '))
+ok('steadiness before the pull is measured when there are samples', savedShots.every((x) => x.hold !== null && x.hold < 3 && x.speed !== null), savedShots.map((x) => x.hold).join())
+ok('a shot with no aim samples before it has no steadiness figure', sensorShotsFrom([{ n: 1, x: 0, y: 0, hit: true, t: 500 }], [])[0].hold === null)
+
+const sensorSession = (id: string, position: 'prone' | 'standing', shots: typeof savedShots, startedAt = new Date().toISOString()) =>
+  ({ id, workoutId: 'w-' + id, startedAt, position, minutes: 8, shots })
+const miss = (n: number) => ({ ...savedShots[0], n, hit: false, x: 5, y: 9, target: 0 })
+ok('a bout is five shots, and a short one is marked incomplete', JSON.stringify(sensorBouts([...savedShots, ...savedShots.slice(0, 2)]).map((b) => b.complete)) === '[true,false]')
+const fullSession = sensorSession('a', 'prone', savedShots)
+const partSession = sensorSession('b', 'standing', savedShots.slice(0, 3))
+ok('only whole bouts become per-target bouts', sensorAsBouts([fullSession, partSession]).length === 1)
+ok('a target counts as hit when a shot of the bout hit it', Object.values(sensorAsBouts([fullSession])[0].hits).every(Boolean))
+const oneMiss = sensorSession('c', 'prone', [...savedShots.slice(0, 2), { ...savedShots[2], hit: false }, ...savedShots.slice(3)])
+ok('a missed target reads as not hit', sensorAsBouts([oneMiss])[0].hits.charlie === false && sensorAsBouts([oneMiss])[0].hits.alpha === true)
+ok('a bout carries its steadiness at the 50 m scale', (sensorAsBouts([fullSession])[0].hold ?? 99) < 30)
+const sum = sensorSummary([fullSession, partSession, sensorSession('d', 'prone', [miss(1), miss(2)])])
+ok('the summary counts shots and hits by position', sum.shots === 10 && sum.hits === 8 && sum.byPosition.prone.shots === 7 && sum.byPosition.standing.hits === 3 && sum.ratePct === 80, JSON.stringify(sum))
+ok('a session reads as one line', sensorLine(fullSession) === '5 of 5 shots hit, prone', sensorLine(fullSession))
+ok('saved legs rebuild for the route picture', legsOf(savedShots).size === 5 && legsOf(savedShots).get(2)!.points.length === savedShots[2].route.length)
+const rebuilt = rowsFromLegs(savedShots)
+ok('a saved route replays over the time it took, leg by leg', rebuilt.length >= 10 && Math.abs(rebuilt[rebuilt.length - 1][0] - savedShots.reduce((n, x) => n + x.legMs, 0)) < 1 && rebuilt.every((r, i) => i === 0 || r[0] >= rebuilt[i - 1][0]))
 
 // --- The shooting library: every entry cites real sources, every source is used.
 ok('library entry ids are unique', new Set(ENTRIES.map((e) => e.id)).size === ENTRIES.length)

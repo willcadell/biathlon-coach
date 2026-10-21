@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
+import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, SensorSession, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, groupEntries, hitCount, hitsOf, missCount } from '../lib/metal'
-import { deleteBout, deleteMetalBout, putMetalBout } from '../lib/db'
+import { deleteBout, deleteMetalBout, deleteSensorSession, putMetalBout, putSensorSession } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
@@ -17,6 +17,7 @@ import { Help } from './Help'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
 import { SensorTrainerCard } from './SensorTrainer'
+import { SensorSessionCard } from './SensorSessionCard'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
@@ -708,6 +709,8 @@ interface Props {
   onDataChanged: () => void
   /** The athlete's whole logged history, for the goal progress on the start screen. */
   history?: GoalData
+  /** Every saved sensor session; this workout's are shown under the sensor trainer. */
+  sensorSessions?: SensorSession[]
 }
 
 /**
@@ -716,7 +719,7 @@ interface Props {
  * actually dialed in logged once at the workout level; a dryfire session is
  * just time spent and how it went, no range required.
  */
-export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history }: Props) {
+export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history, sensorSessions = [] }: Props) {
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
@@ -858,12 +861,24 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
 
         <SensorTrainerCard
           position="prone"
-          onFinish={(r) => onWorkoutChanged({
-            ...workout,
-            dryfireMinutes: (workout.dryfireMinutes || 0) + r.minutes,
-            notes: workout.notes ? `${workout.notes}\n${r.line}` : r.line,
-          })}
+          onFinish={(r) => {
+            onWorkoutChanged({
+              ...workout,
+              dryfireMinutes: (workout.dryfireMinutes || 0) + r.minutes,
+              notes: workout.notes ? `${workout.notes}\n${r.line}` : r.line,
+            })
+            // Keep the session itself, with its shots and routes, so History and Analysis can read it later.
+            void putSensorSession({ id: uuid(), workoutId: workout.id, ...r.session })
+              .then(onDataChanged)
+              .catch((e) => console.error('Could not save the sensor session', e))
+          }}
         />
+        {sensorSessions.filter((s) => s.workoutId === workout.id).map((s) => (
+          <SensorSessionCard
+            key={s.id} session={s}
+            onDelete={() => { if (confirm('Remove this sensor session? Its minutes and note stay in the workout.')) void deleteSensorSession(s.id).then(onDataChanged) }}
+          />
+        ))}
 
         <h2>Notes</h2>
         <textarea

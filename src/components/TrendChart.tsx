@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Bout, MetalBout, Position, Workout } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, missCount } from '../lib/metal'
 
-export type Metric = 'score' | 'group' | 'metal'
+export type Metric = 'score' | 'group' | 'metal' | 'sensor' | 'sensorHold'
 
 /** A bout of either kind: the chart only needs a value, a position and a date. */
 type Entry = Bout | MetalBout
@@ -20,6 +20,8 @@ interface Spec {
   /** The values column's heading in the table twin, and the unit a change is
    *  quoted in. */
   columnLabel: string
+  /** The series colour: Range blue for precision and metal, Dry-fire green for the sensor. */
+  colour: string
   axisMax: number
   tickStep: number
   /** A meaningful line to draw across the plot, or null. */
@@ -33,12 +35,17 @@ interface Spec {
   format: (v: number) => string
 }
 
+const RANGE_BLUE = 'var(--series-1)'
+/** The colour of dry-fire sessions, as on the Dry-fire tiles. */
+const DRYFIRE_GREEN = 'color-mix(in srgb, var(--series-3) 72%, black)'
+
 const SPECS: Record<Metric, Spec> = {
   score: {
     value: (b) => (b.kind === 'precision' ? (b.metrics.ringTotal / Math.max(1, b.metrics.ringPossible)) * 100 : 0),
     higherIsBetter: true,
     fitAxis: true,
     columnLabel: 'Score',
+    colour: RANGE_BLUE,
     axisMax: 100,
     tickStep: 25,
     reference: null,
@@ -53,6 +60,7 @@ const SPECS: Record<Metric, Spec> = {
     higherIsBetter: false,
     fitAxis: false,
     columnLabel: 'Mean radius',
+    colour: RANGE_BLUE,
     axisMax: 20,
     tickStep: 5,
     reference: null,
@@ -68,6 +76,7 @@ const SPECS: Record<Metric, Spec> = {
     higherIsBetter: true,
     fitAxis: true,
     columnLabel: 'Hit rate',
+    colour: RANGE_BLUE,
     axisMax: 100,
     tickStep: 25,
     reference: null,
@@ -77,13 +86,44 @@ const SPECS: Record<Metric, Spec> = {
     tickFormat: (v) => `${Math.round(v)}`,
     format: (v) => `${Math.round(v)}%`,
   },
+  sensor: {
+    // Targets hit out of five on the sensor target, a bout of five shots at a time.
+    value: (b) => (b.kind === 'metal' ? ((DISCS_PER_METAL_BOUT - missCount(hitsOf(b))) / DISCS_PER_METAL_BOUT) * 100 : 0),
+    higherIsBetter: true,
+    fitAxis: true,
+    columnLabel: 'Hit rate',
+    colour: DRYFIRE_GREEN,
+    axisMax: 100,
+    tickStep: 25,
+    reference: null,
+    caption: 'Targets hit out of five on the sensor, averaged across each workout. Higher is better.',
+    captionRecent: 'Targets hit out of five on the sensor, one mark per bout of five shots. Higher is better.',
+    label: 'Sensor hit rate as a percentage of the five targets, one point per workout, split by shooting position',
+    tickFormat: (v) => `${Math.round(v)}`,
+    format: (v) => `${Math.round(v)}%`,
+  },
+  sensorHold: {
+    // How much the aim wandered in the second before each pull, on the 50 m scale.
+    value: (b) => (b.kind === 'metal' && 'hold' in b && typeof b.hold === 'number' ? b.hold : 0),
+    higherIsBetter: false,
+    fitAxis: false,
+    columnLabel: 'Steadiness',
+    colour: DRYFIRE_GREEN,
+    axisMax: 40,
+    tickStep: 10,
+    reference: null,
+    caption: 'How much the aim wandered in the second before the pull, averaged across each workout. Lower is steadier.',
+    captionRecent: 'How much the aim wandered in the second before the pull, one mark per bout. Lower is steadier.',
+    label: 'Aim wander before the pull in millimetres on the 50 m range, one point per workout, split by shooting position',
+    tickFormat: (v) => `${Math.round(v)}`,
+    format: (v) => `${Math.round(v)} mm`,
+  },
 }
 
 /** Every point is range shooting, so one colour: the Range blue the rest of the
  *  app uses for it. Position is told apart by the SHAPE of the marker (a circle
  *  for prone, a diamond for standing), never by borrowing colours that mean a
  *  session type elsewhere (blue is Range, green is Dry-fire). */
-const SERIES_COLOUR = 'var(--series-1)'
 const MARKER: Record<Position, 'circle' | 'diamond'> = { prone: 'circle', standing: 'diamond' }
 
 /** How many of the most recent bouts the default view shows. */
@@ -168,13 +208,13 @@ const fmtAxisDate = (d: Date, withYear: boolean) =>
 
 /** One drawn mark: a circle for prone, a diamond for standing, in the series
  *  colour with a surface ring so overlapping marks stay readable. */
-function PositionMarker({ position, x, y, r = 6 }: { position: Position; x: number; y: number; r?: number }) {
+function PositionMarker({ position, x, y, r = 6, colour }: { position: Position; x: number; y: number; r?: number; colour: string }) {
   return MARKER[position] === 'circle' ? (
-    <circle cx={x} cy={y} r={r} fill={SERIES_COLOUR} stroke="var(--surface-1)" strokeWidth={2} />
+    <circle cx={x} cy={y} r={r} fill={colour} stroke="var(--surface-1)" strokeWidth={2} />
   ) : (
     <rect
       x={x - r * 0.9} y={y - r * 0.9} width={r * 1.8} height={r * 1.8} rx={1}
-      transform={`rotate(45 ${x} ${y})`} fill={SERIES_COLOUR} stroke="var(--surface-1)" strokeWidth={2}
+      transform={`rotate(45 ${x} ${y})`} fill={colour} stroke="var(--surface-1)" strokeWidth={2}
     />
   )
 }
@@ -425,7 +465,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
         <p className="meta">{calendar ? 'Nothing logged in this window.' : 'Nothing scored yet.'}</p>
       ) : single ? (
         // One bout is a number, not a chart.
-        <div className="stat range" style={{ maxWidth: 220, margin: '0 auto' }}>
+        <div className={metric === 'sensor' || metric === 'sensorHold' ? 'stat dryfire' : 'stat range'} style={{ maxWidth: 220, margin: '0 auto' }}>
           <div className="k">{pts[0].position} · {fmtDate(pts[0].at)}</div>
           <div className="v">{spec.format(pts[0].v)}</div>
           <div className="n">1 bout. A trend appears after a few more targets.</div>
@@ -508,7 +548,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
               <line
                 key={`ghost-${g.position}`}
                 x1={sx(g.tMin)} y1={sy(g.vMin)} x2={sx(g.tMax)} y2={sy(g.vMax)}
-                stroke={SERIES_COLOUR} strokeWidth={2} strokeDasharray="1 5" strokeLinecap="round" opacity={0.5}
+                stroke={spec.colour} strokeWidth={2} strokeDasharray="1 5" strokeLinecap="round" opacity={0.5}
               />
             ))}
 
@@ -517,7 +557,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
                 {s.points.length > 1 && (
                   <path
                     d={s.points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.tt)},${sy(p.v)}`).join(' ')}
-                    fill="none" stroke={SERIES_COLOUR} strokeWidth={2} opacity={0.55}
+                    fill="none" stroke={spec.colour} strokeWidth={2} opacity={0.55}
                     strokeLinejoin="round" strokeLinecap="round"
                   />
                 )}
@@ -527,7 +567,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
               <line
                 key={`trend-${t.position}`}
                 x1={sx(t.tMin)} y1={sy(t.vMin)} x2={sx(t.tMax)} y2={sy(t.vMax)}
-                stroke={SERIES_COLOUR} strokeWidth={1.5} strokeDasharray="6 4" opacity={0.8}
+                stroke={spec.colour} strokeWidth={1.5} strokeDasharray="6 4" opacity={0.8}
               />
             ))}
 
@@ -544,7 +584,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
                 >
                   {/* A hit area well past the mark, so a thumb can land on it. */}
                   <circle cx={x} cy={y} r={16} fill="transparent" />
-                  <PositionMarker position={p.position} x={x} y={y} />
+                  <PositionMarker position={p.position} x={x} y={y} colour={spec.colour} />
                   {(labelled || latestKeys.has(p.key)) && (
                     <text
                       x={x} y={labelBelow.has(p.key) ? y + 22 : y - 12} textAnchor="middle"
@@ -589,7 +629,7 @@ export function TrendChart({ bouts, workouts, metric }: { bouts: Entry[]; workou
             {byPosition.map((s) => (
               <span key={s.position} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
-                  <PositionMarker position={s.position} x={7} y={7} r={4.5} />
+                  <PositionMarker position={s.position} x={7} y={7} r={4.5} colour={spec.colour} />
                 </svg>
                 {s.position}
               </span>

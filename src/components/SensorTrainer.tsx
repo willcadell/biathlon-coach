@@ -4,7 +4,8 @@ import {
   aimSpeed, currentModel, holdBefore, legStats, needsExtraPull, observeBout, refineModel, scoreShot, sensorSupport, solveCalibration,
   type ConnectionState, type HoldSample, type Model, type Point, type Pull, type Quality, type SavedCalibration, type Sample, type TrackRow,
 } from '../lib/sensor'
-import type { Position } from '../lib/types'
+import type { Position, SensorShot } from '../lib/types'
+import { sensorShotsFrom } from '../lib/sensorStats'
 import { DryfireIcon } from './icons'
 import { SensorReplay } from './SensorReplay'
 import { RouteLegend, SensorRoute } from './SensorRoute'
@@ -17,6 +18,8 @@ export interface SensorResult {
   hits: number
   /** One line for the session's notes. */
   line: string
+  /** The session itself, to be kept with the workout: the shots with their routes and steadiness. */
+  session: { startedAt: string; position: Position; minutes: number; shots: SensorShot[] }
 }
 
 const MODEL_KEY = 'biathlon-coach:sensor-model'
@@ -234,7 +237,10 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
     await conn.current.disconnect()
     if (!all.length) { setPhase('idle'); onClose(); return }
     setPhase('review')                                                          // the session stays on screen to be replayed until it is closed
-    onFinish({ minutes, shots: all.length, hits, line: `Sensor trainer: ${hits} of ${all.length} shots hit${position === 'prone' ? ' (prone)' : ' (standing)'}.` })
+    onFinish({
+      minutes, shots: all.length, hits, line: `Sensor trainer: ${hits} of ${all.length} shots hit${position === 'prone' ? ' (prone)' : ' (standing)'}.`,
+      session: { startedAt: new Date(startedAt.current).toISOString(), position, minutes, shots: sensorShotsFrom(all, trackRef.current) },
+    })
   }
 
   const running = phase === 'calibrating' || phase === 'shooting'

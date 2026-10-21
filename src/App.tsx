@@ -4,9 +4,9 @@ import { amDev, devModeOn, setDevMode } from './lib/dev'
 import { amPlatformAdmin } from './lib/platformAdmin'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, Settings, Workout, WorkoutEntry } from './lib/types'
+import type { Bout, MetalBout, SensorSession, Settings, Workout, WorkoutEntry } from './lib/types'
 import { scoringContext, type ShootingDirection } from './lib/types'
-import { allBouts, allMetalBouts, allWorkouts, deleteWorkout, putWorkout } from './lib/db'
+import { allBouts, allMetalBouts, allSensorSessions, allWorkouts, deleteWorkout, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
 import { uuid } from './lib/id'
 import { loadSettings, saveSettings } from './lib/settings'
@@ -327,6 +327,7 @@ function SignedInApp({
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [stored, setStored] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
+  const [sensorSessions, setSensorSessions] = useState<SensorSession[]>([])
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(loadActiveWorkoutId)
   const [settings, setSettings] = useState<Settings>(loadSettings)
 
@@ -368,6 +369,7 @@ function SignedInApp({
     void allWorkouts().then(setWorkouts).catch((e) => console.error('Could not load workouts', e))
     void allBouts().then(setStored).catch((e) => console.error('Could not load bouts', e))
     void allMetalBouts().then(setMetalBouts).catch((e) => console.error('Could not load metal bouts', e))
+    void allSensorSessions().then(setSensorSessions).catch((e) => console.error('Could not load sensor sessions', e))
   }, [])
   useEffect(refresh, [refresh])
 
@@ -475,10 +477,11 @@ function SignedInApp({
                 onWorkoutChanged={updateWorkout}
                 onDataChanged={refresh}
                 history={history}
+                sensorSessions={sensorSessions}
               />
             )}
             {tab === 'analysis' && (
-              <AnalysisView bouts={bouts} metalBouts={metalBouts} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} onOpenSettings={() => setTab('settings')} />
+              <AnalysisView bouts={bouts} metalBouts={metalBouts} sensorSessions={sensorSessions} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} onOpenSettings={() => setTab('settings')} />
             )}
             {tab === 'profile' && (
               <ProfileView

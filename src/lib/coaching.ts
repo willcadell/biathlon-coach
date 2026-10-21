@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
-import { toBout, toMetalBout, toWorkout, type BoutRow, type ClickRow, type CoachNoteRow, type MetalRow, type WorkoutRow } from './db'
-import type { Bout, CoachNote, MetalBout, Workout } from './types'
+import { toBout, toMetalBout, toSensorSession, toWorkout, type BoutRow, type ClickRow, type CoachNoteRow, type MetalRow, type SensorSessionRow, type WorkoutRow } from './db'
+import type { Bout, CoachNote, MetalBout, SensorSession, Workout } from './types'
 import { currentUserId } from './auth'
 
 
@@ -406,6 +406,13 @@ export async function rosterMetalBouts(athleteIds: string[]): Promise<MetalBout[
   const { data, error } = await supabase.from('metal_bouts').select('*').in('athlete_id', athleteIds)
   if (error) throw error
   return (data as MetalRow[] ?? []).map(toMetalBout)
+}
+
+export async function rosterSensorSessions(athleteIds: string[]): Promise<SensorSession[]> {
+  if (athleteIds.length === 0) return []
+  const { data, error } = await supabase.from('sensor_sessions').select('*').in('athlete_id', athleteIds)
+  if (error) throw error
+  return (data as SensorSessionRow[] ?? []).map(toSensorSession)
 }
 
 /** Every workout across a roster the caller coaches, with its click log and

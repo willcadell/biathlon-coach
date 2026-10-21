@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, Position, ShootingDirection, Workout } from '../lib/types'
+import type { Bout, MetalBout, Position, SensorSession, ShootingDirection, Workout } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, hitsOf, metalStats, missCount } from '../lib/metal'
 import {
   addCoachNote, assignAthleteToProgram, becomeCoach, clubCoachRequests, coachesForClub, createClub, createProgram, deleteProgram, findClubByCoachCode, getCoach,
   getCoachJoinCode, joinClubAsCoach, myCoachedClubs, programsForClub, removeAthleteFromProgram, removeCoachFromClub, renameClub, respondToCoachJoinRequest, setCoachAdmin, rosterBouts,
-  rosterForClub, rosterMetalBouts, rosterWorkouts, uploadClubLogo,
+  rosterForClub, rosterMetalBouts, rosterSensorSessions, rosterWorkouts, uploadClubLogo,
   type Club, type ClubMatch, type CoCoach, type CoachJoinRequest, type Coach, type Program, type RosterAthlete,
 } from '../lib/coaching'
 import { forLogo } from '../lib/imaging'
@@ -447,6 +447,7 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
   const [bouts, setBouts] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [sensorSessions, setSensorSessions] = useState<SensorSession[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
   const [direction, setDirection] = useState<ShootingDirection | undefined>(undefined)
@@ -460,10 +461,13 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
       rosterBouts([athlete.athleteId]),
       rosterMetalBouts([athlete.athleteId]),
       rosterWorkouts([athlete.athleteId]),
-    ]).then(([b, m, w]) => {
+      // A missing table or a refused read must not hide the rest of the athlete's training.
+      rosterSensorSessions([athlete.athleteId]).catch((e) => { console.error('Could not load sensor sessions', e); return [] as SensorSession[] }),
+    ]).then(([b, m, w, sensor]) => {
       setBouts(b)
       setMetalBouts(m)
       setWorkouts(w)
+      setSensorSessions(sensor)
       setLoaded(true)
     }).catch((e) => setError(errorMessage(e, 'Could not load this athlete’s training. Check your connection and try again.')))
   }
@@ -485,6 +489,7 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
         onChanged={refresh}
         readOnly
         shootingDirection={direction}
+        sensorSessions={sensorSessions}
         onAddCoachNote={platform ? undefined : async (workoutId, note) => {
           await addCoachNote(workoutId, note)
           refresh()

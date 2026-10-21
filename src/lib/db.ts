@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
+import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, SensorSession, SensorShot, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
 import { currentUserId as currentAthleteId } from './auth'
 
@@ -381,8 +381,50 @@ export async function deleteMetalBout(id: string): Promise<void> {
   if (error) throw error
 }
 
+// --- Sensor sessions ---
+
+export interface SensorSessionRow {
+  id: string
+  workout_id: string
+  started_at: string
+  position: Position
+  minutes: number
+  shots: SensorShot[]
+}
+
+export function toSensorSession(row: SensorSessionRow): SensorSession {
+  return { id: row.id, workoutId: row.workout_id, startedAt: row.started_at, position: row.position, minutes: row.minutes, shots: row.shots ?? [] }
+}
+
+export async function putSensorSession(session: SensorSession): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('sensor_sessions').upsert({
+    id: session.id,
+    workout_id: session.workoutId,
+    athlete_id: athleteId,
+    started_at: session.startedAt,
+    position: session.position,
+    minutes: session.minutes,
+    shots: session.shots,
+  })
+  if (error) throw error
+}
+
+export async function allSensorSessions(): Promise<SensorSession[]> {
+  // Own sessions only — see allWorkouts.
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('sensor_sessions').select('*').eq('athlete_id', athleteId).order('started_at', { ascending: false })
+  if (error) throw error
+  return (data as SensorSessionRow[] ?? []).map(toSensorSession)
+}
+
+export async function deleteSensorSession(id: string): Promise<void> {
+  const { error } = await supabase.from('sensor_sessions').delete().eq('id', id)
+  if (error) throw error
+}
+
 /** Everything, as JSON, so nothing is trapped in one account. */
 export async function exportAll(): Promise<string> {
-  const [workouts, bouts, metal] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts()])
-  return JSON.stringify({ version: 3, exportedAt: new Date().toISOString(), workouts, bouts, metal }, null, 2)
+  const [workouts, bouts, metal, sensor] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts(), allSensorSessions()])
+  return JSON.stringify({ version: 4, exportedAt: new Date().toISOString(), workouts, bouts, metal, sensor }, null, 2)
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Bout, Finding, MetalBout, MetalTarget, RaceType, Settings, ShootingDirection, Workout } from '../lib/types'
+import type { Bout, Finding, MetalBout, MetalTarget, RaceType, SensorSession, Settings, ShootingDirection, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
@@ -9,6 +9,7 @@ import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './i
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
 import { analyseMetal, metalWindow } from '../lib/metalAdvice'
+import { sensorAsBouts, sensorSummary } from '../lib/sensorStats'
 import { recommend } from '../lib/training'
 import { TrendChart } from './TrendChart'
 import { HistoryView } from './HistoryView'
@@ -96,6 +97,8 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
  *  to act on once its content is hidden. */
 /** The Race button's colour: also the filter and window chips' in Race performance. */
 const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
+/** The Dry-fire colour: the sensor's tiles, circles and lines. */
+const DRYFIRE_COLOUR = 'color-mix(in srgb, var(--series-3) 72%, black)'
 
 type TargetSeries = Record<MetalTarget, boolean[]>
 
@@ -151,8 +154,8 @@ function TargetSparkline({ target, outcomes, colour }: { target: string; outcome
 /** The five targets' hit rates as circles, alpha to echo, in their session's
  *  colour: Range blue in Metal, Race red in Race performance. With `series`,
  *  each circle carries a small line of that target's outcomes beneath it. */
-function TargetTiles({ stats, tone, series }: { stats: TargetStat[]; tone?: 'range' | 'race'; series?: TargetSeries }) {
-  const colour = tone === 'race' ? RACE_COLOUR : 'var(--series-1)'
+function TargetTiles({ stats, tone, series }: { stats: TargetStat[]; tone?: 'range' | 'race' | 'dryfire'; series?: TargetSeries }) {
+  const colour = tone === 'race' ? RACE_COLOUR : tone === 'dryfire' ? DRYFIRE_COLOUR : 'var(--series-1)'
   // Targets are round, so the tiles are circles. minmax(0, 1fr) and small type so
   // five of them fit a phone's width instead of running off the right edge.
   return (
@@ -384,6 +387,7 @@ export function AnalysisView({
   onAddCoachNote,
   shootingDirection,
   onOpenSettings,
+  sensorSessions = [],
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
@@ -401,6 +405,8 @@ export function AnalysisView({
   shootingDirection?: ShootingDirection
   /** Takes the athlete to Settings, where the shooting direction is changed. */
   onOpenSettings?: () => void
+  /** Saved sensor sessions (dry-fire on the optical target), for the Sensor section. */
+  sensorSessions?: SensorSession[]
 }) {
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
@@ -479,6 +485,13 @@ export function AnalysisView({
   const metalRead = useMemo(() => metalWindow(metalBouts), [metalBouts])
   const plan = useMemo(() => recommend([...findings, ...metalFindings]), [findings, metalFindings])
 
+  // Sensor sessions, read as whole bouts of five so the per-target circles and trends work as they do for metal.
+  const sensorSum = useMemo(() => sensorSummary(sensorSessions), [sensorSessions])
+  const sensorBoutList = useMemo(() => sensorAsBouts(sensorSessions), [sensorSessions])
+  const sensorProne = useMemo(() => sensorBoutList.filter((b) => b.position === 'prone').sort((a, b) => b.shotAt.localeCompare(a.shotAt)).slice(0, 10), [sensorBoutList])
+  const sensorStanding = useMemo(() => sensorBoutList.filter((b) => b.position === 'standing').sort((a, b) => b.shotAt.localeCompare(a.shotAt)).slice(0, 10), [sensorBoutList])
+  const sensorHoldBouts = useMemo(() => sensorBoutList.filter((b) => b.hold !== null), [sensorBoutList])
+
   // Most recent N bouts for that position specifically, not a day-based
   // window — a coach checking in monthly wants "the last 10 I actually
   // shot", not "whatever fell inside the last 60 days".
@@ -522,7 +535,7 @@ export function AnalysisView({
   const seriesRaceProne = useMemo(() => targetSeries(raceProneBouts), [raceProneBouts])
   const seriesRaceStanding = useMemo(() => targetSeries(raceStandingBouts), [raceStandingBouts])
 
-  if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0) {
+  if (bouts.length === 0 && metalBouts.length === 0 && dryfire.total === 0 && sensorSessions.length === 0) {
     return (
       <>
         {!readOnly && <PageTitle>Analysis</PageTitle>}
@@ -536,7 +549,7 @@ export function AnalysisView({
         <CollapsibleSection title="History" defaultOpen={false}>
           <HistoryView
             workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-            readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+            readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions}
           />
         </CollapsibleSection>
       </>
@@ -850,12 +863,77 @@ export function AnalysisView({
         </CollapsibleSection>
       )}
 
+      {sensorSessions.length > 0 && (
+        <CollapsibleSection title="Sensor" icon={sessionIcon('dryfire')} defaultOpen={false}>
+          <div className="stats three">
+            <div className="stat dryfire">
+              <div className="k">Overall</div>
+              <div className="v">{sensorSum.ratePct}<small>%</small></div>
+              <div className="n">{sensorSum.shots} shot{sensorSum.shots === 1 ? '' : 's'}</div>
+            </div>
+            <div className="stat dryfire">
+              <div className="k">Prone</div>
+              <div className="v">{sensorSum.byPosition.prone.shots ? <>{sensorSum.byPosition.prone.ratePct}<small>%</small></> : '—'}</div>
+              <div className="n">{sensorSum.byPosition.prone.shots} shot{sensorSum.byPosition.prone.shots === 1 ? '' : 's'}</div>
+            </div>
+            <div className="stat dryfire">
+              <div className="k">Standing</div>
+              <div className="v">{sensorSum.byPosition.standing.shots ? <>{sensorSum.byPosition.standing.ratePct}<small>%</small></> : '—'}</div>
+              <div className="n">{sensorSum.byPosition.standing.shots} shot{sensorSum.byPosition.standing.shots === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+          <p className="meta" style={{ marginTop: 8 }}>
+            {sensorSum.sessions} sensor session{sensorSum.sessions === 1 ? '' : 's'} on the optical dry-fire target, hit or miss as on the range.
+          </p>
+
+          {sensorBoutList.length === 0 ? (
+            <p className="meta">Per-target results and the trends appear once you have shot a whole bout of five.</p>
+          ) : (
+            <>
+              {(['prone', 'standing'] as const).map((pos) => {
+                const list = pos === 'prone' ? sensorProne : sensorStanding
+                if (list.length === 0) return null
+                return (
+                  <div key={pos}>
+                    <h3 style={{ marginTop: 20 }}>Which targets get hit, {pos}</h3>
+                    <p className="meta" style={{ marginTop: 0 }}>Last {list.length} bout{list.length === 1 ? '' : 's'} of five.</p>
+                    <TargetTiles stats={targetStats(list)} tone="dryfire" series={targetSeries(list)} />
+                  </div>
+                )
+              })}
+
+              <h3 style={{ marginTop: 20 }}>
+                Hit rate over time (%)
+                <Help>
+                  Targets hit out of five, bout by bout. Recent shows one mark per bout of five shots. The 7 days and 4 weeks views average each
+                  workout to one point, and the 12 months view averages each month. Prone is a circle and standing a diamond.
+                </Help>
+              </h3>
+              <div className="card"><TrendChart bouts={sensorBoutList} workouts={workouts} metric="sensor" /></div>
+
+              {sensorHoldBouts.length > 0 && (
+                <>
+                  <h3>
+                    Steadiness before the pull (mm)
+                    <Help>
+                      How much the aim wandered in the second before each pull, as the average of a bout, in millimetres on the 50 m range
+                      (ten times what the sensor sees at 5 m). Lower is steadier. A bout needs enough aim samples before its shots to count.
+                    </Help>
+                  </h3>
+                  <div className="card"><TrendChart bouts={sensorHoldBouts} workouts={workouts} metric="sensorHold" /></div>
+                </>
+              )}
+            </>
+          )}
+        </CollapsibleSection>
+      )}
+
       <CollapsibleSection
         title={`History (${workouts.length} workout${workouts.length === 1 ? '' : 's'})`} defaultOpen={false}
       >
         <HistoryView
           workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-          readOnly={readOnly} onAddCoachNote={onAddCoachNote}
+          readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions}
         />
       </CollapsibleSection>
     </>

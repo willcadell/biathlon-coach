@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, Settings, Workout } from '../lib/types'
+import type { Bout, ClickAdjustment, MetalBout, SensorSession, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, comboLabel, groupEntries, hitCount, hitsOf } from '../lib/metal'
-import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteWorkout } from '../lib/db'
+import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteSensorSession, deleteWorkout } from '../lib/db'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
 import { MiniTargets } from './MiniTargets'
 import { ShareSheet } from './ShareSheet'
+import { SensorSessionCard } from './SensorSessionCard'
 import { buildCoachContext, isRangeOrRace, localDate } from '../lib/coachContext'
 import { downloadJson } from '../lib/download'
 import { DownloadIcon, GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
@@ -97,6 +98,8 @@ interface Props {
    *  feedback on a specific workout, the one write allowed in read-only
    *  mode. Omitted entirely for an athlete looking at their own history. */
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
+  /** Saved sensor sessions, shown on the dry-fire workouts they belong to. */
+  sensorSessions?: SensorSession[]
 }
 
 /** Saves this one workout's metal results, zero clicks and wind as a
@@ -146,7 +149,7 @@ function MakeLiveButton({ workoutId, onDone }: { workoutId: string; onDone: () =
   )
 }
 
-export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote }: Props) {
+export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote, sensorSessions = [] }: Props) {
   const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null)
   const [openBoutId, setOpenBoutId] = useState<string | null>(null)
   const [openBoutImage, setOpenBoutImage] = useState<string | null>(null)
@@ -269,6 +272,17 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.notes}</p>
             </div>
           )}
+
+          {sensorSessions.filter((s) => s.workoutId === openWorkout.id).map((s) => (
+            <SensorSessionCard
+              key={s.id} session={s}
+              onDelete={readOnly ? undefined : async () => {
+                if (!confirm('Remove this sensor session? Its minutes and note stay in the workout.')) return
+                await deleteSensorSession(s.id)
+                onChanged()
+              }}
+            />
+          ))}
 
           <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
 
@@ -502,6 +516,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
               <div className="title">
                 {w.name || fmt(w.startedAt)}
                 {w.workoutType === 'dryfire' && <span className="pill">Dry-fire</span>}
+                {sensorSessions.some((s) => s.workoutId === w.id) && <span className="pill">Sensor</span>}
                 {w.raceType && <span className="pill">{RACE_TYPE_LABEL[w.raceType]}</span>}
                 {w.wind !== 'none' && <span className="pill">{w.wind} wind</span>}
                 {!selecting && <GoArrow />}
