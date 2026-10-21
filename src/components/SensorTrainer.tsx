@@ -179,7 +179,10 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
         const obs = observeBout(uxRef.current.slice(-BOUT), [saved.base[0].x, saved.base[1].x, saved.base[2].x])
         if (obs) { modelRef.current = refineModel(modelRef.current, obs.obsB, obs.obsD, 0.5); saveModel(modelRef.current) }
       }
-      setTimeout(() => { if (phaseRef.current === 'shooting' && shotsRef.current.length === n) { greenRef.current = 0; lights(0x1f, 0) } }, 4000)
+      // The finished bout's result stays lit for a few seconds, then every light flashes off and comes back red (twice), so the next bout starts clean.
+      ;[0, 1, 0, 1].forEach((on, i) => setTimeout(() => {
+        if (phaseRef.current === 'shooting' && shotsRef.current.length === n) { greenRef.current = 0; lights(on ? 0x1f : 0, 0) }
+      }, 4000 + i * 220))
     }
   }, [viewOf, calibrationLights, beginCalibration, flash, lights])
 
