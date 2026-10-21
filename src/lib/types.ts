@@ -219,6 +219,45 @@ export interface MetalBout {
   targetZone: number | null
 }
 
+/**
+ * One shot from a sensor session: the optical dry-fire target, five targets Alpha
+ * to Echo, scored hit or miss. Millimetres are at the 5 m scale of that target,
+ * +x right, +y up, origin at Charlie; ten times that is the 50 m range.
+ */
+export interface SensorShot {
+  /** 1-based within the session. */
+  n: number
+  x: number
+  y: number
+  hit: boolean
+  /** The nearest target: 0 Alpha ... 4 Echo. */
+  target: number
+  /** When the shot was fired, ms since the session began. */
+  t: number
+  /** The way from the previous shot (or the start of shooting) to this one: how long, how far
+   *  the rifle travelled along the straightened route, and the straight-line distance, ms and mm. */
+  legMs: number
+  legPath: number
+  legStraight: number
+  /** That route simplified to a few points, [x, y] in mm. */
+  route: [number, number][]
+  /** How much the aim wandered in the second before the pull (RMS from its own median, mm), if there
+   *  were enough samples to say. */
+  hold: number | null
+  /** The mean aim speed in that second, mm/s. */
+  speed: number | null
+}
+
+/** A finished sensor session inside a dry-fire workout. */
+export interface SensorSession {
+  id: string
+  workoutId: string
+  startedAt: string
+  position: Position
+  minutes: number
+  shots: SensorShot[]
+}
+
 /** Either kind of bout a workout can hold. */
 export type WorkoutEntry = Bout | MetalBout
 
