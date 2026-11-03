@@ -44,7 +44,7 @@ export function WorkoutChooser({
       {onNationalTest && (
         <button className="boutrow" onClick={onNationalTest}>
           <div className="grow">
-            <div className="title"><TrophyIcon size={18} /> National Team test<GoArrow /></div>
+            <div className="title"><TrophyIcon size={18} /> National Team Test<GoArrow /></div>
             <div className="meta">Guided and scored out of 600: two precision groups, then the timed 4x5 and 10x1 drills.</div>
           </div>
         </button>

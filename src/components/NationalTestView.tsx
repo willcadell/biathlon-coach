@@ -3,7 +3,7 @@ import type { Bout, MetalTarget, NationalTest, NationalTestStage, PendingTarget,
 import {
   ACROSS_STAGES, BASELINE_TOTAL, MISS_PENALTY, PRECISION_MAX, PRECISION_MINUTES, REST_SECONDS, SHOTS_PER_STAGE, SINGLE_PRONE_SHOTS, SPEED_MAX, STAGE_LABEL,
   STANDARD_A, STANDARD_B, TOTAL_MAX, clock, singleSeconds, PART_ORDER, testParts, precisionBouts, precisionResult, scoreNationalTest, stageSecondsFromTaps, testBouts, withoutLastTimed,
-  type DrillKind, type PartId, type PartState,
+  type PartId, type PartState,
 } from '../lib/nationalTest'
 import { errorMessage } from '../lib/errors'
 import { playCountIn, type CountInSound } from '../lib/beep'
@@ -55,7 +55,7 @@ export function NationalTestCard({ test, bouts, onOpen }: { test: NationalTest; 
   const s = scoreNationalTest(testBouts(test, bouts), test)
   return (
     <div className="card" style={{ marginTop: 10 }}>
-      <strong>National Team test</strong>
+      <strong>National Team Test</strong>
       <p className="meta" style={{ margin: '4px 0 10px' }}>
         {s.missing.length === 0
           ? <>{s.standard ? `${s.standard}-standard · ` : ''}{s.total} of {TOTAL_MAX}</>
@@ -83,11 +83,9 @@ function Rest({ endsAt, now, onStart, onSkip }: { endsAt: number | null; now: nu
   )
 }
 
-const DRILL_BRIEF: Record<DrillKind, string> = {
-  across:
-    'Rifle unslung on the mat, action open, unloaded, no magazine in. Start behind the pylon, 3 m back, poles on. On "Go": run to the mat, get into position, load a magazine, shoot five, unload, open the action, leave the rifle on the mat and run back behind the pylon. Each of the four stages is timed on its own.',
+const DRILL_BRIEF: Record<'single', string> = {
   single:
-    'Rifle unslung on the mat, completely empty. Start behind the pylon, 3 m back. On "Go": run to the mat, set up, load one round, shoot one, clear the rifle and run back behind the pylon, ten times: five prone, then five standing. The whole drill is one time, from "Go" to the last return, so there is nothing to tap per shot.',
+    'Start off the mat. At Go, step on the mat, set up, shoot, and exit the mat for each shot. After 5 shots, either move from the prone lane to a standing lane, or have someone else change the lane from prone to standing for you. After 10 shots, exit and finish.',
 }
 
 /** Beeps and a count on screen before the clock starts, so the athlete can get behind the pylon. */
@@ -120,10 +118,7 @@ function TimerOptions({ prefs, onChange }: { prefs: TimerPrefs; onChange: (next:
         Beep the {COUNT_IN_SECONDS}-second count-in
       </label>
       <label className="field">
-        <span>
-          Time to reach the phone
-          <small>On your own? This much comes off every tap, so the time stops when you crossed the line, not when you tapped.</small>
-        </span>
+        <span>Time to reach the phone</span>
         <div className="seg">
           {ALLOWANCES.map((a) => (
             <button key={a} aria-pressed={prefs.allowance === a} onClick={() => onChange({ ...prefs, allowance: a })}>
@@ -305,7 +300,6 @@ function AcrossDrill({ saved, onSaved }: { saved: NationalTestStage[]; onSaved: 
       {!finished && phase === 'ready' && (
         <details style={{ marginTop: 8 }}>
           <summary className="meta">Timer options</summary>
-          <p className="meta">{DRILL_BRIEF.across}</p>
           <TimerOptions prefs={prefs} onChange={changePrefs} />
         </details>
       )}
@@ -454,10 +448,10 @@ const PART_TITLE: Record<PartId, string> = {
   collect: 'Collect and photograph the targets',
 }
 const PART_BLURB: Record<PartId, string> = {
-  prone: 'Ten shots on paper, lying.',
-  standing: 'Ten shots on paper, standing.',
-  across: 'Four timed stages: prone, standing, prone, standing.',
-  single: 'Ten singles on one clock: five prone, then five standing.',
+  prone: 'Ten one-shots on precision target.',
+  standing: 'Ten one-shots on precision target.',
+  across: 'Four individually timed bouts: prone, stand, prone, stand.',
+  single: 'Shoot ten singles, each time set, shoot, and exit from mat, timed overall.',
   collect: 'Once all the shooting is done and the range is closed.',
 }
 
@@ -644,7 +638,7 @@ export function NationalTestView({
 
   return (
     <>
-      <h1>National Team test</h1>
+      <h1>National Team Test</h1>
       <p className="lede">
         Do the parts in any order. Each turns green when it is done. Leaving for the session keeps what you have shot, and you can come back to it.
       </p>
