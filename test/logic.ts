@@ -20,6 +20,11 @@ import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
 import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
+import { ACROSS_STAGES, clock, precisionResult, scoreNationalTest, sectionSeconds, stageSecondsFromTaps, standardFor, testBouts, testParts, withoutLastTimed } from '../src/lib/nationalTest.ts'
+import type { NationalTestStage } from '../src/lib/types.ts'
+import { fromLocalInput, toLocalInput } from '../src/lib/time.ts'
+import { timeline } from '../src/lib/metal.ts'
+import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
 
@@ -677,6 +682,144 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('program goal: with enough athletes it just counts them', goalStatusText(pg, evaluateProgramGoal(pg, aggregate(6, 4), today)) === '6 min of 10 min · 4 athletes')
   ok('program goal: process measures read plainly', goalTitle(programGoal({})) === '40 sessions' && goalTitle(programGoal({ metric: 'dryfire_minutes', target: 600 })) === 'Dry-fire 600 min')
   ok('goal: titles read plainly', goalTitle(goal({ position: 'prone' })) === 'Metal hit rate 80% · prone' && goalTitle(dryGoal) === 'Dry-fire 100 min')
+}
+
+// --- National Team test.
+{
+  const face = faceById(DEFAULT_SETTINGS.targetFaceId)
+  const radii = ringRadii(face)
+  const half = DEFAULT_SETTINGS.bulletDiameterMm / 2
+  // A shot whose hole edge sits midway between two ring lines: radii[i] is the edge of ring 10 - i.
+  const inRing = (value: number) => ({ x: (radii[10 - value - 1] + radii[10 - value]) / 2 + half, y: 0 })
+  const tens = Array.from({ length: 10 }, () => ({ x: 0, y: 0 }))
+  const group = (position: Position, replace: { x: number; y: number }[] = []) => bout(position, [...replace, ...tens.slice(replace.length)])
+  // Every timed stage: the four 4x5 stages (`proneSeconds` and `standingSeconds` split evenly over their
+  // two stages each) and the 10x1, timed overall at `singleSeconds`. Every target hit unless `hits` says otherwise.
+  const allStages = (proneSeconds: number, standingSeconds: number, hits?: (i: number) => number, singleSeconds = 0): NationalTestStage[] => [
+    ...ACROSS_STAGES.map((position, i): NationalTestStage => ({
+      kind: 'across', position, seconds: (position === 'prone' ? proneSeconds : standingSeconds) / 2, hits: hits ? hits(i) : 5,
+    })),
+    { kind: 'single', position: 'prone', seconds: singleSeconds, hits: hits ? hits(4) : 10 },
+  ]
+  const pair = [group('prone'), group('standing')]
+
+  ok('nt: a prone shot in the 7 ring is a miss', precisionResult(group('prone', [inRing(7)])).misses === 1)
+  ok('nt: a prone shot in the 8 ring is not a miss', precisionResult(group('prone', [inRing(8)])).misses === 0)
+  ok('nt: standing, a 5 is still inside the black and not a miss', precisionResult(group('standing', [inRing(5)])).misses === 0)
+  ok('nt: standing, outside the black is a miss', precisionResult(group('standing', [{ x: face.blackMm / 2 + half + 2, y: 0 }])).misses === 1)
+
+  const perfect = scoreNationalTest(pair, { stages: allStages(100, 100) })
+  ok('nt: precision is the plain ring total, out of 200', perfect.precision === 200, String(perfect.precision))
+  ok('nt: speed is 200 on the baselines, plus a point a second under them', perfect.speed === 200 + 60 + 50 - 0, String(perfect.speed))
+  ok('nt: no misses, no penalties', perfect.penalties === 0)
+  ok('nt: total and A standard', perfect.total === 510 && perfect.standard === 'A', JSON.stringify(perfect))
+  ok('nt: on the baselines speed is exactly 200', scoreNationalTest(pair, { stages: allStages(160, 150) }).speed === 200)
+  ok('nt: slower than baseline loses a point a second', scoreNationalTest(pair, { stages: allStages(170, 160) }).speed === 180)
+  ok('nt: speed never scores above 400, so 600 is the most', (() => {
+    const s = scoreNationalTest(pair, { stages: allStages(0, 0) })
+    return s.speed === 400 && s.total === 600
+  })())
+  ok('nt: a section is held to the 10 minute cutoff', sectionSeconds(allStages(1300, 100), 'prone') === 600)
+
+  ok('nt: a missed shot in a drill costs 10', (() => {
+    const s = scoreNationalTest(pair, { stages: allStages(100, 100, (i) => (i === 0 ? 3 : i === 4 ? 8 : 5)) })
+    return s.drillMisses === 4 && s.penalties === 40 && s.total === 510 - 40
+  })())
+  ok('nt: precision misses cost 10 each, on top of their rings', (() => {
+    const s = scoreNationalTest([group('prone', [inRing(7)]), group('standing')], { stages: allStages(100, 100) })
+    return s.precision === 197 && s.precisionMisses === 1 && s.penalties === 10 && s.total === 197 + 110 + 200 - 10
+  })())
+  ok('nt: standards sit at 480 and 510', standardFor(510) === 'A' && standardFor(509.9) === 'B' && standardFor(480) === 'B' && standardFor(479.9) === null)
+  ok('nt: no standard and no speed until the test is complete', (() => {
+    const s = scoreNationalTest([group('prone')], { stages: allStages(100, 100).slice(0, 4) })
+    return s.standard === null && s.speed === 0 && s.missing.includes('standing precision') && s.missing.includes('10x1 single shot') && !s.missing.includes('4x5 across')
+  })())
+  ok('nt: a retaken group replaces the first', (() => {
+    const first = group('prone', [inRing(5)])
+    const second = { ...group('prone'), shotAt: new Date(Date.now() + 1000).toISOString() }
+    return scoreNationalTest([first, second, group('standing')], { stages: [] }).precision === 200
+  })())
+
+  const none = { stages: [] as NationalTestStage[], proneBoutId: null, standingBoutId: null }
+  const stages = allStages(100, 100)
+  const shotBoth = { proneBoutId: pair[0].id, standingBoutId: pair[1].id }
+  const prone = (extra: object = {}) => ({ ...none, proneBoutId: pair[0].id, ...extra })
+  const parts = (b: Bout[], t: Parameters<typeof testParts>[1]) => testParts(b, t)
+  ok('nt: every shooting part is open from the start, and collecting is locked', (() => {
+    const p = parts([], none)
+    return p.prone === 'todo' && p.standing === 'todo' && p.across === 'todo' && p.single === 'todo' && p.collect === 'locked'
+  })())
+  ok('nt: parts can be done in any order', (() => {
+    const p = parts([], { ...none, standingBoutId: pair[1].id, stages: stages.slice(0, 4) })
+    return p.standing === 'done' && p.prone === 'todo' && p.across === 'done' && p.single === 'todo'
+  })())
+  ok('nt: a part-done 4x5 is partial, not done', parts([], { ...none, stages: stages.slice(0, 2) }).across === 'partial')
+  ok('nt: collecting stays locked until every part is shot', parts([], { ...none, ...shotBoth, stages: stages.slice(0, 4) }).collect === 'locked')
+  ok('nt: once everything is shot the targets are to collect, then partial, then done', (
+    parts([], { ...none, ...shotBoth, stages }).collect === 'todo' &&
+    parts([pair[0]], { ...none, ...shotBoth, stages }).collect === 'partial' &&
+    parts(pair, { ...none, ...shotBoth, stages }).collect === 'done'
+  ))
+  ok('nt: a group shot but not photographed reads as waiting for its photo, not unshot', (() => {
+    const s = scoreNationalTest([pair[0]], { stages, proneBoutId: pair[0].id, standingBoutId: pair[1].id })
+    return s.missing.length === 1 && s.missing[0] === 'standing target photo' && s.standard === null
+  })())
+  ok('nt: a group not yet shot is still precision, not a photo', scoreNationalTest([], { stages: [] }).missing.slice(0, 2).join() === 'prone precision,standing precision')
+  ok('nt: taking back removes the whole 10x1, or just the last 4x5 stage', withoutLastTimed(stages).length === 4 && withoutLastTimed(stages.slice(0, 4)).length === 3 && withoutLastTimed([]).length === 0)
+  ok('nt: the 4x5 is fixed as prone, standing, prone, standing', ACROSS_STAGES.join() === 'prone,standing,prone,standing')
+  ok('nt: the 10x1 is one overall time, whatever position its shots were', (() => {
+    const split = scoreNationalTest(pair, { stages: allStages(100, 100, undefined, 120) })
+    return split.speed === 200 + 310 - 200 - 120 && split.singleSeconds === 120 && split.proneSeconds === 100
+  })())
+  ok('nt: no allowance leaves the taps as they were', stageSecondsFromTaps([40, 85, 123, 165], 0).join() === '40,45,38,42')
+  ok('nt: an allowance comes off every tap, so only the first stage loses it', stageSecondsFromTaps([40, 85, 123, 165], 3).join() === '37,45,38,42')
+  ok('nt: a stage is never shorter than a tenth of a second', stageSecondsFromTaps([2, 2.5], 3).every((x) => x >= 0.1))
+  ok('timeline: a bout shot between two others sits between them, whenever its photo comes', (() => {
+    const at = (s: number) => new Date(Date.UTC(2026, 10, 3, 12, 0, s)).toISOString()
+    const m = (id: string, s: number, comboId: string | null = null) => ({ kind: 'metal', id, workoutId: 'w', shotAt: at(s), position: 'prone', heartRate: 0, comboId, targetZone: null, hits: { alpha: true, beta: true, charlie: true, delta: true, echo: true } }) as never
+    const entries = [m('a', 0), m('c1', 100, 'c'), m('c2', 130, 'c'), m('z', 400)]
+    const items = timeline(entries, [{ id: 'p', workoutId: 'w', shotAt: at(60), position: 'prone' }], null)
+    const names = items.map((i) => ('pending' in i ? 'pending' : 'test' in i ? 'test' : 'rounds' in i.group ? 'combo' : (i.group as { id: string }).id))
+    return names.join() === 'a,pending,combo,z'
+  })())
+  ok('time: a datetime-local value round-trips to the same minute, and an empty one is nothing', (() => {
+    const iso = '2026-11-03T19:32:45.000Z'
+    const back = fromLocalInput(toLocalInput(iso))
+    return back !== null && Math.abs(new Date(back).getTime() - new Date(iso).getTime()) < 60_000 && fromLocalInput('') === null
+  })())
+  ok('nt: clock formats minutes and seconds', clock(125) === '2:05' && clock(0) === '0:00')
+  ok('nt: only the test\'s own two bouts count, not other precision bouts in the session', (() => {
+    const mine = [group('prone'), group('standing')]
+    const stray = [bout('prone', [inRing(5), inRing(5)]), bout('standing', [inRing(4)])]
+    const owned = testBouts({ proneBoutId: mine[0].id, standingBoutId: mine[1].id }, [...stray, ...mine])
+    return owned.length === 2 && owned.every((b) => mine.includes(b)) && testBouts({ proneBoutId: null, standingBoutId: null }, [...stray, ...mine]).length === 0
+  })())
+
+}
+
+// --- Workout templates.
+{
+  const when = (n: number) => new Date(Date.UTC(2026, 10, 3, 10, n)).toISOString()
+  const prec = (position: Position, n: number) => ({ ...bout(position, [{ x: 0, y: 0 }]), shotAt: when(n) })
+  const met = (position: Position, n: number): MetalBout => ({
+    kind: 'metal', id: `m${n}`, workoutId: 'w', shotAt: when(n), position,
+    hits: { alpha: true, beta: true, charlie: true, delta: true, echo: true }, heartRate: 0, comboId: null, targetZone: null,
+  })
+  // Entered out of order on purpose: the steps follow the time shot.
+  const entries = [met('standing', 4), prec('prone', 1), met('prone', 3), prec('standing', 2)]
+  const steps = stepsFromEntries(entries)
+  ok('template: steps follow the order the bouts were shot', JSON.stringify(steps.map((s) => `${s.kind}:${s.position}`)) === JSON.stringify(['precision:prone', 'precision:standing', 'metal:prone', 'metal:standing']))
+  ok('template: nothing shot is zero steps done', stepsDone(steps, []) === 0)
+  ok('template: steps are ticked off in order', stepsDone(steps, entries.slice(1, 2)) === 1 && stepsDone(steps, [prec('prone', 1), prec('standing', 2)]) === 2 && stepsDone(steps, entries) === 4)
+  ok('template: an out-of-order bout does not count', stepsDone(steps, [prec('standing', 1)]) === 0)
+  ok('template: an extra bout in between is left out, not fatal', stepsDone(steps, [prec('prone', 1), met('prone', 2), prec('standing', 3)]) === 2)
+  ok('template: a shot whose target is not photographed yet still counts', (() => {
+    const pending = pendingAsShot({ id: 'x', workoutId: 'w', shotAt: when(1), position: 'prone' })
+    return stepsDone(steps, [pending]) === 1 && stepsDone(steps, [pending, pendingAsShot({ id: 'y', workoutId: 'w', shotAt: when(2), position: 'standing' })]) === 2
+  })())
+  ok('template: a session with pending targets saves them as precision steps', stepsFromEntries([pendingAsShot({ id: 'x', workoutId: 'w', shotAt: when(1), position: 'prone' }), met('prone', 2)]).map((s) => s.kind).join() === 'precision,metal')
+  ok('template: a step is its position and kind', stepLabel({ kind: 'precision', position: 'prone' }) === 'Prone precision')
+  ok('template: a summary groups repeats', summariseSteps([...steps.slice(0, 2), { kind: 'metal', position: 'prone' }, { kind: 'metal', position: 'prone' }]) === 'Prone precision, standing precision, 2 × prone metal')
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

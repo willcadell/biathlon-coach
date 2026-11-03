@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, MetalTarget, Position, RaceType, SensorSession, Settings, Wind, WindDirection, Workout, WorkoutEntry } from '../lib/types'
+import type { Bout, ClickAdjustment, MetalBout, MetalTarget, NationalTest, PendingTarget, Position, RaceType, SensorSession, Settings, TemplateStep, Wind, WindDirection, Workout, WorkoutEntry, WorkoutTemplate } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
-import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, groupEntries, hitCount, hitsOf, missCount } from '../lib/metal'
+import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, hitCount, hitsOf, missCount, timeline } from '../lib/metal'
 import { deleteBout, deleteMetalBout, deleteSensorSession, putMetalBout, putSensorSession } from '../lib/db'
 import { analyse } from '../lib/diagnostics'
 import { errorMessage } from '../lib/errors'
@@ -14,10 +14,15 @@ import { PersonalCoachRequests } from './PersonalCoachRequests'
 import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
+import { clickSummary } from '../lib/clicks'
+import { clockTime, fromLocalInput, toLocalInput } from '../lib/time'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
 import { SensorTrainerCard } from './SensorTrainer'
 import { SensorSessionCard } from './SensorSessionCard'
+import { NationalTestCard, NationalTestView } from './NationalTestView'
+import { SaveTemplateCard, TemplateRunSteps, WorkoutChooser } from './TemplateViews'
+import { pendingAsShot, type ShotLike } from '../lib/templates'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
@@ -64,6 +69,57 @@ function WindFields({
         </label>
       )}
     </>
+  )
+}
+
+const windText = (wind: Wind, direction: WindDirection) =>
+  wind === 'none' ? 'No wind' : `${wind[0].toUpperCase()}${wind.slice(1)} wind from ${direction} o'clock`
+
+/**
+ * The weather for the session, noted once and editable. Until it is logged the form is open:
+ * wind strength, direction and weather notes. "Log the wind" records it with the time and closes
+ * the form, leaving a line of text under the workout's name with an Edit link.
+ */
+function WindCard({ workout, onChange }: { workout: Workout; onChange: (w: Workout) => void }) {
+  const logged = !!workout.windLoggedAt
+  // Open until logged; Edit reopens it.
+  const [editing, setEditing] = useState(false)
+  const open = !logged || editing
+  const notes = workout.weatherNotes ?? ''
+
+  if (!open) {
+    return (
+      <div className="card tight row" style={{ alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1, fontSize: 14 }}>
+          <span className="meta">{clockTime(workout.windLoggedAt as string)} · </span>{windText(workout.wind, workout.windDirection)}
+          {notes && <span className="meta"> — {notes}</span>}
+        </span>
+        <button className="link" style={{ flex: 'none' }} onClick={() => setEditing(true)}>Edit</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <WindFields
+        wind={workout.wind} windDirection={workout.windDirection}
+        onWind={(w) => onChange({ ...workout, wind: w })}
+        onWindDirection={(d) => onChange({ ...workout, windDirection: d })}
+      />
+      <label className="field" style={{ marginTop: 12 }}>
+        <span>Weather notes<small>Gusting, swirling, which flag, snow, light, anything worth noting.</small></span>
+        <input
+          type="text" maxLength={200} placeholder="Optional" value={notes}
+          onChange={(e) => onChange({ ...workout, weatherNotes: e.target.value })}
+        />
+      </label>
+      <button
+        className="primary" style={{ width: '100%' }}
+        onClick={() => { onChange({ ...workout, windLoggedAt: workout.windLoggedAt ?? new Date().toISOString() }); setEditing(false) }}
+      >
+        {logged ? 'Done' : 'Log the wind'}
+      </button>
+    </div>
   )
 }
 
@@ -169,7 +225,7 @@ function Tally({
   )
 }
 
-function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Workout) => void }) {
+function ClickLog({ workout, onChange, onConfirmed }: { workout: Workout; onChange: (w: Workout) => void; onConfirmed: () => void }) {
   // Once at least one adjustment exists, the entry form collapses behind a
   // button — filling it back in for every future correction is more
   // clutter than the log itself is worth once it is no longer empty.
@@ -186,18 +242,32 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
   const horizontalDir: 'left' | 'right' = hNet > 0 ? 'right' : 'left'
   const [note, setNote] = useState('')
 
-  function add() {
-    const entry: ClickAdjustment = {
-      id: uuid(),
-      loggedAt: new Date().toISOString(),
-      vertical, verticalDir, horizontal, horizontalDir, clips, note,
-    }
-    onChange({ ...workout, clickLog: [...workout.clickLog, entry] })
+  const entryNow = (): ClickAdjustment => ({
+    id: uuid(),
+    loggedAt: new Date().toISOString(),
+    vertical, verticalDir, horizontal, horizontalDir, clips, note,
+  })
+  function clear() {
     setVNet(0)
     setHNet(0)
     setClips(0)
     setNote('')
     setOpen(false)
+  }
+  function add() {
+    onChange({ ...workout, clickLog: [...workout.clickLog, entryNow()] })
+    clear()
+  }
+  /** The zero is done. Whatever is half-entered in the form is logged first, so it is not lost. */
+  function confirm() {
+    const pending = vertical > 0 || horizontal > 0 || clips > 0 || note.trim() !== ''
+    onChange({
+      ...workout,
+      clickLog: pending ? [...workout.clickLog, entryNow()] : workout.clickLog,
+      zeroConfirmedAt: new Date().toISOString(),
+    })
+    clear()
+    onConfirmed()
   }
 
   const remove = (id: string) => onChange({ ...workout, clickLog: workout.clickLog.filter((c) => c.id !== id) })
@@ -223,7 +293,10 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
       )}
 
       {!open ? (
-        <button className="secondary" onClick={() => setOpen(true)}>+ Log another adjustment</button>
+        <div className="row">
+          <button className="secondary" onClick={() => setOpen(true)}>+ Log another adjustment</button>
+          <button className="confirm" onClick={confirm}>Confirmed</button>
+        </div>
       ) : (
         <>
           <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', gap: 10 }}>
@@ -260,7 +333,8 @@ function ClickLog({ workout, onChange }: { workout: Workout; onChange: (w: Worko
             )}
             {/* No disabled condition: 0 and 0 is a real result — "checked
                 the zero, nothing needed" is worth logging too. */}
-            <button className="secondary" onClick={add}>Log this adjustment</button>
+            <button className="primary" onClick={add}>Log this adjustment</button>
+            <button className="confirm" onClick={confirm}>Confirmed</button>
           </div>
         </>
       )}
@@ -327,6 +401,10 @@ function MetalForm({
   const [position, setPosition] = useState<Position>(initial?.position ?? presetPosition ?? 'prone')
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
+  // When it was shot: stamped as the form opens, so the time is close to the shooting, not to the
+  // moment of saving. Changing it by hand marks the time as entered.
+  const [shotAt, setShotAt] = useState(() => initial?.shotAt ?? new Date().toISOString())
+  const [timeEntered, setTimeEntered] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -337,7 +415,9 @@ function MetalForm({
       kind: 'metal',
       id: initial?.id ?? uuid(),
       workoutId,
-      shotAt: initial?.shotAt ?? new Date().toISOString(),
+      shotAt,
+      // Editing a bout keeps how its time was set, unless the time is changed now.
+      ...(timeEntered ? { timeSource: 'entered' as const } : initial ? (initial.timeSource ? { timeSource: initial.timeSource } : {}) : { timeSource: 'live' as const }),
       position, hits, heartRate,
       comboId: initial ? initial.comboId : (comboId ?? null),
       targetZone: initial ? initial.targetZone : (comboZone ?? null),
@@ -374,12 +454,22 @@ function MetalForm({
           <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
           <TargetDial hits={hits} onChange={setHits} />
         </label>
-        <label className="field" style={{ marginBottom: 0 }}>
+        <label className="field">
           <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
           <input
             type="number" inputMode="numeric" placeholder="—" min={0} max={230}
             value={heartRate || ''}
             onChange={(e) => setHeartRate(Number(e.target.value) || 0)}
+          />
+        </label>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Time shot<small>{timeEntered ? 'Set by you.' : initial ? 'As recorded.' : 'Stamped when you opened this. Change it if you are entering a bout after the fact.'}</small></span>
+          <input
+            type="datetime-local" step={60} value={toLocalInput(shotAt)}
+            onChange={(e) => {
+              const iso = fromLocalInput(e.target.value)
+              if (iso) { setShotAt(iso); setTimeEntered(true) }
+            }}
           />
         </label>
       </div>
@@ -433,7 +523,15 @@ function useCountUp(target: number, delayMs: number, durationMs: number): number
 /** Replaces the workout form once Finish is tapped — a brief acknowledgment
  *  before dropping back to "Start a session", with a one-tap route into
  *  sharing the session's best target right when it's most relevant. */
-function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout; precisionBouts: Bout[]; onDone: () => void }) {
+function SessionComplete({
+  workout, precisionBouts, onDone, saveAsTemplate,
+}: {
+  workout: Workout
+  precisionBouts: Bout[]
+  onDone: () => void
+  /** Present when this session can be kept as a template: its bouts, and how to save. */
+  saveAsTemplate?: { entries: ShotLike[]; onSave: (name: string, steps: TemplateStep[]) => Promise<void> }
+}) {
   const [choosing, setChoosing] = useState(false)
   // Which thing the share sheet is open for: one of this session's targets,
   // or the whole workout.
@@ -479,6 +577,7 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
           ))}
         </div>
       )}
+      {saveAsTemplate && <SaveTemplateCard entries={saveAsTemplate.entries} defaultName={workout.name} onSave={saveAsTemplate.onSave} />}
       <div className="row">
         <button className="secondary" onClick={onDone}>Back to start</button>
         {inOrder.length > 0 && (
@@ -500,6 +599,61 @@ function SessionComplete({ workout, precisionBouts, onDone }: { workout: Workout
         </button>
       )}
       {sheet && <ShareSheet bout={sheet.bout} workout={workout} onClose={() => setSheet(null)} onPostedDone={onDone} />}
+    </div>
+  )
+}
+
+/** Asks how a precision bout is being recorded. The range is open while anyone shoots, so the
+ *  usual answer is "shot, photograph the target later"; photographing now is for when the target
+ *  can already be collected. */
+function PrecisionChoiceDialog({
+  position: fixed, onLater, onNow, onCancel,
+}: {
+  position?: Position
+  onLater: (position: Position) => void | Promise<void>
+  onNow: (position: Position) => void
+  onCancel: () => void
+}) {
+  const [position, setPosition] = useState<Position>(fixed ?? 'prone')
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <h2 style={{ marginTop: 0 }}>Precision</h2>
+        {fixed ? (
+          <p className="meta">{fixed === 'prone' ? 'Prone' : 'Standing'}, ten shots.</p>
+        ) : (
+          <div className="seg" style={{ marginBottom: 10 }}>
+            {(['prone', 'standing'] as Position[]).map((p) => (
+              <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>{p === 'prone' ? 'Prone' : 'Standing'}</button>
+            ))}
+          </div>
+        )}
+        <p className="meta">
+          The range is open while you shoot, so the target stays put. Record the bout now and photograph the
+          target after, once the range is closed.
+        </p>
+        <button className="primary" style={{ width: '100%' }} onClick={() => void onLater(position)}>Shot — photograph the target later</button>
+        <button className="secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => onNow(position)}>I have the target — photograph it now</button>
+        <button className="link" style={{ marginTop: 8 }} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+/** A bout that has been shot and is waiting on its target photo. */
+function PendingRow({ target, onPhotograph, onRemove }: { target: PendingTarget; onPhotograph: () => void; onRemove?: () => void }) {
+  return (
+    <div className="boutrow" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <div>
+        <div className="title">{target.position === 'prone' ? 'Prone' : 'Standing'} precision</div>
+        <div className="meta">Shot {fmt(target.shotAt)}</div>
+      </div>
+      <div className="row">
+        {onRemove && (
+          <button className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }} aria-label="Remove this bout" title="Remove" onClick={onRemove}><TrashIcon /></button>
+        )}
+        <button className="primary" onClick={onPhotograph}>Add target photo</button>
+      </div>
     </div>
   )
 }
@@ -548,7 +702,7 @@ function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => 
         </div>
         <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <MiniTargets hits={hits} />
-          metal{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}
+          metal · {clockTime(bout.shotAt)}{bout.timeSource === 'entered' && ' (set by hand)'}{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
@@ -578,14 +732,11 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card">
-        <h2 style={{ marginTop: 0 }}>
-          Start a combo
-          <Help>Every metal bout you add from here joins this combo, until you end it.</Help>
-        </h2>
-        <span style={{ display: 'block', marginBottom: 6 }}>
-          Target Heart Rate Zone
-          <Help>Optional — it's just a number for your own reference, so pick whatever your own zones mean to you.</Help>
-        </span>
+        {/* Written out rather than behind a "?": a floating note opened here sits over the zone buttons. */}
+        <h2 style={{ marginTop: 0 }}>Start a combo</h2>
+        <p className="meta" style={{ marginTop: 0 }}>Every metal bout you add from here joins this combo, until you end it.</p>
+        <span style={{ display: 'block', marginBottom: 6 }}>Target Heart Rate Zone</span>
+        <p className="meta" style={{ margin: '0 0 8px' }}>Optional — a number for your own reference, so pick whatever your own zones mean to you.</p>
         <div className="seg">
           {ZONES.map((z) => {
             const active = zone === z
@@ -615,25 +766,34 @@ function StartComboDialog({ onStart, onCancel }: { onStart: (zone: number | null
 }
 
 function ComboRow({
-  targetZone, rounds, onEditRound, onDeleted,
+  targetZone, rounds, onEditRound, onDeleted, onEnd,
 }: {
   targetZone: number | null
   rounds: MetalBout[]
   onEditRound: (bout: MetalBout) => void
   onDeleted: () => void
+  /** Present on the combo that is running: the way to end it, at the top right of its box. */
+  onEnd?: () => void
 }) {
   const shots = rounds.length * DISCS_PER_METAL_BOUT
   const misses = rounds.reduce((n, b) => n + missCount(hitsOf(b)), 0)
   return (
     <div className="card">
-      <div className="title" style={{ marginBottom: 8 }}>
-        {comboLabel(targetZone)} · {rounds.length} round{rounds.length === 1 ? '' : 's'} · {shots - misses}/{shots} hits
+      <div className="row" style={{ alignItems: 'baseline', marginBottom: 8 }}>
+        <div className="title" style={{ flex: 1 }}>
+          {comboLabel(targetZone)}{onEnd ? ' in progress' : ''} · {rounds.length} round{rounds.length === 1 ? '' : 's'}
+          {rounds.length > 0 && ` · ${shots - misses}/${shots} hits`}
+        </div>
+        {onEnd && <button className="link" style={{ flex: 'none' }} onClick={onEnd}>End combo</button>}
       </div>
+      {onEnd && rounds.length === 0 && (
+        <p className="meta" style={{ margin: '0 0 4px' }}>Every metal bout you add now joins this combo, until you end it.</p>
+      )}
       {rounds.map((r, i) => (
         <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
           <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
             <MiniTargets hits={hitsOf(r)} />
-            Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
+            Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT} · {clockTime(r.shotAt)}
             {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
           </span>
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
@@ -690,7 +850,7 @@ function WorkoutAnalysis({ bouts, workout, settings }: { bouts: Bout[]; workout:
   )
 }
 
-type Mode = 'entries' | 'addPrecision' | 'addMetal'
+type Mode = 'entries' | 'addPrecision' | 'addMetal' | 'nationalTest'
 
 type StartKind = 'range' | 'dryfire' | 'race'
 
@@ -711,6 +871,20 @@ interface Props {
   history?: GoalData
   /** Every saved sensor session; this workout's are shown under the sensor trainer. */
   sensorSessions?: SensorSession[]
+  /** Every saved National Team test; a range workout may hold one, shot with the guided view. */
+  nationalTests?: NationalTest[]
+  onNationalTestChanged?: (test: NationalTest) => void
+  onStartNationalTest?: (workoutId: string) => Promise<void>
+  /** Removes the test and the two precision groups shot for it. */
+  onDeleteNationalTest?: (test: NationalTest) => Promise<void>
+  /** The athlete's saved templates, to start a session from. */
+  /** Precision bouts that were shot but whose target has not been photographed. */
+  pendingTargets?: PendingTarget[]
+  onMarkPending?: (workoutId: string, position: Position) => Promise<PendingTarget>
+  onDeletePending?: (id: string) => Promise<void>
+  templates?: WorkoutTemplate[]
+  onSaveTemplate?: (name: string, steps: TemplateStep[]) => Promise<void>
+  onDeleteTemplate?: (id: string) => Promise<void>
 }
 
 /**
@@ -719,12 +893,22 @@ interface Props {
  * actually dialed in logged once at the workout level; a dryfire session is
  * just time spent and how it went, no range required.
  */
-export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history, sensorSessions = [] }: Props) {
+export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history, sensorSessions = [], nationalTests = [], onNationalTestChanged, onStartNationalTest, onDeleteNationalTest, templates = [], onSaveTemplate, onDeleteTemplate, pendingTargets = [], onMarkPending, onDeletePending }: Props) {
+  const [testError, setTestError] = useState('')
+  // The workout for which "Start a new workout" was chosen, so the choice is per session.
+  const [choseNewFor, setChoseNewFor] = useState<string | null>(null)
+  // What a precision bout is about to be photographed as: its position fixed by a template or
+  // a choice already made, or a target that was shot earlier and is only now being collected.
+  const [capture, setCapture] = useState<{ position?: Position; pending?: PendingTarget } | null>(null)
+  // Asking how a precision bout was shot, and from which position if that is already known.
+  const [precisionDialog, setPrecisionDialog] = useState<{ position?: Position } | null>(null)
+  const [pendingError, setPendingError] = useState('')
   const [mode, setMode] = useState<Mode>('entries')
   const [editingMetal, setEditingMetal] = useState<MetalBout | null>(null)
   const [activeComboId, setActiveComboId] = useState<string | null>(null)
   const [activeComboZone, setActiveComboZone] = useState<number | null>(null)
   const [startingCombo, setStartingCombo] = useState(false)
+  const [editingZero, setEditingZero] = useState(false)
   const [pendingStage, setPendingStage] = useState<{ index: number; position: Position } | null>(null)
   const [starting, setStarting] = useState<StartKind | null>(null)
   const [startError, setStartError] = useState('')
@@ -744,12 +928,18 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   const [formatConfirmedId, setFormatConfirmedId] = useState<string | null>(null)
   const [editingFormat, setEditingFormat] = useState(false)
 
-  const comboRounds = activeComboId
-    ? entries.filter((e) => e.kind === 'metal' && e.comboId === activeComboId).length
-    : 0
-
   const precisionBouts = entries.filter((e): e is Bout => e.kind === 'precision')
   const metalBouts = entries.filter((e): e is MetalBout => e.kind === 'metal')
+  const nationalTest = workout ? nationalTests.find((t) => t.workoutId === workout.id) : undefined
+  // Shot, but with no photo yet. Once the photo is in, the bout has the same id and this is hidden.
+  const workoutPending = workout
+    ? pendingTargets.filter((p) => p.workoutId === workout.id && !precisionBouts.some((b) => b.id === p.id))
+    : []
+  // The National Team test collects its own two targets at the end, so they are not listed loose.
+  const testIds = new Set([nationalTest?.proneBoutId, nationalTest?.standingBoutId])
+  const loosePending = workoutPending.filter((p) => !testIds.has(p.id))
+  // Everything that was shot, for matching against a template's steps.
+  const shotSoFar = [...entries, ...workoutPending.map(pendingAsShot)]
 
   async function handleStart(kind: StartKind) {
     setStarting(kind)
@@ -787,14 +977,14 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         {startError && <div className="notice error">{startError}</div>}
         <div className="row" ref={startButtons}>
           {/* Each kind of session in its own colour, matching its tile in the
-              feed. The green and orange are deepened so white text on them is
+              feed. The violet and orange are deepened so white text on them is
               still comfortably readable. */}
           <button className="primary" onClick={() => void handleStart('range')} disabled={starting !== null}>
             <RangeIcon size={20} />
             {starting === 'range' ? 'Starting…' : 'Range'}
           </button>
           <button
-            className="primary" style={{ background: 'color-mix(in srgb, var(--series-3) 72%, black)' }}
+            className="primary" style={{ background: 'color-mix(in srgb, var(--dryfire) 72%, black)' }}
             onClick={() => void handleStart('dryfire')} disabled={starting !== null}
           >
             <DryfireIcon size={20} />
@@ -832,7 +1022,16 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   }
 
   if (complete) {
-    return <SessionComplete workout={workout} precisionBouts={precisionBouts} onDone={handleDone} />
+    return (
+      <SessionComplete
+        workout={workout} precisionBouts={precisionBouts} onDone={handleDone}
+        // Only a free-form range session offers to become a template: a race has its own
+        // fixed stages, and one that followed a template or the test already is one.
+        saveAsTemplate={!workout.raceType && workout.workoutType === 'range' && !workout.template && !nationalTest && shotSoFar.length > 0 && onSaveTemplate
+          ? { entries: shotSoFar, onSave: onSaveTemplate }
+          : undefined}
+      />
+    )
   }
 
   if (workout.workoutType === 'dryfire') {
@@ -894,9 +1093,37 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         >
           <TrashIcon />
         </button>
-          <button className="primary" onClick={() => setComplete(true)}>Finish session</button>
+          <button className="confirm" onClick={() => setComplete(true)}>Finish session</button>
         </div>
       </>
+    )
+  }
+
+  async function startNationalTest() {
+    if (!onStartNationalTest) return
+    setTestError('')
+    try {
+      await onStartNationalTest(workout!.id)
+      setMode('nationalTest')
+    } catch (e) {
+      setTestError(errorMessage(e, 'Could not start the test. Check your connection and try again.'))
+    }
+  }
+
+  if (mode === 'nationalTest' && nationalTest && onNationalTestChanged) {
+    return (
+      <NationalTestView
+        settings={settings} workout={workout} test={nationalTest} bouts={precisionBouts}
+        pendingTargets={workoutPending}
+        onMarkPending={(position) => (onMarkPending ? onMarkPending(workout.id, position) : Promise.reject(new Error('Pending targets are not available here.')))}
+        onTestChanged={onNationalTestChanged} onDataChanged={onDataChanged}
+        onBack={() => setMode('entries')}
+        onCancel={() => {
+          void (onDeleteNationalTest?.(nationalTest) ?? Promise.resolve())
+            .then(() => { setMode('entries'); onDataChanged() })
+            .catch((e) => setTestError(errorMessage(e, 'Could not remove the test.')))
+        }}
+      />
     )
   }
 
@@ -906,7 +1133,9 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         settings={settings}
         workout={workout}
         onSaved={onDataChanged}
-        onExit={() => setMode('entries')}
+        fixedPosition={capture?.position}
+        pending={capture?.pending}
+        onExit={() => { setCapture(null); setMode('entries') }}
       />
     )
   }
@@ -926,6 +1155,18 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
     )
   }
 
+  // An empty range session first asks how it should run; anything already chosen or shot skips it.
+  // Once the zero is confirmed it shrinks to a line under the weather; Edit brings the log back.
+  const zeroShown = !!workout.zeroConfirmedAt && !editingZero
+  const endCombo = () => { setActiveComboId(null); setActiveComboZone(null) }
+  const showChooser = !workout.raceType && entries.length === 0 && workoutPending.length === 0 && !nationalTest && !workout.template && choseNewFor !== workout.id
+
+  function finishSession() {
+    const n = workoutPending.length
+    if (n > 0 && !confirm(`${n} shot target${n === 1 ? ' has' : 's have'} no photo yet, and can't be photographed once the session is finished. Finish anyway?`)) return
+    setComplete(true)
+  }
+
   return (
     <>
       <h1>{workout.name || 'Workout'} {workout.raceType && <span className="pill">{RACE_TYPE_LABEL[workout.raceType]}</span>}</h1>
@@ -939,6 +1180,18 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
           onChange={(e) => onWorkoutChanged({ ...workout, name: e.target.value })}
         />
       </label>
+
+      <WindCard workout={workout} onChange={onWorkoutChanged} />
+
+      {zeroShown && (
+        <div className="card tight row" style={{ alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1, fontSize: 14 }}>
+            <span className="meta">{clockTime(workout.zeroConfirmedAt as string)} · </span>
+            Zero confirmed{workout.clickLog.length > 0 ? <> · {clickSummary(workout.clickLog)}</> : <span className="meta"> — no adjustments</span>}
+          </span>
+          <button className="link" style={{ flex: 'none' }} onClick={() => setEditingZero(true)}>Edit</button>
+        </div>
+      )}
 
       {workout.raceType && (
         <div className="card">
@@ -955,17 +1208,12 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         </div>
       )}
 
-      <h2>Conditions</h2>
-      <div className="card">
-        <WindFields
-          wind={workout.wind} windDirection={workout.windDirection}
-          onWind={(w) => onWorkoutChanged({ ...workout, wind: w })}
-          onWindDirection={(d) => onWorkoutChanged({ ...workout, windDirection: d })}
-        />
-      </div>
-
-      <h2>Zero clicks logged</h2>
-      <ClickLog workout={workout} onChange={onWorkoutChanged} />
+      {!zeroShown && (
+        <>
+          <h2>Zero clicks logged</h2>
+          <ClickLog workout={workout} onChange={onWorkoutChanged} onConfirmed={() => setEditingZero(false)} />
+        </>
+      )}
 
       <WorkoutAnalysis bouts={precisionBouts} workout={workout} settings={settings} />
 
@@ -979,17 +1227,68 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
       ) : (
         <>
           <h2>This workout</h2>
-          {entries.length === 0 && <p className="meta">Nothing added yet.</p>}
-          {groupEntries(entries).map((item) =>
-            'rounds' in item ? (
-              <ComboRow
-                key={item.comboId}
-                targetZone={item.targetZone}
-                rounds={item.rounds}
-                onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
-                onDeleted={onDataChanged}
-              />
-            ) : item.kind === 'precision' ? (
+          {showChooser && (
+            <WorkoutChooser
+              templates={templates} error={testError}
+              onNew={() => setChoseNewFor(workout.id)}
+              onNationalTest={onStartNationalTest ? () => void startNationalTest() : undefined}
+              onTemplate={(t) => onWorkoutChanged({ ...workout, template: { name: t.name, steps: t.steps } })}
+              onDelete={onDeleteTemplate ? (t) => void onDeleteTemplate(t.id) : undefined}
+            />
+          )}
+          {!showChooser && workout.template && (
+            <TemplateRunSteps
+              run={workout.template} entries={shotSoFar}
+              onShoot={(step, index) => {
+                if (step.kind === 'precision') {
+                  setPrecisionDialog({ position: step.position })
+                  return
+                }
+                setPendingStage({ index, position: step.position })
+                setEditingMetal(null)
+                setMode('addMetal')
+              }}
+            />
+          )}
+          {!showChooser && entries.length === 0 && workoutPending.length === 0 && !workout.template && !nationalTest && <p className="meta">Nothing added yet.</p>}
+          {!showChooser && loosePending.length > 0 && (
+            <p className="meta" style={{ margin: '0 0 6px' }}>
+              Bouts waiting on a target photo were shot but not collected. Collect them only once the range is closed and safe.
+            </p>
+          )}
+          {!showChooser && pendingError && <div className="notice error">{pendingError}</div>}
+          {/* In the order it happened, so a precision bout shot between two metal bouts sits between them. */}
+          {!showChooser && timeline(entries, loosePending, nationalTest).map((entry) => {
+            if ('test' in entry) {
+              return <NationalTestCard key={entry.test.id} test={entry.test} bouts={precisionBouts} onOpen={() => setMode('nationalTest')} />
+            }
+            if ('pending' in entry) {
+              const p = entry.pending
+              return (
+                <PendingRow
+                  key={p.id} target={p}
+                  onPhotograph={() => { setCapture({ position: p.position, pending: p }); setMode('addPrecision') }}
+                  onRemove={onDeletePending ? () => {
+                    if (!confirm('Remove this bout? It was shot but has no target photo.')) return
+                    void onDeletePending(p.id).catch((e) => setPendingError(errorMessage(e, 'Could not remove it.')))
+                  } : undefined}
+                />
+              )
+            }
+            const item = entry.group
+            if ('rounds' in item) {
+              // The running combo is shown above the bout buttons, in the combo box.
+              return item.comboId === activeComboId ? null : (
+                <ComboRow
+                  key={item.comboId}
+                  targetZone={item.targetZone}
+                  rounds={item.rounds}
+                  onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
+                  onDeleted={onDataChanged}
+                />
+              )
+            }
+            return item.kind === 'precision' ? (
               <PrecisionRow key={item.id} bout={item} workout={workout} onDeleted={onDataChanged} />
             ) : (
               <MetalRow
@@ -998,44 +1297,49 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
                 onEdit={() => { setEditingMetal(item); setMode('addMetal') }}
                 onDeleted={onDataChanged}
               />
-            ),
-          )}
+            )
+          })}
 
-          <div className="row" style={{ marginTop: 14 }}>
-            <button className="secondary" onClick={() => { setEditingMetal(null); setMode('addMetal') }}>+ Metal bout</button>
-            <button className="primary" onClick={() => setMode('addPrecision')}>+ Precision bout</button>
-          </div>
-
-          {activeComboId ? (
-            <div className="card" style={{ marginTop: 10 }}>
-              <div className="row" style={{ alignItems: 'center' }}>
-                <span style={{ flex: 1, fontSize: 14 }}>
-                  {comboLabel(activeComboZone)} in progress · {comboRounds} round{comboRounds === 1 ? '' : 's'} logged
-                  <Help>Every metal bout you add now joins this combo, until you end it.</Help>
-                </span>
-                <button
-                  className="link" style={{ flex: 'none' }}
-                  onClick={() => { setActiveComboId(null); setActiveComboZone(null) }}
-                >
-                  End combo
-                </button>
+          {!showChooser && (
+            <>
+            {/* The combo box: a way to start a combo, which then becomes that combo's list of rounds. */}
+            {activeComboId ? (
+              <ComboRow
+                targetZone={activeComboZone}
+                rounds={metalBouts.filter((b) => b.comboId === activeComboId)}
+                onEditRound={(r) => { setEditingMetal(r); setMode('addMetal') }}
+                onDeleted={onDataChanged}
+                onEnd={endCombo}
+              />
+            ) : (
+              <div className="card tight row" style={{ alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, lineHeight: 1.25 }}>
+                  <strong>Combo</strong>
+                  <div className="meta">Repeated ski-and-shoot rounds</div>
+                </div>
+                <button className="primary" style={{ flex: 'none', width: '50%', padding: '9px 0' }} onClick={() => setStartingCombo(true)}>Start a combo</button>
               </div>
-            </div>
-          ) : (
-            <button className="link" style={{ marginTop: 10 }} onClick={() => setStartingCombo(true)}>
-              + Start a combo (repeated ski-and-shoot rounds)
-            </button>
-          )}
+            )}
 
-          {startingCombo && (
-            <StartComboDialog
-              onCancel={() => setStartingCombo(false)}
-              onStart={(zone) => {
-                setActiveComboId(uuid())
-                setActiveComboZone(zone)
-                setStartingCombo(false)
-              }}
-            />
+            <div className="row" style={{ marginTop: 14 }}>
+              <button className="primary" onClick={() => { setEditingMetal(null); setMode('addMetal') }}>+ Metal bout</button>
+              <button className="primary" onClick={() => setPrecisionDialog({})}>+ Precision bout</button>
+            </div>
+
+            {testError && !showChooser && <div className="notice error" style={{ marginTop: 10 }}>{testError}</div>}
+
+            {startingCombo && (
+              <StartComboDialog
+                onCancel={() => setStartingCombo(false)}
+                onStart={(zone) => {
+                  setActiveComboId(uuid())
+                  setActiveComboZone(zone)
+                  setStartingCombo(false)
+                }}
+              />
+            )}
+
+            </>
           )}
         </>
       )}
@@ -1054,8 +1358,26 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
         >
           <TrashIcon />
         </button>
-        <button className="primary" onClick={() => setComplete(true)}>Finish session</button>
+        <button className="confirm" onClick={finishSession}>Finish session</button>
       </div>
+      {precisionDialog && (
+        <PrecisionChoiceDialog
+          position={precisionDialog.position}
+          onCancel={() => setPrecisionDialog(null)}
+          onLater={async (position) => {
+            setPendingError('')
+            try {
+              if (!onMarkPending) throw new Error('Not available here.')
+              await onMarkPending(workout.id, position)
+              setPrecisionDialog(null)
+            } catch (e) {
+              setPendingError(errorMessage(e, 'Could not record the bout. Check your connection and try again.'))
+              setPrecisionDialog(null)
+            }
+          }}
+          onNow={(position) => { setCapture({ position: precisionDialog.position ?? position }); setPrecisionDialog(null); setMode('addPrecision') }}
+        />
+      )}
     </>
   )
 }

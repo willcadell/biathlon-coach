@@ -20,7 +20,7 @@ function sessionKind(p: WorkoutPayload): 'race' | 'dryfire' | 'range' {
 
 const SESSION_TILE = {
   range: { label: 'Range session', colour: 'var(--series-1)', Icon: RangeIcon },
-  dryfire: { label: 'Dry-fire session', colour: 'var(--series-3)', Icon: DryfireIcon },
+  dryfire: { label: 'Dry-fire session', colour: 'var(--dryfire)', Icon: DryfireIcon },
   race: { label: 'Race', colour: 'var(--series-2)', Icon: RaceMedalIcon },
 } as const
 

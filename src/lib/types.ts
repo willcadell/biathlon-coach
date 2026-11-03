@@ -153,6 +153,7 @@ export interface Bout {
   workoutId: string
   /** ISO timestamp. */
   shotAt: string
+  timeSource?: TimeSource
   position: Position
   /** The face this was shot on. Fixed at capture; changing settings later
    *  must not rescore old paper against a target it was never shot at. */
@@ -191,11 +192,18 @@ export interface Bout {
  *  standard biathlon call signs. */
 export type MetalTarget = 'alpha' | 'beta' | 'charlie' | 'delta' | 'echo'
 
+/** How a bout's `shotAt` came to be. 'live': stamped as it happened (when the bout was opened, or
+ *  when the athlete said "shot"). 'entered': set by hand afterwards. Absent on bouts saved before
+ *  this was recorded, whose time is when they were saved. Matching a heart-rate stream to a bout
+ *  should trust 'live' most and 'entered' and absent least. */
+export type TimeSource = 'live' | 'entered'
+
 export interface MetalBout {
   kind: 'metal'
   id: string
   workoutId: string
   shotAt: string
+  timeSource?: TimeSource
   position: Position
   /** Which of the five targets fell (were hit), left to right. Recorded per
    *  target rather than as a bare count so a pattern — a target that keeps
@@ -258,6 +266,57 @@ export interface SensorSession {
   shots: SensorShot[]
 }
 
+/** One timed stage of the National Team test: a 4x5 "across" stage (five shots,
+ *  back to the 3 m line) or a 10x1 single-shot stage. The two precision groups
+ *  are ordinary Bouts in the same workout, not stages. */
+export interface NationalTestStage {
+  kind: 'across' | 'single'
+  /** The position of a 4x5 stage. A 10x1 is timed as a whole (five prone singles, then five
+   *  standing), so its stage is saved as 'prone', its starting position, and the field is not used. */
+  position: Position
+  /** Seconds from leaving the 3 m line to being back on it. For the 10x1, the whole drill. */
+  seconds: number
+  /** Clock time (ISO) at "Go" and when the athlete was back over the line, so the stage can be
+   *  matched to a heart-rate stream. The end has the stop-tap allowance taken off. */
+  startedAt?: string
+  endedAt?: string
+  /** Targets hit, out of 5 for an across stage and 10 for the 10x1. */
+  hits: number
+  /** Which of the five targets fell, scored as on a metal bout. Across stages
+   *  scored one target at a time carry it; `hits` is always their count. */
+  targets?: Record<MetalTarget, boolean>
+}
+
+/** A National Team test being shot, or shot: the timed stages in the order
+ *  they were done. Its precision groups are the workout's own precision bouts. */
+export interface NationalTest {
+  id: string
+  workoutId: string
+  startedAt: string
+  stages: NationalTestStage[]
+  /** The two precision groups shot as part of this test, set the moment each is
+   *  shot. Each id is a pending target until its photo is added, then a bout with
+   *  the same id. The workout can hold other precision bouts too; only these count. */
+  proneBoutId: string | null
+  standingBoutId: string | null
+}
+
+/**
+ * A precision bout that has been shot but whose target has not been photographed.
+ *
+ * The range is open while anyone is shooting, and nobody goes downrange for paper
+ * until it is closed and safe, so a precision bout happens first and its target is
+ * collected after. This records that it happened. When the target is photographed
+ * it becomes an ordinary Bout with the same id and time, and this record is removed.
+ */
+export interface PendingTarget {
+  id: string
+  workoutId: string
+  /** When the shooting was done, so the bout keeps its place in the session. */
+  shotAt: string
+  position: Position
+}
+
 /** Either kind of bout a workout can hold. */
 export type WorkoutEntry = Bout | MetalBout
 
@@ -305,6 +364,26 @@ export type RaceType = 'sprint' | 'individual' | 'mass-start' | 'pursuit'
  *  target, no range required. */
 export type WorkoutType = 'range' | 'dryfire'
 
+/** One step of a workout template: a bout to shoot, in order. */
+export interface TemplateStep {
+  kind: 'precision' | 'metal'
+  position: Position
+}
+
+/** A reusable sequence of bouts, saved from a workout the athlete shot. */
+export interface WorkoutTemplate {
+  id: string
+  name: string
+  steps: TemplateStep[]
+}
+
+/** The template a workout is following, copied onto the workout when it starts so
+ *  changing or deleting the saved template later cannot change a session already shot. */
+export interface TemplateRun {
+  name: string
+  steps: TemplateStep[]
+}
+
 export interface Workout {
   id: string
   /** ISO timestamp of the first bout, or when the workout was started. */
@@ -329,6 +408,14 @@ export interface Workout {
   raceType: RaceType | null
   /** Minutes spent, for a dryfire session. 0 and unused for a range session. */
   dryfireMinutes: number
+  /** Set when the session follows a saved template. Absent or null for a free-form one. */
+  template?: TemplateRun | null
+  /** When the wind was logged, once per workout; null or absent until it has been. */
+  windLoggedAt?: string | null
+  /** Weather notes that go with the wind. */
+  weatherNotes?: string
+  /** When the zero was confirmed, once per workout; null or absent until it has been. */
+  zeroConfirmedAt?: string | null
 }
 
 export interface Ellipse {

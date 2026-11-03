@@ -2,11 +2,11 @@ import { contributePending, getContribution, type Contribution } from './lib/con
 import { ContributePrompt } from './components/ContributeChoice'
 import { amDev, devModeOn, setDevMode } from './lib/dev'
 import { amPlatformAdmin } from './lib/platformAdmin'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import type { Bout, MetalBout, SensorSession, Settings, Workout, WorkoutEntry } from './lib/types'
+import type { Bout, MetalBout, NationalTest, PendingTarget, Position, SensorSession, Settings, TemplateStep, Workout, WorkoutEntry, WorkoutTemplate } from './lib/types'
 import { scoringContext, type ShootingDirection } from './lib/types'
-import { allBouts, allMetalBouts, allSensorSessions, allWorkouts, deleteWorkout, putWorkout } from './lib/db'
+import { allBouts, allMetalBouts, allNationalTests, allPendingTargets, allSensorSessions, allTemplates, allWorkouts, deleteWorkout, deleteNationalTest, deletePendingTarget, deleteTemplate, putNationalTest, putPendingTarget, putTemplate, putWorkout } from './lib/db'
 import { computeMetrics } from './lib/geometry'
 import { uuid } from './lib/id'
 import { loadSettings, saveSettings } from './lib/settings'
@@ -328,6 +328,10 @@ function SignedInApp({
   const [stored, setStored] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
   const [sensorSessions, setSensorSessions] = useState<SensorSession[]>([])
+  const [nationalTests, setNationalTests] = useState<NationalTest[]>([])
+  const pendingTestWrites = useRef(0)
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>([])
+  const [pendingTargets, setPendingTargets] = useState<PendingTarget[]>([])
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(loadActiveWorkoutId)
   const [settings, setSettings] = useState<Settings>(loadSettings)
 
@@ -370,6 +374,9 @@ function SignedInApp({
     void allBouts().then(setStored).catch((e) => console.error('Could not load bouts', e))
     void allMetalBouts().then(setMetalBouts).catch((e) => console.error('Could not load metal bouts', e))
     void allSensorSessions().then(setSensorSessions).catch((e) => console.error('Could not load sensor sessions', e))
+    void allPendingTargets().then(setPendingTargets).catch((e) => console.error('Could not load pending targets', e))
+    void allTemplates().then(setTemplates).catch((e) => console.error('Could not load workout templates', e))
+    void allNationalTests().then((t) => { if (pendingTestWrites.current === 0) setNationalTests(t) }).catch((e) => console.error('Could not load national tests', e))
   }, [])
   useEffect(refresh, [refresh])
 
@@ -428,6 +435,55 @@ function SignedInApp({
     refresh()
   }
 
+  /** Same reasoning as updateWorkout: apply locally first so a second stage
+   *  saved straight after the first builds on it instead of on stale state.
+   *  While a save is in flight a refresh must not put the older copy back. */
+  function updateNationalTest(next: NationalTest) {
+    setNationalTests((prev) => prev.map((t) => (t.id === next.id ? next : t)))
+    pendingTestWrites.current += 1
+    void putNationalTest(next)
+      .catch((e) => console.error('Could not save the National Team test', e))
+      .finally(() => { pendingTestWrites.current -= 1 })
+  }
+
+  /** Adds a test to a range workout that is already saved. Throws if it can't
+   *  be stored, so the workout view can say so. */
+  async function startNationalTest(workoutId: string) {
+    const test: NationalTest = { id: uuid(), workoutId, startedAt: new Date().toISOString(), stages: [], proneBoutId: null, standingBoutId: null }
+    await putNationalTest(test)
+    setNationalTests((prev) => [...prev, test])
+  }
+
+  /** Records a precision bout that has been shot, before its target can be collected.
+   *  Throws if it can't be stored, so whoever asked can say so. */
+  async function markPending(workoutId: string, position: Position): Promise<PendingTarget> {
+    const target: PendingTarget = { id: uuid(), workoutId, shotAt: new Date().toISOString(), position }
+    await putPendingTarget(target)
+    setPendingTargets((prev) => [...prev, target])
+    return target
+  }
+
+  async function removePending(id: string) {
+    await deletePendingTarget(id)
+    setPendingTargets((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  async function saveTemplate(name: string, steps: TemplateStep[]) {
+    const template: WorkoutTemplate = { id: uuid(), name, steps }
+    await putTemplate(template)
+    setTemplates((prev) => [template, ...prev])
+  }
+
+  async function removeTemplate(id: string) {
+    await deleteTemplate(id)
+    setTemplates((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  async function removeNationalTest(test: NationalTest) {
+    await deleteNationalTest(test)
+    setNationalTests((prev) => prev.filter((t) => t.id !== test.id))
+  }
+
   async function cancelWorkout() {
     if (!activeWorkout) return
     await deleteWorkout(activeWorkout.id)
@@ -478,10 +534,20 @@ function SignedInApp({
                 onDataChanged={refresh}
                 history={history}
                 sensorSessions={sensorSessions}
+                nationalTests={nationalTests}
+                onNationalTestChanged={updateNationalTest}
+                onStartNationalTest={startNationalTest}
+                onDeleteNationalTest={removeNationalTest}
+                pendingTargets={pendingTargets}
+                onMarkPending={markPending}
+                onDeletePending={removePending}
+                templates={templates}
+                onSaveTemplate={saveTemplate}
+                onDeleteTemplate={removeTemplate}
               />
             )}
             {tab === 'analysis' && (
-              <AnalysisView bouts={bouts} metalBouts={metalBouts} sensorSessions={sensorSessions} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} onOpenSettings={() => setTab('settings')} />
+              <AnalysisView bouts={bouts} metalBouts={metalBouts} sensorSessions={sensorSessions} nationalTests={nationalTests} settings={settings} workouts={workouts} onChanged={refresh} shootingDirection={shootingDirection} onOpenSettings={() => setTab('settings')} />
             )}
             {tab === 'profile' && (
               <ProfileView

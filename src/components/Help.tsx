@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 /**
  * A small "?" that reveals explanatory copy on tap, instead of it sitting on
@@ -13,6 +13,10 @@ import { useRef, useState, type ReactNode } from 'react'
  * opening and nudges back on screen if it would otherwise overflow either
  * edge, rather than assuming a fixed anchor is always safe.
  *
+ * It closes when anything outside it is tapped. Otherwise, on a phone, the floating text
+ * can sit over the buttons beneath it (in a dialog, over every control below the "?") with
+ * nothing to dismiss it, and those buttons stop responding.
+ *
  * Only for text that's genuinely optional context — why a number is what it
  * is, what a setting does. Never for a warning, a consent notice, a legal
  * document, or an error: those stay visible, because hiding them behind a
@@ -20,12 +24,26 @@ import { useRef, useState, type ReactNode } from 'react'
  */
 export function Help({ children }: { children: ReactNode }) {
   const popRef = useRef<HTMLParagraphElement>(null)
+  const detailsRef = useRef<HTMLDetailsElement>(null)
   const [shift, setShift] = useState(0)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      const el = detailsRef.current
+      if (el && !el.contains(e.target as Node)) el.open = false
+    }
+    document.addEventListener('pointerdown', close, true)
+    return () => document.removeEventListener('pointerdown', close, true)
+  }, [open])
 
   return (
     <details
+      ref={detailsRef}
       className="help"
       onToggle={(e) => {
+        setOpen((e.currentTarget as HTMLDetailsElement).open)
         if (!(e.currentTarget as HTMLDetailsElement).open) {
           setShift(0)
           return

@@ -20,7 +20,7 @@ interface Spec {
   /** The values column's heading in the table twin, and the unit a change is
    *  quoted in. */
   columnLabel: string
-  /** The series colour: Range blue for precision and metal, Dry-fire green for the sensor. */
+  /** The series colour: Range blue for precision and metal, Dry-fire violet for the sensor. */
   colour: string
   axisMax: number
   tickStep: number
@@ -37,7 +37,7 @@ interface Spec {
 
 const RANGE_BLUE = 'var(--series-1)'
 /** The colour of dry-fire sessions, as on the Dry-fire tiles. */
-const DRYFIRE_GREEN = 'color-mix(in srgb, var(--series-3) 72%, black)'
+const DRYFIRE_VIOLET = 'color-mix(in srgb, var(--dryfire) 72%, black)'
 
 const SPECS: Record<Metric, Spec> = {
   score: {
@@ -92,7 +92,7 @@ const SPECS: Record<Metric, Spec> = {
     higherIsBetter: true,
     fitAxis: true,
     columnLabel: 'Hit rate',
-    colour: DRYFIRE_GREEN,
+    colour: DRYFIRE_VIOLET,
     axisMax: 100,
     tickStep: 25,
     reference: null,
@@ -108,7 +108,7 @@ const SPECS: Record<Metric, Spec> = {
     higherIsBetter: false,
     fitAxis: false,
     columnLabel: 'Steadiness',
-    colour: DRYFIRE_GREEN,
+    colour: DRYFIRE_VIOLET,
     axisMax: 40,
     tickStep: 10,
     reference: null,

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, Position, RaceType, SensorSession, SensorShot, Shot, Wind, WindDirection, Workout, WorkoutType } from './types'
+import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, NationalTest, NationalTestStage, PendingTarget, Position, RaceType, SensorSession, SensorShot, Shot, TemplateRun, TemplateStep, TimeSource, Wind, WindDirection, Workout, WorkoutTemplate, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
 import { currentUserId as currentAthleteId } from './auth'
 
@@ -13,6 +13,10 @@ export interface WorkoutRow {
   started_at: string
   name: string
   workout_type: WorkoutType
+  template?: TemplateRun | null
+  wind_logged_at?: string | null
+  weather_notes?: string | null
+  zero_confirmed_at?: string | null
   wind: Wind
   wind_direction: WindDirection
   notes: string
@@ -70,6 +74,10 @@ export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: Coach
     notes: row.notes,
     raceType: row.race_type,
     dryfireMinutes: row.dryfire_minutes,
+    template: row.template ?? null,
+    windLoggedAt: row.wind_logged_at ?? null,
+    weatherNotes: row.weather_notes ?? '',
+    zeroConfirmedAt: row.zero_confirmed_at ?? null,
     clickLog: clicks
       .filter((c) => c.workout_id === row.id)
       .map(toClick)
@@ -83,7 +91,7 @@ export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: Coach
 
 export async function putWorkout(workout: Workout): Promise<void> {
   const athleteId = await currentAthleteId()
-  const { error } = await supabase.from('workouts').upsert({
+  const row = {
     id: workout.id,
     athlete_id: athleteId,
     started_at: workout.startedAt,
@@ -94,7 +102,15 @@ export async function putWorkout(workout: Workout): Promise<void> {
     notes: workout.notes,
     race_type: workout.raceType,
     dryfire_minutes: workout.dryfireMinutes,
+    // Only sent when set, so a session saves the same as before wherever the column is missing.
+    ...(workout.template ? { template: workout.template } : {}),
+  }
+  const { error: firstErr } = await supabase.from('workouts').upsert({
+    ...row, wind_logged_at: workout.windLoggedAt ?? null, weather_notes: workout.weatherNotes ?? '', zero_confirmed_at: workout.zeroConfirmedAt ?? null,
   })
+  // A database that has not had the weather migration yet: save the workout without it.
+  const missing = ['wind_logged_at', 'weather_notes', 'zero_confirmed_at'].some((c) => (firstErr?.message ?? '').includes(c))
+  const error = firstErr && missing ? (await supabase.from('workouts').upsert(row)).error : firstErr
   if (error) throw error
 
   // The click log is small and always saved as a whole workout — replace it
@@ -156,6 +172,7 @@ export interface BoutRow {
   id: string
   workout_id: string
   shot_at: string
+  time_source?: TimeSource | null
   position: Position
   target_face_id: string
   bullet_diameter_mm: number
@@ -175,6 +192,7 @@ export function toBout(row: BoutRow): Bout {
     id: row.id,
     workoutId: row.workout_id,
     shotAt: row.shot_at,
+    ...(row.time_source ? { timeSource: row.time_source } : {}),
     position: row.position,
     targetFaceId: row.target_face_id,
     bulletDiameterMm: row.bullet_diameter_mm,
@@ -212,7 +230,7 @@ export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob
   if (thumbErr) throw thumbErr
 
   const full: Bout = { ...bout, imagePath }
-  const { error } = await supabase.from('precision_bouts').insert({
+  const row = {
     id: full.id,
     workout_id: full.workoutId,
     athlete_id: athleteId,
@@ -228,7 +246,13 @@ export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob
     metrics: full.metrics,
     skied_in: full.context.skiedIn,
     notes: full.context.notes,
-  })
+  }
+  const { error } = await supabase.from('precision_bouts').insert(withTimeSource(row, full.timeSource))
+  if (error && missingTimeSource(error)) {
+    const retry = await supabase.from('precision_bouts').insert(row)
+    if (retry.error) throw retry.error
+    return full
+  }
   if (error) throw error
   return full
 }
@@ -313,7 +337,15 @@ export async function clearImages(): Promise<void> {
 
 // --- Metal bouts ---
 
+/** A row with its `time_source`, when it has one. Rows only carry the column when it is set, so
+ *  bouts without one are written exactly as before. */
+function withTimeSource<T extends object>(row: T, source: TimeSource | undefined): T & { time_source?: TimeSource } {
+  return source ? { ...row, time_source: source } : row
+}
+const missingTimeSource = (e: { message?: string }) => (e.message ?? '').includes('time_source')
+
 export interface MetalRow {
+  time_source?: TimeSource | null
   id: string
   workout_id: string
   shot_at: string
@@ -334,6 +366,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
     id: row.id,
     workoutId: row.workout_id,
     shotAt: row.shot_at,
+    ...(row.time_source ? { timeSource: row.time_source } : {}),
     position: row.position,
     hits: {
       alpha: row.hit_alpha,
@@ -350,7 +383,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
 
 export async function putMetalBout(bout: MetalBout): Promise<void> {
   const athleteId = await currentAthleteId()
-  const { error } = await supabase.from('metal_bouts').upsert({
+  const row = {
     id: bout.id,
     workout_id: bout.workoutId,
     athlete_id: athleteId,
@@ -364,7 +397,14 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     heart_rate: bout.heartRate,
     combo_id: bout.comboId,
     target_zone: bout.targetZone,
-  })
+  }
+  const { error } = await supabase.from('metal_bouts').upsert(withTimeSource(row, bout.timeSource))
+  // A database that has not had the time_source migration yet: save the bout without it.
+  if (error && missingTimeSource(error)) {
+    const retry = await supabase.from('metal_bouts').upsert(row)
+    if (retry.error) throw retry.error
+    return
+  }
   if (error) throw error
 }
 
@@ -423,8 +463,121 @@ export async function deleteSensorSession(id: string): Promise<void> {
   if (error) throw error
 }
 
+// --- Pending targets ---
+
+export interface PendingTargetRow {
+  id: string
+  workout_id: string
+  shot_at: string
+  position: Position
+}
+
+export async function putPendingTarget(target: PendingTarget): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('pending_targets').upsert({
+    id: target.id,
+    workout_id: target.workoutId,
+    athlete_id: athleteId,
+    shot_at: target.shotAt,
+    position: target.position,
+  })
+  if (error) throw error
+}
+
+export async function allPendingTargets(): Promise<PendingTarget[]> {
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('pending_targets').select('*').eq('athlete_id', athleteId).order('shot_at')
+  if (error) throw error
+  return (data as PendingTargetRow[] ?? []).map((r) => ({ id: r.id, workoutId: r.workout_id, shotAt: r.shot_at, position: r.position }))
+}
+
+export async function deletePendingTarget(id: string): Promise<void> {
+  const { error } = await supabase.from('pending_targets').delete().eq('id', id)
+  if (error) throw error
+}
+
+// --- Workout templates ---
+
+export interface WorkoutTemplateRow {
+  id: string
+  name: string
+  steps: TemplateStep[]
+}
+
+export async function putTemplate(template: WorkoutTemplate): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('workout_templates').upsert({
+    id: template.id,
+    athlete_id: athleteId,
+    name: template.name,
+    steps: template.steps,
+  })
+  if (error) throw error
+}
+
+export async function allTemplates(): Promise<WorkoutTemplate[]> {
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('workout_templates').select('*').eq('athlete_id', athleteId).order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as WorkoutTemplateRow[] ?? []).map((r) => ({ id: r.id, name: r.name, steps: r.steps ?? [] }))
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from('workout_templates').delete().eq('id', id)
+  if (error) throw error
+}
+
+// --- National Team tests ---
+
+export interface NationalTestRow {
+  id: string
+  workout_id: string
+  started_at: string
+  stages: NationalTestStage[]
+  prone_bout_id: string | null
+  standing_bout_id: string | null
+}
+
+export function toNationalTest(row: NationalTestRow): NationalTest {
+  return { id: row.id, workoutId: row.workout_id, startedAt: row.started_at, stages: row.stages ?? [], proneBoutId: row.prone_bout_id ?? null, standingBoutId: row.standing_bout_id ?? null }
+}
+
+export async function putNationalTest(test: NationalTest): Promise<void> {
+  const athleteId = await currentAthleteId()
+  const { error } = await supabase.from('national_tests').upsert({
+    id: test.id,
+    workout_id: test.workoutId,
+    athlete_id: athleteId,
+    started_at: test.startedAt,
+    stages: test.stages,
+    prone_bout_id: test.proneBoutId,
+    standing_bout_id: test.standingBoutId,
+  })
+  if (error) throw error
+}
+
+/** Remove a test and the two precision groups shot for it, photos included. */
+export async function deleteNationalTest(test: NationalTest): Promise<void> {
+  for (const id of [test.proneBoutId, test.standingBoutId]) {
+    if (!id) continue
+    // Either a photographed bout or a target still waiting for its photo.
+    await deleteBout(id)
+    await deletePendingTarget(id)
+  }
+  const { error } = await supabase.from('national_tests').delete().eq('id', test.id)
+  if (error) throw error
+}
+
+export async function allNationalTests(): Promise<NationalTest[]> {
+  // Own tests only — see allWorkouts.
+  const athleteId = await currentAthleteId()
+  const { data, error } = await supabase.from('national_tests').select('*').eq('athlete_id', athleteId).order('started_at', { ascending: false })
+  if (error) throw error
+  return (data as NationalTestRow[] ?? []).map(toNationalTest)
+}
+
 /** Everything, as JSON, so nothing is trapped in one account. */
 export async function exportAll(): Promise<string> {
-  const [workouts, bouts, metal, sensor] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts(), allSensorSessions()])
-  return JSON.stringify({ version: 4, exportedAt: new Date().toISOString(), workouts, bouts, metal, sensor }, null, 2)
+  const [workouts, bouts, metal, sensor, nationalTests] = await Promise.all([allWorkouts(), allBouts(), allMetalBouts(), allSensorSessions(), allNationalTests().catch(() => [] as NationalTest[])])
+  return JSON.stringify({ version: 5, exportedAt: new Date().toISOString(), workouts, bouts, metal, sensor, nationalTests }, null, 2)
 }

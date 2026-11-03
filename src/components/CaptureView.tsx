@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Bout, Bull, Context, Position, Settings, Workout } from '../lib/types'
+import type { Bout, Bull, Context, PendingTarget, Position, Settings, Workout } from '../lib/types'
 import { PRECISION_SHOTS, settingsContext } from '../lib/types'
 import { bullsToShots, computeMetrics, mmPerUnitFor } from '../lib/geometry'
 import { detectShots, VisionError, COST_PER_IMAGE } from '../lib/vision'
 import { aspectOf, forStorage, forThumb, locateBlackInBlob } from '../lib/imaging'
-import { putBout, updateBoutShots } from '../lib/db'
+import { deletePendingTarget, putBout, updateBoutShots } from '../lib/db'
 import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
 import { MarkupView } from './MarkupView'
@@ -36,11 +36,17 @@ interface Props {
   /** Shown as a "Back to workout" button once a bout is saved, so the athlete
    *  can return to add another entry without shooting again first. */
   onExit?: () => void
+  /** A guided test shoots a set position: it is not offered as a choice, and
+   *  there is no "Score another" once the bout is saved. */
+  fixedPosition?: Position
+  /** A bout that was shot earlier and is only now having its target photographed:
+   *  the saved bout takes its id and shot time, and the pending record is removed. */
+  pending?: PendingTarget
 }
 
-export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
+export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition, pending }: Props) {
   const [stage, setStage] = useState<Stage>('setup')
-  const [position, setPosition] = useState<Position>('prone')
+  const [position, setPosition] = useState<Position>(fixedPosition ?? 'prone')
   const [context, setContext] = useState<Context>(EMPTY_CONTEXT)
   const [file, setFile] = useState<Blob | null>(null)
   const [imageUrl, setImageUrl] = useState<string>('')
@@ -55,6 +61,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
   const [detected, setDetected] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState<Bout | null>(null)
+  const openedAt = useRef(new Date().toISOString())
   const [saving, setSaving] = useState(false)
   const urlRef = useRef<string>('')
 
@@ -148,9 +155,11 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
       } else {
         const bout: Omit<Bout, 'imagePath'> = {
           kind: 'precision',
-          id: uuid(),
+          id: pending?.id ?? uuid(),
           workoutId: workout.id,
-          shotAt: new Date().toISOString(),
+          // Stamped as the capture screen opened, closer to the shooting than the moment of saving.
+          shotAt: pending?.shotAt ?? openedAt.current,
+          timeSource: 'live',
           position,
           targetFaceId: settings.targetFaceId,
           bulletDiameterMm: settings.bulletDiameterMm,
@@ -161,7 +170,11 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
           mmPerUnit,
           metrics,
         }
-        setSaved(await putBout(bout, { full: file, thumb: await forThumb(file) }))
+        const stored = await putBout(bout, { full: file, thumb: await forThumb(file) })
+        setSaved(stored)
+        // The target has its photo, so it is no longer waiting. If this fails the stale
+        // row is hidden by its matching bout, so it is not worth failing the save over.
+        if (pending) await deletePendingTarget(pending.id).catch((e) => console.error('Could not clear the pending target', e))
       }
       setStage('done')
       onSaved()
@@ -208,7 +221,7 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
         <div className="row" style={{ marginTop: 16 }}>
           {onExit && <button className="secondary" onClick={onExit}>Back to workout</button>}
           <button className="secondary" onClick={refine}>Refine placement</button>
-          <button className="primary" onClick={reset}>Score another</button>
+          {!fixedPosition && <button className="primary" onClick={reset}>Score another</button>}
         </div>
       </>
     )
@@ -265,22 +278,24 @@ export function CaptureView({ settings, workout, onSaved, onExit }: Props) {
 
   return (
     <>
-      <h1>New bout</h1>
+      <h1>{fixedPosition ? `${fixedPosition === 'prone' ? 'Prone' : 'Standing'} precision` : 'New bout'}</h1>
       <p className="lede">
         Ten shots. Photograph the target square-on, filling the frame, with the aiming mark clearly lit.
       </p>
 
       <div className="card">
-        <label className="field">
-          <span>Position</span>
-          <div className="seg">
-            {(['prone', 'standing'] as Position[]).map((p) => (
-              <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
-                {p === 'prone' ? 'Prone · 45 mm' : 'Standing · 115 mm'}
-              </button>
-            ))}
-          </div>
-        </label>
+        {!fixedPosition && (
+          <label className="field">
+            <span>Position</span>
+            <div className="seg">
+              {(['prone', 'standing'] as Position[]).map((p) => (
+                <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
+                  {p === 'prone' ? 'Prone · 45 mm' : 'Standing · 115 mm'}
+                </button>
+              ))}
+            </div>
+          </label>
+        )}
 
         <label className="check">
           <input

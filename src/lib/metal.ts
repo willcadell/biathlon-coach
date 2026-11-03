@@ -1,4 +1,4 @@
-import type { MetalBout, MetalTarget, Position, ShootingDirection, WorkoutEntry } from './types'
+import type { MetalBout, MetalTarget, NationalTest, PendingTarget, Position, ShootingDirection, WorkoutEntry } from './types'
 
 /** The five targets, left to right, in the order they're always named. */
 export const METAL_TARGETS: readonly MetalTarget[] = ['alpha', 'beta', 'charlie', 'delta', 'echo']
@@ -104,6 +104,27 @@ export function groupEntries(entries: WorkoutEntry[]): EntryGroup[] {
     }
   }
   return out
+}
+
+/** One thing in a workout, placed where it happened. */
+export type TimelineItem =
+  | { at: string; group: EntryGroup }
+  | { at: string; pending: PendingTarget }
+  | { at: string; test: NationalTest }
+
+/**
+ * A workout's contents in the order they happened: scored bouts, combos (at their first
+ * round), bouts that are shot but not yet photographed, and a National Team test (at the
+ * time it was started). The order is by time, so a precision bout shot between two metal
+ * bouts sits between them even though its photo comes later.
+ */
+export function timeline(entries: WorkoutEntry[], pending: PendingTarget[], test?: NationalTest | null): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...groupEntries(entries).map((group): TimelineItem => ({ at: 'rounds' in group ? group.rounds[0].shotAt : group.shotAt, group })),
+    ...pending.map((p): TimelineItem => ({ at: p.shotAt, pending: p })),
+    ...(test ? [{ at: test.startedAt, test } as TimelineItem] : []),
+  ]
+  return items.sort((a, b) => a.at.localeCompare(b.at))
 }
 
 /** "Zone 2 Combo" once a target zone was set when it started, else "Combo". */

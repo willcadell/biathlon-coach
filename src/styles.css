@@ -12,8 +12,10 @@
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
-  --good: #0ca30c;
-  --good-wash: rgba(12, 163, 12, 0.1);
+  /* Dry-fire's colour. Green is the app's success colour, so dry-fire is violet. */
+  --dryfire: #8a70c2;
+  --good: #1baf7a;
+  --good-wash: rgba(27, 175, 122, 0.1);
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
@@ -41,8 +43,9 @@
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
-    --good: #24d424;
-    --good-wash: rgba(36, 212, 36, 0.14);
+    --dryfire: #a38fd6;
+    --good: #199e70;
+    --good-wash: rgba(25, 158, 112, 0.16);
     --shadow: none;
   }
 }
@@ -189,7 +192,7 @@ p { margin: 0 0 10px; color: var(--text-secondary); }
 .tabs button svg { width: 22px; height: 22px; }
 
 /* --- Controls -------------------------------------------------------- */
-button.primary, button.secondary, .filelabel {
+button.primary, button.secondary, button.confirm, .filelabel {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -204,6 +207,8 @@ button.primary, button.secondary, .filelabel {
 }
 button.primary, .filelabel { background: var(--series-1); color: #fff; }
 button.secondary { background: transparent; color: var(--text-primary); border-color: var(--axis); }
+/* Deepened, as the session tiles are, so white text on the gentle green stays readable. */
+button.confirm { background: color-mix(in srgb, var(--good) 78%, black); color: #fff; }
 button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
 button.link {
   background: none; border: 0; padding: 0; font: inherit;
@@ -265,10 +270,10 @@ label.check input { width: 18px; height: 18px; accent-color: var(--series-1); }
   padding: 10px 12px;
 }
 /* Tiles in the colour of their session button — the blue of Range for precision
-   and metal, the green of Dryfire, the red-orange of Race — so each reads as the same thing wherever
+   and metal, the violet of Dryfire, the red-orange of Race — so each reads as the same thing wherever
    it shows up. */
 .stat.range { background: var(--series-1); border-color: transparent; }
-.stat.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); border-color: transparent; }
+.stat.dryfire { background: color-mix(in srgb, var(--dryfire) 72%, black); border-color: transparent; }
 .stat.race { background: color-mix(in srgb, var(--series-2) 80%, black); border-color: transparent; }
 .stat.range .k, .stat.range .v, .stat.range .v small, .stat.range .n,
 .stat.dryfire .k, .stat.dryfire .v, .stat.dryfire .v small, .stat.dryfire .n,
@@ -518,10 +523,10 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .goal-bar { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; margin: 6px 0 4px; }
 .goal-bar > i { display: block; height: 100%; border-radius: 3px; }
 /* Each goal is its own box, in its session's colour with white text, bar and
-   buttons: the Range blue for metal and precision, the Dryfire green for dry-fire. */
+   buttons: the Range blue for metal and precision, the Dryfire violet for dry-fire. */
 .goal-box { margin-bottom: 8px; padding: 6px 14px; color: #fff; border-color: transparent; }
 .goal-box.range { background: var(--series-1); }
-.goal-box.dryfire { background: color-mix(in srgb, var(--series-3) 72%, black); }
+.goal-box.dryfire { background: color-mix(in srgb, var(--dryfire) 72%, black); }
 .goal-check { color: #fff; }
 /* "Program"-style tag after a goal's title, on its coloured box. */
 .goal-tag { margin-left: 8px; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25); vertical-align: 1px; }
@@ -535,8 +540,8 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .sensor-targets { display: block; width: 100%; height: auto; background: var(--page); border: 1px solid var(--border); border-radius: var(--radius); }
 .st-board { fill: var(--surface-1); stroke: var(--axis); stroke-width: 0.5; }
 .st-disc { fill: var(--mark-fill); }
-.st-now { fill: none; stroke: var(--series-3); stroke-width: 0.8; }
-.st-aimhere { fill: var(--series-3); font-size: 4px; font-weight: 700; }
+.st-now { fill: none; stroke: var(--dryfire); stroke-width: 0.8; }
+.st-aimhere { fill: var(--dryfire); font-size: 4px; font-weight: 700; }
 .st-name { fill: var(--text-muted); font-size: 4px; }
 .st-pull { fill: none; stroke: var(--axis); stroke-width: 0.5; }
 .st-pull.done { fill: var(--good); stroke: var(--good); }
@@ -554,7 +559,7 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .sensor-guide .sg-title { font-size: 18px; font-weight: 700; margin: 2px 0 8px; }
 .sg-pips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .sg-pip { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--axis); color: var(--text-secondary); }
-.sg-pip.now { border-color: var(--series-3); color: var(--series-3); font-weight: 600; }
+.sg-pip.now { border-color: var(--dryfire); color: var(--dryfire); font-weight: 600; }
 .sg-pip.done { border-color: var(--good); color: var(--good); background: var(--good-wash); }
 .sg-meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; margin-bottom: 6px; }
 .sg-meter i { display: block; height: 100%; background: var(--series-1); transition: width 0.1s linear; }
@@ -586,3 +591,19 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .sensor-replay input[type='range'] { flex: 1; min-width: 80px; accent-color: var(--series-1); }
 .sensor-replay select { width: auto; padding: 7px 6px; font-size: 13px; }
 .sensor-route-head button.secondary { width: auto; padding: 5px 10px; font-size: 12px; margin-left: auto; }
+
+/* --- National Team test timer --------------------------------------------- */
+.count-in {
+  font-size: 96px; font-weight: 700; text-align: center; line-height: 1; margin: 18px 0;
+  font-variant-numeric: tabular-nums; animation: count-pop 0.9s ease-out both;
+}
+.clock-face {
+  font-size: 56px; font-weight: 600; text-align: center; margin: 6px 0; border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.go-flash { animation: go-flash 0.9s ease-out both; }
+@keyframes count-pop { from { transform: scale(1.5); opacity: 0.2; } to { transform: scale(1); opacity: 1; } }
+@keyframes go-flash { from { background: var(--good-wash); transform: scale(1.06); } to { background: transparent; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .count-in, .go-flash { animation-duration: 0.01ms !important; }
+}

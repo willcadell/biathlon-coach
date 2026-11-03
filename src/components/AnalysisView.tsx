@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Bout, Finding, MetalBout, MetalTarget, RaceType, SensorSession, Settings, ShootingDirection, Workout } from '../lib/types'
+import type { Bout, Finding, MetalBout, MetalTarget, NationalTest, RaceType, SensorSession, Settings, ShootingDirection, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
@@ -98,7 +98,7 @@ function dryfireMinutes(workouts: Workout[]): { week: number; month: number; tot
 /** The Race button's colour: also the filter and window chips' in Race performance. */
 const RACE_COLOUR = 'color-mix(in srgb, var(--series-2) 80%, black)'
 /** The Dry-fire colour: the sensor's tiles, circles and lines. */
-const DRYFIRE_COLOUR = 'color-mix(in srgb, var(--series-3) 72%, black)'
+const DRYFIRE_COLOUR = 'color-mix(in srgb, var(--dryfire) 72%, black)'
 
 type TargetSeries = Record<MetalTarget, boolean[]>
 
@@ -302,7 +302,7 @@ function RaceTargetHitRates({
 const SESSION_ICON = {
   range: { Icon: RangeIcon, colour: 'var(--series-1)' },
   race: { Icon: RaceMedalIcon, colour: 'var(--series-2)' },
-  dryfire: { Icon: DryfireIcon, colour: 'var(--series-3)' },
+  dryfire: { Icon: DryfireIcon, colour: 'var(--dryfire)' },
 } as const
 
 const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
@@ -388,6 +388,7 @@ export function AnalysisView({
   shootingDirection,
   onOpenSettings,
   sensorSessions = [],
+  nationalTests = [],
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
@@ -407,6 +408,7 @@ export function AnalysisView({
   onOpenSettings?: () => void
   /** Saved sensor sessions (dry-fire on the optical target), for the Sensor section. */
   sensorSessions?: SensorSession[]
+  nationalTests?: NationalTest[]
 }) {
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
@@ -549,7 +551,7 @@ export function AnalysisView({
         <CollapsibleSection title="History" defaultOpen={false}>
           <HistoryView
             workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-            readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions}
+            readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions} nationalTests={nationalTests}
           />
         </CollapsibleSection>
       </>
@@ -933,7 +935,7 @@ export function AnalysisView({
       >
         <HistoryView
           workouts={workouts} bouts={bouts} metalBouts={metalBouts} settings={settings} onChanged={onChanged}
-          readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions}
+          readOnly={readOnly} onAddCoachNote={onAddCoachNote} sensorSessions={sensorSessions} nationalTests={nationalTests}
         />
       </CollapsibleSection>
     </>

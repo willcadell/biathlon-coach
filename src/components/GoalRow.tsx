@@ -3,7 +3,7 @@ import { goalDeadline, goalStatusText, goalTitle, type Goal, type GoalProgress }
 import { CheckIcon } from './icons'
 
 /** One goal and how it's going, as its own box: its name, deadline, a progress
- *  bar and a line of status. A dry-fire goal's box is the Dryfire green. `action` is whatever sits at the end of the status line — Share
+ *  bar and a line of status. A dry-fire goal's box is the Dryfire violet. `action` is whatever sits at the end of the status line — Share
  *  on the athlete's own home, nothing on a coach's read-only view. */
 export function GoalRow({ goal, progress, action, archived, tag }: { goal: Goal; progress: GoalProgress; action?: ReactNode; archived?: boolean; tag?: string }) {
   const done = progress.status === 'achieved'

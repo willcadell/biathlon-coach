@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, SensorSession, Settings, Workout } from '../lib/types'
+import { clickSummary } from '../lib/clicks'
+import type { Bout, MetalBout, NationalTest, SensorSession, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, comboLabel, groupEntries, hitCount, hitsOf } from '../lib/metal'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteSensorSession, deleteWorkout } from '../lib/db'
@@ -11,27 +12,14 @@ import { ShareSheet } from './ShareSheet'
 import { SensorSessionCard } from './SensorSessionCard'
 import { buildCoachContext, isRangeOrRace, localDate } from '../lib/coachContext'
 import { downloadJson } from '../lib/download'
+import { NationalTestSummary } from './NationalTestView'
+import { testBouts } from '../lib/nationalTest'
 import { DownloadIcon, GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 const WIND_LABEL: Record<Workout['wind'], string> = { none: 'No wind', light: 'Light wind', moderate: 'Moderate wind', strong: 'Strong wind' }
-
-/** A one-line total of every zero adjustment logged this workout, for beside
- *  the wind — the click log below still lists each one with its note. */
-function clickSummary(clickLog: ClickAdjustment[]): string {
-  const up = clickLog.filter((c) => c.verticalDir === 'up').reduce((n, c) => n + c.vertical, 0)
-  const down = clickLog.filter((c) => c.verticalDir === 'down').reduce((n, c) => n + c.vertical, 0)
-  const left = clickLog.filter((c) => c.horizontalDir === 'left').reduce((n, c) => n + c.horizontal, 0)
-  const right = clickLog.filter((c) => c.horizontalDir === 'right').reduce((n, c) => n + c.horizontal, 0)
-  const clips = clickLog.reduce((n, c) => n + c.clips, 0)
-
-  const moves = [up && `${up}↑`, down && `${down}↓`, left && `${left}←`, right && `${right}→`].filter(Boolean)
-  const clipsPart = clips > 0 ? `${clips} clip${clips === 1 ? '' : 's'}` : ''
-  if (moves.length === 0) return clipsPart || 'no movement'
-  return clipsPart ? `${moves.join(' ')} · ${clipsPart}` : moves.join(' ')
-}
 
 /** Feedback a coach left on a workout, plus the form to add another — the
  *  one write a read-only coach view is allowed. Hidden entirely when there
@@ -100,6 +88,8 @@ interface Props {
   onAddCoachNote?: (workoutId: string, note: string) => Promise<void>
   /** Saved sensor sessions, shown on the dry-fire workouts they belong to. */
   sensorSessions?: SensorSession[]
+  /** Saved National Team tests, shown on the workouts they belong to. */
+  nationalTests?: NationalTest[]
 }
 
 /** Saves this one workout's metal results, zero clicks and wind as a
@@ -149,7 +139,7 @@ function MakeLiveButton({ workoutId, onDone }: { workoutId: string; onDone: () =
   )
 }
 
-export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote, sensorSessions = [] }: Props) {
+export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, readOnly, onAddCoachNote, sensorSessions = [], nationalTests = [] }: Props) {
   const [openWorkoutId, setOpenWorkoutId] = useState<string | null>(null)
   const [openBoutId, setOpenBoutId] = useState<string | null>(null)
   const [openBoutImage, setOpenBoutImage] = useState<string | null>(null)
@@ -284,7 +274,14 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             />
           ))}
 
-          <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
+          {nationalTests.find((t) => t.workoutId === openWorkout.id) && (
+          <NationalTestSummary
+            bouts={testBouts(nationalTests.find((t) => t.workoutId === openWorkout.id)!, entries.filter((e): e is Bout => e.kind === 'precision'))}
+            test={nationalTests.find((t) => t.workoutId === openWorkout.id)!}
+          />
+        )}
+
+        <CoachNotesCard workout={openWorkout} onAdd={onAddCoachNote} />
 
           {shareSheet}
           {!readOnly && (
@@ -329,6 +326,13 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           <div className="card">
             <h3>Notes</h3>
             <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.notes}</p>
+          </div>
+        )}
+
+        {openWorkout.weatherNotes && (
+          <div className="card">
+            <h3>Weather notes</h3>
+            <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.weatherNotes}</p>
           </div>
         )}
 
