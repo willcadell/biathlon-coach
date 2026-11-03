@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Bout, MetalTarget, NationalTest, NationalTestStage, PendingTarget, Position, Settings, Workout } from '../lib/types'
 import {
-  ACROSS_STAGES, BASELINE_TOTAL, MISS_PENALTY, PRECISION_MAX, PRECISION_MINUTES, REST_SECONDS, SHOTS_PER_STAGE, SINGLE_PRONE_SHOTS, SPEED_MAX, STAGE_LABEL,
-  STANDARD_A, STANDARD_B, TOTAL_MAX, clock, singleSeconds, PART_ORDER, testParts, precisionBouts, precisionResult, scoreNationalTest, stageSecondsFromTaps, testBouts, withoutLastTimed,
+  ACROSS_BASELINE_SECONDS, ACROSS_STAGES, COMPONENT_MAX, FIRST_SHOT_BASELINE, FIRST_SHOT_HITS, PRECISION_MINUTES, REST_MINUTES, SHOTS_PER_ACROSS_STAGE,
+  STAGE_LABEL, STANDARD_A, STANDARD_B, TOTAL_MAX, PART_ORDER, acrossScore, clock, precisionBouts, scoreNationalTest, stageSecondsFromTaps, testBouts, testParts,
   type PartId, type PartState,
 } from '../lib/nationalTest'
 import { errorMessage } from '../lib/errors'
@@ -13,11 +13,12 @@ import { GoArrow, TrashIcon } from './icons'
 
 const POSITION_LABEL: Record<Position, string> = { prone: 'Prone', standing: 'Standing' }
 
-/** Points and times for a National Team test, shot or part-shot. Used while it
- *  is being shot and again when the workout is opened in History. */
-export function NationalTestSummary({ bouts, test }: { bouts: Bout[]; test: Pick<NationalTest, 'stages'> & Partial<Pick<NationalTest, 'proneBoutId' | 'standingBoutId'>> }) {
+/** Points and times for a National Team Test, done or part-done. Used while it is being shot and
+ *  again when the workout is opened in History. Each component scores as soon as it is done. */
+export function NationalTestSummary({ bouts, test }: { bouts: Bout[]; test: Pick<NationalTest, 'stages'> & Partial<Pick<NationalTest, 'proneBoutId' | 'standingBoutId' | 'finishedAt'>> }) {
   const s = scoreNationalTest(bouts, test)
   const groups = precisionBouts(bouts)
+  const acrossDone = !s.missing.includes('4x5 across')
   const row = (label: string, value: string, note?: string) => (
     <div className="row" style={{ alignItems: 'baseline' }}>
       <span style={{ flex: 1 }}>{label}{note && <small className="meta" style={{ display: 'block' }}>{note}</small>}</span>
@@ -27,25 +28,37 @@ export function NationalTestSummary({ bouts, test }: { bouts: Bout[]; test: Pick
   const precisionNote = (['prone', 'standing'] as Position[])
     .map((p) => {
       const b = groups[p]
-      if (b) return `${POSITION_LABEL[p]} ${precisionResult(b).rings}`
+      if (b) return `${POSITION_LABEL[p]} ${b.metrics.ringTotal}`
       const shot = p === 'prone' ? test.proneBoutId : test.standingBoutId
       return `${POSITION_LABEL[p]} ${shot ? 'shot, target not photographed' : 'not shot'}`
     })
     .join(' · ')
-  const drillShots = test.stages.reduce((t, st) => t + SHOTS_PER_STAGE[st.kind], 0)
-  const speedNote = s.missing.some((m) => m.includes('4x5') || m.includes('10x1'))
-    ? 'Counted once both timed drills are shot'
-    : `4x5 ${clock(s.proneSeconds + s.standingSeconds)} + 10x1 ${clock(s.singleSeconds)} = ${clock(s.proneSeconds + s.standingSeconds + s.singleSeconds)} (baseline ${clock(BASELINE_TOTAL)})`
-  const missNote = `${s.precisionMisses} on paper · ${s.drillMisses} of ${drillShots} in the timed drills`
+  const acrossNote = acrossDone
+    ? `${s.acrossHits} of ${ACROSS_STAGES.length * SHOTS_PER_ACROSS_STAGE} hit · ${clock(s.acrossSeconds)} (perfect is ${clock(ACROSS_BASELINE_SECONDS)})`
+    : 'Not done'
+  const firstShotNote = (['prone', 'standing'] as Position[])
+    .map((p) => {
+      const t = s.firstShotSeconds[p]
+      return t === null ? `${POSITION_LABEL[p]} not done` : `${POSITION_LABEL[p]} ${clock(t)} (baseline ${clock(FIRST_SHOT_BASELINE[p])})`
+    })
+    .join(' · ')
+  const anyFirstShot = s.firstShotSeconds.prone !== null || s.firstShotSeconds.standing !== null
+  const partial = !!test.finishedAt && s.missing.length > 0
   return (
     <div className="card">
       {s.standard
         ? <p><span className="pill">{s.standard}-standard</span> <strong className="num">{s.total}</strong> of {TOTAL_MAX}</p>
-        : <p><strong className="num">{s.total}</strong> of {TOTAL_MAX}{s.missing.length > 0 && <span className="meta"> so far · still to shoot: {s.missing.join(', ')}</span>}</p>}
-      {row('Precision', `${s.precision} / ${PRECISION_MAX}`, precisionNote)}
-      {row('Speed', `${s.speed} / ${SPEED_MAX}`, speedNote)}
-      {row('Misses', s.penalties === 0 ? '0' : `−${s.penalties}`, `${MISS_PENALTY} points each: ${missNote}`)}
-      <p className="meta" style={{ marginBottom: 0 }}>A-standard is {STANDARD_A}, B-standard {STANDARD_B}.</p>
+        : partial
+          ? <p><span className="pill">Partial</span> <strong className="num">{s.total}</strong> of {TOTAL_MAX}<span className="meta"> · not done: {s.missing.join(', ')}</span></p>
+          : <p><strong className="num">{s.total}</strong> of {TOTAL_MAX}{s.missing.length > 0 && <span className="meta"> so far · still to do: {s.missing.join(', ')}</span>}</p>}
+      {row('Precision', `${s.precision} / ${COMPONENT_MAX}`, precisionNote)}
+      {row('4x5 across', acrossDone ? `${s.across} / ${COMPONENT_MAX}` : '—', acrossNote)}
+      {row('First-shot set-up', anyFirstShot ? `${s.firstShot} / ${COMPONENT_MAX}` : '—', firstShotNote)}
+      <p className="meta" style={{ marginBottom: 0 }}>
+        {partial
+          ? 'A partial score: it adds up the components done. No standard is given.'
+          : `A-standard is ${STANDARD_A}, B-standard ${STANDARD_B}.`}
+      </p>
     </div>
   )
 }
@@ -59,33 +72,20 @@ export function NationalTestCard({ test, bouts, onOpen }: { test: NationalTest; 
       <p className="meta" style={{ margin: '4px 0 10px' }}>
         {s.missing.length === 0
           ? <>{s.standard ? `${s.standard}-standard · ` : ''}{s.total} of {TOTAL_MAX}</>
-          : <>In progress · still to shoot: {s.missing.join(', ')}</>}
+          : test.finishedAt
+            ? <>Partial · {s.total} of {TOTAL_MAX} · not done: {s.missing.join(', ')}</>
+            : <>In progress · still to shoot: {s.missing.join(', ')}</>}
       </p>
-      <button className="secondary" style={{ width: '100%' }} onClick={onOpen}>{s.missing.length === 0 ? 'View' : 'Continue'}</button>
+      <button className="secondary" style={{ width: '100%' }} onClick={onOpen}>{s.missing.length === 0 || test.finishedAt ? 'View' : 'Continue'}</button>
     </div>
   )
 }
 
-/** The five minutes between the two precision groups. The clock is held by the test, so it keeps
- *  running while the athlete does another part. */
-function Rest({ endsAt, now, onStart, onSkip }: { endsAt: number | null; now: number; onStart: () => void; onSkip: () => void }) {
-  const left = endsAt === null ? REST_SECONDS : Math.max(0, Math.ceil((endsAt - now) / 1000))
-  return (
-    <div className="card">
-      <h2 style={{ marginTop: 0 }}>Rest before the second group</h2>
-      <p className="meta">The test needs at least five minutes between the prone and standing precision groups. You can do another part while you wait.</p>
-      <p style={{ fontSize: 44, fontWeight: 600, textAlign: 'center', margin: '10px 0' }} className="num" aria-live="off">{clock(left)}</p>
-      <div className="row">
-        <button className="link" onClick={onSkip}>Already rested — skip</button>
-        {endsAt === null && <button className="primary" onClick={onStart}>Start the rest</button>}
-      </div>
-    </div>
-  )
-}
-
-const DRILL_BRIEF: Record<'single', string> = {
-  single:
-    'Start off the mat. At Go, step on the mat, set up, shoot, and exit the mat for each shot. After 5 shots, either move from the prone lane to a standing lane, or have someone else change the lane from prone to standing for you. After 10 shots, exit and finish.',
+const DRILL_BRIEF: Record<'across' | 'firstShot', string> = {
+  across:
+    'Start standing next to the cone, 2 m from the shooting line. On Go, take prone and fire one shot at each of the five targets. Leave the position with the rifle on your back, move behind the 2 m marker with both feet, and return for the next five. Two rounds prone, then two standing. To finish, move behind the 2 m marker with the rifle on your back. One clock runs the whole way; tap each time you are behind the marker.',
+  firstShot:
+    'Start off the mat, next to the cone, 2 m from the shooting line. On Go, step on the mat, set up, shoot one shot, and exit the mat with the rifle on your back, behind the 2 m marker, for each shot. Keep going until you have five hits; the clock stops on the fifth. Then rest, and repeat standing.',
 }
 
 /** Beeps and a count on screen before the clock starts, so the athlete can get behind the pylon. */
@@ -173,28 +173,31 @@ function TargetRow<K extends string | number>({
 }
 
 /**
- * The 4x5 across: four lines, prone, standing, prone, standing, each with its five targets.
- * One timer serves all four. Its button names the stage it is on: start it (after the
- * count-in), stop it when back over the line, score the five targets on that line, confirm,
- * and the line turns green and the button moves to the next stage. Each stage is saved as
- * soon as it is confirmed, so leaving the test part-way keeps the finished ones.
+ * The 4x5 across: four lines, prone, prone, standing, standing, each with its five targets, all on
+ * ONE clock. Start (after the count-in), tap each time you are back behind the 2 m marker, and the
+ * final tap stops the clock. Then tap the targets that fell on each line and confirm: the lines
+ * turn green. The four stages are saved together; their times are the splits of the one clock.
  */
-function AcrossDrill({ saved, onSaved }: { saved: NationalTestStage[]; onSaved: (stage: NationalTestStage) => void }) {
+function AcrossDrill({
+  saved, onSaved, onRestart,
+}: {
+  /** The 4x5 stages saved so far: all four once the component is done. */
+  saved: NationalTestStage[]
+  onSaved: (stages: NationalTestStage[]) => void
+  /** Throws away the saved 4x5, so it can be shot again. */
+  onRestart: () => void
+}) {
   const goAt = useRef(0)
-  // The clock times of "Go" and of the stop, for matching the stage to a heart-rate stream.
-  const times = useRef<{ startedAt?: string; endedAt?: string }>({})
   const sound = useRef<CountInSound | null>(null)
   const [phase, setPhase] = useState<'ready' | 'counting' | 'running' | 'scoring'>('ready')
   const [now, setNow] = useState(0)
   const [prefs, setPrefs] = useState(loadPrefs)
-  const [time, setTime] = useState('')
-  const [targets, setTargets] = useState<Record<MetalTarget, boolean>>(allMissed)
+  // Seconds on the one clock at each tap, before the allowance comes off.
+  const [taps, setTaps] = useState<number[]>([])
+  const [total, setTotal] = useState('')
+  const [targets, setTargets] = useState<Record<MetalTarget, boolean>[]>(() => ACROSS_STAGES.map(() => allMissed()))
 
-  const index = saved.length
-  // All four in: the lines stay to look at, with no timer.
-  const finished = index >= ACROSS_STAGES.length
-  const position = ACROSS_STAGES[index] ?? 'standing'
-  const name = `${index + 1} of ${ACROSS_STAGES.length} · ${POSITION_LABEL[position]}`
+  const finished = saved.length >= ACROSS_STAGES.length
 
   useEffect(() => {
     if (phase !== 'counting' && phase !== 'running') return
@@ -203,8 +206,6 @@ function AcrossDrill({ saved, onSaved }: { saved: NationalTestStage[]; onSaved: 
   }, [phase])
   useEffect(() => { if (phase === 'counting' && now >= goAt.current) setPhase('running') }, [phase, now])
   useEffect(() => () => sound.current?.stop(), [])
-  // A new stage starts from a clean slate, whichever way the last one ended.
-  useEffect(() => { setPhase('ready'); setTargets(allMissed()) }, [index])
 
   function changePrefs(next: TimerPrefs) {
     setPrefs(next)
@@ -215,26 +216,48 @@ function AcrossDrill({ saved, onSaved }: { saved: NationalTestStage[]; onSaved: 
     sound.current = prefs.sound ? playCountIn(COUNT_IN_SECONDS) : null
     goAt.current = Date.now() + COUNT_IN_SECONDS * 1000
     setNow(Date.now())
+    setTaps([])
     setPhase('counting')
   }
-  function stop() {
-    const raw = Math.round(((Date.now() - goAt.current) / 1000) * 10) / 10
-    // The stop is `allowance` seconds before the tap, as the stage time is.
-    times.current = { startedAt: new Date(goAt.current).toISOString(), endedAt: new Date(Date.now() - prefs.allowance * 1000).toISOString() }
-    setTime(String(stageSecondsFromTaps([raw], prefs.allowance)[0]))
-    setTargets(allMissed())
-    setPhase('scoring')
+  function lap() {
+    const t = Math.round(((Date.now() - goAt.current) / 1000) * 10) / 10
+    const next = [...taps, t]
+    setTaps(next)
+    if (next.length === ACROSS_STAGES.length) {
+      setTotal(stageSecondsFromTaps(next, prefs.allowance).reduce((a, b) => a + b, 0).toFixed(1))
+      setTargets(ACROSS_STAGES.map(() => allMissed()))
+      setPhase('scoring')
+    }
   }
   function reset() {
     sound.current?.stop()
     sound.current = null
     setPhase('ready')
+    setTaps([])
   }
 
+  // Each stage's time on the one clock, with the allowance off.
+  const splits = stageSecondsFromTaps(taps, prefs.allowance)
   const elapsed = phase === 'running' ? Math.max(0, (now - goAt.current) / 1000) : 0
   const toGo = Math.max(1, Math.ceil((goAt.current - now) / 1000))
-  const seconds = Number(time)
-  const timeOk = Number.isFinite(seconds) && seconds > 0
+  const totalSeconds = Number(total)
+  const timeOk = Number.isFinite(totalSeconds) && totalSeconds > 0
+  const hitsOf = (i: number) => METAL_TARGETS.filter((t) => targets[i][t]).length
+  const hits = ACROSS_STAGES.reduce((t, _, i) => t + hitsOf(i), 0)
+  const stage = taps.length
+
+  function confirmIt() {
+    // Splits that add to the total as entered: if it was edited, the last stage takes the difference.
+    const parts = [...splits]
+    const diff = Math.round((totalSeconds - parts.reduce((a, b) => a + b, 0)) * 10) / 10
+    parts[parts.length - 1] = Math.max(0.1, Math.round((parts[parts.length - 1] + diff) * 10) / 10)
+    let at = goAt.current
+    onSaved(ACROSS_STAGES.map((position, i) => {
+      const startedAt = new Date(at).toISOString()
+      at += parts[i] * 1000
+      return { kind: 'across' as const, position, seconds: parts[i], hits: hitsOf(i), targets: targets[i], startedAt, endedAt: new Date(at).toISOString() }
+    }))
+  }
 
   return (
     <div className="card">
@@ -242,66 +265,95 @@ function AcrossDrill({ saved, onSaved }: { saved: NationalTestStage[]; onSaved: 
 
       {!finished && (
         <>
-      {phase === 'counting'
-        ? <><div key={toGo} className="count-in" aria-live="assertive">{toGo}</div><p className="meta" style={{ textAlign: 'center', margin: 0 }}>{POSITION_LABEL[position]}. Get behind the pylon.</p></>
-        : <p className={`clock-face${phase === 'running' && elapsed < 1 ? ' go-flash' : ''}`} aria-live="off">{phase === 'scoring' ? (timeOk ? seconds.toFixed(1) : '—') : elapsed.toFixed(1)}</p>}
+          {phase === 'counting'
+            ? <><div key={toGo} className="count-in" aria-live="assertive">{toGo}</div><p className="meta" style={{ textAlign: 'center', margin: 0 }}>Get ready by the cone.</p></>
+            : <p className={`clock-face${phase === 'running' && elapsed < 1 ? ' go-flash' : ''}`} aria-live="off">
+                {phase === 'scoring' ? (timeOk ? totalSeconds.toFixed(1) : '—') : elapsed.toFixed(1)}
+              </p>}
 
-      {phase === 'ready' && <button className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} onClick={start}>Start {name}</button>}
-      {phase === 'counting' && <button className="link" style={{ marginTop: 8 }} onClick={reset}>Cancel</button>}
-      {phase === 'running' && <button className="primary" style={{ width: '100%', padding: '22px 0', fontSize: 18 }} onClick={stop}>Stop {name}</button>}
-      {phase === 'scoring' && (
-        <button
-          className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} disabled={!timeOk}
-          onClick={() => onSaved({ kind: 'across', position, seconds, hits: METAL_TARGETS.filter((t) => targets[t]).length, targets, ...times.current })}
-        >
-          Confirm {name}
-        </button>
-      )}
-      {phase === 'running' && prefs.allowance > 0 && (
-        <p className="meta" style={{ marginBottom: 0 }}>The tap takes {prefs.allowance.toFixed(1)} s off, for reaching the phone.</p>
-      )}
+          {phase === 'ready' && <button className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} onClick={start}>Start the 4x5</button>}
+          {phase === 'counting' && <button className="link" style={{ marginTop: 8 }} onClick={reset}>Cancel</button>}
+          {phase === 'running' && (
+            <button className="primary" style={{ width: '100%', padding: '22px 0', fontSize: 18 }} onClick={lap}>
+              {stage + 1 === ACROSS_STAGES.length
+                ? `Finish — stage 4 of 4 · ${POSITION_LABEL[ACROSS_STAGES[stage]]}`
+                : `Behind the marker — stage ${stage + 1} of 4 · ${POSITION_LABEL[ACROSS_STAGES[stage]]}`}
+            </button>
+          )}
+          {phase === 'running' && <button className="link" style={{ marginTop: 8 }} onClick={reset}>Abandon this run</button>}
+          {phase === 'running' && prefs.allowance > 0 && (
+            <p className="meta" style={{ marginBottom: 0 }}>Each tap takes {prefs.allowance.toFixed(1)} s off, for reaching the phone.</p>
+          )}
+          {phase === 'scoring' && (
+            <>
+              <label className="field">
+                <span>Total time, seconds<small>All four stages on the one clock. Edit it if the last tap was late.</small></span>
+                <input type="number" inputMode="decimal" min={0} step={0.1} aria-label="4x5 total seconds" value={total} onChange={(e) => setTotal(e.target.value)} />
+              </label>
+              <p className="meta" style={{ marginTop: 0 }}>
+                Tap the targets that fell on each line. {hits} of 20 hit
+                {timeOk && ` · scores ${acrossScore(hits, totalSeconds)} of ${COMPONENT_MAX}`}.
+              </p>
+            </>
+          )}
         </>
       )}
 
       <div style={{ marginTop: 14 }}>
         {ACROSS_STAGES.map((pos, i) => {
-          const stage = saved[i]
-          const active = i === index
-          const live = active && phase === 'scoring'
-          const rowHits = stage ? (stage.targets ?? scatterHits(stage.hits)) : live ? targets : allMissed()
+          const done = finished ? saved[i] : null
+          const split = finished ? saved[i].seconds : splits[i]
+          const reached = finished || i < taps.length
+          const scoringNow = !finished && phase === 'scoring'
+          const active = !finished && phase === 'running' && i === stage
+          const rowHits = done ? (done.targets ?? scatterHits(done.hits)) : targets[i]
+          const complete = !!done
           return (
             <div
               key={i}
               style={{
                 padding: '8px 10px', margin: '0 0 8px', borderRadius: 10, boxSizing: 'border-box',
-                border: `2px solid ${stage ? 'var(--good)' : active ? 'var(--series-1)' : 'var(--grid)'}`,
-                background: stage ? 'var(--good-wash)' : 'transparent',
-                opacity: stage || active ? 1 : 0.6,
+                border: `2px solid ${complete ? 'var(--good)' : active || scoringNow || reached ? 'var(--series-1)' : 'var(--grid)'}`,
+                background: complete ? 'var(--good-wash)' : 'transparent',
+                opacity: complete || active || scoringNow || reached ? 1 : 0.6,
               }}
             >
               <div className="row" style={{ alignItems: 'baseline', marginBottom: 6 }}>
-                <strong style={{ flex: 1 }}>{stage ? '✓ ' : ''}{i + 1} · {POSITION_LABEL[pos]}</strong>
-                {stage && <span className="num" style={{ flex: 'none' }}>{stage.seconds.toFixed(1)} s · {stage.hits}/{SHOTS_PER_STAGE.across}</span>}
-                {live && (
-                  <input
-                    type="number" inputMode="decimal" min={0} step={0.1} aria-label={`Stage ${i + 1} seconds`}
-                    style={{ flex: '0 0 76px' }} value={time} onChange={(e) => setTime(e.target.value)}
-                  />
-                )}
+                <strong style={{ flex: 1 }}>{complete ? '✓ ' : ''}{i + 1} · {POSITION_LABEL[pos]}</strong>
+                {reached && split !== undefined && <span className="num" style={{ flex: 'none' }}>{split.toFixed(1)} s{complete ? ` · ${done!.hits}/${SHOTS_PER_ACROSS_STAGE}` : ''}</span>}
               </div>
-              <TargetRow hits={rowHits} done={!!stage} onChange={live ? setTargets : undefined} />
-              {live && <p className="meta" style={{ margin: '6px 0 0' }}>Tap the targets that fell. Edit the time if the tap was late.</p>}
+              <TargetRow
+                hits={rowHits} done={complete}
+                onChange={scoringNow ? (next) => setTargets((prev) => prev.map((t, j) => (j === i ? next : t))) : undefined}
+              />
             </div>
           )
         })}
       </div>
-      {!finished && phase === 'scoring' && <button className="link" onClick={reset}>Re-run this stage</button>}
+
+      {phase === 'scoring' && (
+        <>
+          <button className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} disabled={!timeOk} onClick={confirmIt}>Confirm the 4x5</button>
+          <button className="link" style={{ marginTop: 8 }} onClick={reset}>Re-run the 4x5</button>
+        </>
+      )}
+      {saved.length > 0 && (finished || phase === 'ready') && (
+        <button
+          className="link danger" style={{ display: 'block', marginTop: 4 }}
+          onClick={() => { if (confirm('Scrub the 4x5 and start again? Its times and hits are deleted.')) onRestart() }}
+        >
+          Scrub the 4x5 and start again
+        </button>
+      )}
 
       {!finished && phase === 'ready' && (
-        <details style={{ marginTop: 8 }}>
-          <summary className="meta">Timer options</summary>
-          <TimerOptions prefs={prefs} onChange={changePrefs} />
-        </details>
+        <>
+          <p className="meta" style={{ marginTop: 12 }}>{DRILL_BRIEF.across}</p>
+          <details>
+            <summary className="meta">Timer options</summary>
+            <TimerOptions prefs={prefs} onChange={changePrefs} />
+          </details>
+        </>
       )}
     </div>
   )
@@ -313,20 +365,29 @@ function scatterHits(count: number): Record<MetalTarget, boolean> {
 }
 
 /**
- * The 10x1, timed as a whole: one start, one stop. There is nothing to tap per shot; the
- * ten singles (five prone, then five standing) are scored afterwards as hit or miss, in
- * two rows of five.
+ * One position of the first-shot set-up: shoot single shots, off the mat and back each time, until
+ * five hits, and the clock stops on the fifth. So there is one start and one stop, and no tap per
+ * shot; the time to the fifth hit is what is scored. The number of shots fired is optional.
  */
-function SingleDrill({ onSaved }: { onSaved: (stage: NationalTestStage) => void }) {
+function FirstShotRun({
+  position, saved, prefs, blocked, onBusy, onSaved, onScrub,
+}: {
+  position: Position
+  saved: NationalTestStage | null
+  prefs: TimerPrefs
+  /** The other position is mid-run. */
+  blocked: boolean
+  onBusy: (busy: boolean) => void
+  onSaved: (stage: NationalTestStage) => void
+  onScrub: () => void
+}) {
   const goAt = useRef(0)
-  // The clock times of "Go" and of the stop, for matching the stage to a heart-rate stream.
   const times = useRef<{ startedAt?: string; endedAt?: string }>({})
   const sound = useRef<CountInSound | null>(null)
   const [phase, setPhase] = useState<'ready' | 'counting' | 'running' | 'scoring'>('ready')
   const [now, setNow] = useState(0)
-  const [prefs, setPrefs] = useState(loadPrefs)
   const [time, setTime] = useState('')
-  const [shots, setShots] = useState<boolean[]>(() => Array(SHOTS_PER_STAGE.single).fill(false))
+  const [shots, setShots] = useState('')
 
   useEffect(() => {
     if (phase !== 'counting' && phase !== 'running') return
@@ -334,12 +395,9 @@ function SingleDrill({ onSaved }: { onSaved: (stage: NationalTestStage) => void 
     return () => clearInterval(id)
   }, [phase])
   useEffect(() => { if (phase === 'counting' && now >= goAt.current) setPhase('running') }, [phase, now])
+  useEffect(() => { onBusy(phase !== 'ready') }, [phase, onBusy])
   useEffect(() => () => sound.current?.stop(), [])
 
-  function changePrefs(next: TimerPrefs) {
-    setPrefs(next)
-    savePrefs(next)
-  }
   function start() {
     sound.current?.stop()
     sound.current = prefs.sound ? playCountIn(COUNT_IN_SECONDS) : null
@@ -349,10 +407,10 @@ function SingleDrill({ onSaved }: { onSaved: (stage: NationalTestStage) => void 
   }
   function stop() {
     const raw = Math.round(((Date.now() - goAt.current) / 1000) * 10) / 10
-    // The stop is `allowance` seconds before the tap, as the stage time is.
+    // The clock stopped on the fifth hit, `allowance` seconds before the tap.
     times.current = { startedAt: new Date(goAt.current).toISOString(), endedAt: new Date(Date.now() - prefs.allowance * 1000).toISOString() }
     setTime(String(stageSecondsFromTaps([raw], prefs.allowance)[0]))
-    setShots(Array(SHOTS_PER_STAGE.single).fill(false))
+    setShots('')
     setPhase('scoring')
   }
   function reset() {
@@ -365,60 +423,106 @@ function SingleDrill({ onSaved }: { onSaved: (stage: NationalTestStage) => void 
   const toGo = Math.max(1, Math.ceil((goAt.current - now) / 1000))
   const seconds = Number(time)
   const timeOk = Number.isFinite(seconds) && seconds > 0
-  const hits = shots.filter(Boolean).length
-  const row = (from: number, to: number) => (
-    <TargetRow
-      labels={Array.from({ length: to - from }, (_, k) => String(from + k + 1))}
-      hits={shots.slice(from, to)}
-      onChange={phase === 'scoring' ? (next) => setShots((prev) => [...prev.slice(0, from), ...next, ...prev.slice(to)]) : undefined}
-    />
-  )
+  const baseline = FIRST_SHOT_BASELINE[position]
+  const border = saved ? 'var(--good)' : phase === 'ready' ? 'var(--grid)' : 'var(--series-1)'
 
   return (
-    <div className="card">
-      <h2 style={{ marginTop: 0 }}>{STAGE_LABEL.single}</h2>
+    <div style={{ padding: '10px 12px', margin: '0 0 10px', borderRadius: 10, border: `2px solid ${border}`, background: saved ? 'var(--good-wash)' : 'transparent', opacity: blocked && phase === 'ready' && !saved ? 0.6 : 1 }}>
+      <strong>{saved ? '✓ ' : ''}{POSITION_LABEL[position]}</strong>
 
-      {phase === 'counting'
-        ? <><div key={toGo} className="count-in" aria-live="assertive">{toGo}</div><p className="meta" style={{ textAlign: 'center', margin: 0 }}>Get behind the pylon.</p></>
-        : <p className={`clock-face${phase === 'running' && elapsed < 1 ? ' go-flash' : ''}`} aria-live="off">{phase === 'scoring' ? (timeOk ? seconds.toFixed(1) : '—') : elapsed.toFixed(1)}</p>}
-
-      {phase === 'ready' && <button className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} onClick={start}>Start the 10x1</button>}
-      {phase === 'counting' && <button className="link" style={{ marginTop: 8 }} onClick={reset}>Cancel</button>}
-      {phase === 'running' && <button className="primary" style={{ width: '100%', padding: '22px 0', fontSize: 18 }} onClick={stop}>Stop the 10x1 — all ten shot</button>}
-      {phase === 'running' && prefs.allowance > 0 && (
-        <p className="meta" style={{ marginBottom: 0 }}>The tap takes {prefs.allowance.toFixed(1)} s off, for reaching the phone.</p>
-      )}
-
-      {phase === 'scoring' && (
+      {saved && (
         <>
-          <label className="field">
-            <span>Time, seconds<small>Edit it if the tap was late.</small></span>
-            <input type="number" inputMode="decimal" min={0} step={0.1} aria-label="10x1 seconds" value={time} onChange={(e) => setTime(e.target.value)} />
-          </label>
-          <strong>Prone singles</strong>
-          <div style={{ margin: '6px 0 12px' }}>{row(0, SINGLE_PRONE_SHOTS)}</div>
-          <strong>Standing singles</strong>
-          <div style={{ margin: '6px 0 12px' }}>{row(SINGLE_PRONE_SHOTS, SHOTS_PER_STAGE.single)}</div>
-          <p className="meta">Tap the targets that fell. {hits} of {SHOTS_PER_STAGE.single} hit.</p>
+          <p className="meta" style={{ margin: '4px 0 0' }}>
+            {saved.seconds.toFixed(1)} s to the fifth hit · scores {Math.round((baseline - saved.seconds) * 100) / 100} ({clock(baseline)} baseline){saved.shots ? ` · ${saved.shots} shots fired` : ''}
+          </p>
           <button
-            className="primary" style={{ width: '100%', padding: '18px 0', fontSize: 17 }} disabled={!timeOk}
-            onClick={() => onSaved({ kind: 'single', position: 'prone', seconds, hits, ...times.current })}
+            className="link danger" style={{ marginTop: 6 }}
+            onClick={() => { if (confirm(`Scrub the ${position} run and start it again? Its time is deleted.`)) onScrub() }}
           >
-            Confirm the 10x1
+            Scrub the {position} run and start again
           </button>
-          <button className="link" style={{ marginTop: 8 }} onClick={reset}>Re-run the 10x1</button>
         </>
       )}
 
-      {phase === 'ready' && (
+      {!saved && (
         <>
-          <p className="meta" style={{ marginTop: 12 }}>{DRILL_BRIEF.single}</p>
-          <details>
-            <summary className="meta">Timer options</summary>
-            <TimerOptions prefs={prefs} onChange={changePrefs} />
-          </details>
+          {phase === 'counting'
+            ? <><div key={toGo} className="count-in" aria-live="assertive">{toGo}</div><p className="meta" style={{ textAlign: 'center', margin: 0 }}>Get ready by the cone.</p></>
+            : (phase === 'running' || phase === 'scoring') && (
+                <p className={`clock-face${phase === 'running' && elapsed < 1 ? ' go-flash' : ''}`} aria-live="off">
+                  {phase === 'scoring' ? (timeOk ? seconds.toFixed(1) : '—') : elapsed.toFixed(1)}
+                </p>
+              )}
+
+          {phase === 'ready' && (
+            <button className="primary" style={{ width: '100%', marginTop: 8, padding: '16px 0' }} disabled={blocked} onClick={start}>Start {position}</button>
+          )}
+          {phase === 'counting' && <button className="link" style={{ marginTop: 8 }} onClick={reset}>Cancel</button>}
+          {phase === 'running' && (
+            <>
+              <button className="primary" style={{ width: '100%', padding: '22px 0', fontSize: 18 }} onClick={stop}>Fifth hit — stop the clock</button>
+              <button className="link" style={{ marginTop: 8 }} onClick={reset}>Abandon this run</button>
+              {prefs.allowance > 0 && <p className="meta" style={{ marginBottom: 0 }}>The tap takes {prefs.allowance.toFixed(1)} s off, for reaching the phone.</p>}
+            </>
+          )}
+          {phase === 'scoring' && (
+            <>
+              <label className="field">
+                <span>Time to the fifth hit, seconds<small>Edit it if the tap was late.</small></span>
+                <input type="number" inputMode="decimal" min={0} step={0.1} aria-label={`${position} seconds`} value={time} onChange={(e) => setTime(e.target.value)} />
+              </label>
+              <label className="field">
+                <span>Shots fired<small>Optional. It is not scored.</small></span>
+                <input type="number" inputMode="numeric" min={FIRST_SHOT_HITS} step={1} placeholder="—" aria-label={`${position} shots fired`} value={shots} onChange={(e) => setShots(e.target.value)} />
+              </label>
+              {timeOk && <p className="meta" style={{ marginTop: 0 }}>Scores {Math.round((baseline - seconds) * 100) / 100} ({clock(baseline)} baseline minus the time).</p>}
+              <button
+                className="primary" style={{ width: '100%', padding: '16px 0' }} disabled={!timeOk}
+                onClick={() => onSaved({ kind: 'firstShot', position, seconds, hits: FIRST_SHOT_HITS, ...(Number(shots) >= FIRST_SHOT_HITS ? { shots: Math.round(Number(shots)) } : {}), ...times.current })}
+              >
+                Confirm {position}
+              </button>
+              <button className="link" style={{ marginTop: 8 }} onClick={reset}>Re-run {position}</button>
+            </>
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+/** The first-shot set-up: a run each for prone and standing, with their own start and stop. */
+function FirstShotPart({
+  stages, onSaved, onScrub,
+}: {
+  stages: NationalTestStage[]
+  onSaved: (stage: NationalTestStage) => void
+  onScrub: (position: Position) => void
+}) {
+  const [prefs, setPrefs] = useState(loadPrefs)
+  const [busy, setBusy] = useState<Record<Position, boolean>>({ prone: false, standing: false })
+  const found = (p: Position) => stages.filter((x) => x.kind === 'firstShot' && x.position === p).pop() ?? null
+  function changePrefs(next: TimerPrefs) {
+    setPrefs(next)
+    savePrefs(next)
+  }
+  return (
+    <div className="card">
+      <h2 style={{ marginTop: 0 }}>{STAGE_LABEL.firstShot}</h2>
+      <p className="meta">{DRILL_BRIEF.firstShot}</p>
+      <p className="meta">Rest at least {REST_MINUTES} minutes between the prone and standing runs.</p>
+      {(['prone', 'standing'] as Position[]).map((p) => (
+        <FirstShotRun
+          key={p} position={p} saved={found(p)} prefs={prefs}
+          blocked={busy[p === 'prone' ? 'standing' : 'prone']}
+          onBusy={(b) => setBusy((prev) => (prev[p] === b ? prev : { ...prev, [p]: b }))}
+          onSaved={onSaved} onScrub={() => onScrub(p)}
+        />
+      ))}
+      <details>
+        <summary className="meta">Timer options</summary>
+        <TimerOptions prefs={prefs} onChange={changePrefs} />
+      </details>
     </div>
   )
 }
@@ -444,14 +548,14 @@ const PART_TITLE: Record<PartId, string> = {
   prone: 'Prone precision',
   standing: 'Standing precision',
   across: '4x5 across',
-  single: '10x1 single shot',
+  firstShot: 'First-shot set-up',
   collect: 'Collect and photograph the targets',
 }
 const PART_BLURB: Record<PartId, string> = {
   prone: 'Ten one-shots on precision target.',
   standing: 'Ten one-shots on precision target.',
-  across: 'Four individually timed bouts: prone, stand, prone, stand.',
-  single: 'Shoot ten singles, each time set, shoot, and exit from mat, timed overall.',
+  across: 'Four rounds on one clock: prone, prone, stand, stand.',
+  firstShot: 'Set up, shoot, exit the mat, repeat until five hits. Prone, then standing, timed to the fifth hit.',
   collect: 'Once all the shooting is done and the range is closed.',
 }
 
@@ -469,20 +573,10 @@ export function NationalTestView({
   const [part, setPart] = useState<PartId | null>(null)
   // The target being photographed, if any.
   const [collecting, setCollecting] = useState<PendingTarget | null>(null)
-  // Held in memory only: after a reload the rest and the closed-range check are asked again.
-  const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
-  const [restSkipped, setRestSkipped] = useState(false)
-  const [now, setNow] = useState(Date.now())
+  // Held in memory only: after a reload the closed-range check is asked again.
   const [rangeClosed, setRangeClosed] = useState(false)
   const [marking, setMarking] = useState(false)
   const [error, setError] = useState('')
-
-  const resting = restEndsAt !== null && now < restEndsAt
-  useEffect(() => {
-    if (!resting) return
-    const id = setInterval(() => setNow(Date.now()), 500)
-    return () => clearInterval(id)
-  }, [resting])
 
   const states = testParts(bouts, test)
   // A finished part goes back to the list, unless the athlete opened it to look.
@@ -500,9 +594,6 @@ export function NationalTestView({
     )
   }
 
-  const takeBack = test.stages.some((x) => x.kind === 'single') ? '10x1' : '4x5 stage'
-  const restOver = restSkipped || (restEndsAt !== null && now >= restEndsAt)
-
   function open(id: PartId) {
     opened.current = states[id]
     setPart(id)
@@ -514,8 +605,6 @@ export function NationalTestView({
     try {
       const pending = await onMarkPending(position)
       onTestChanged({ ...test, ...(position === 'prone' ? { proneBoutId: pending.id } : { standingBoutId: pending.id }) })
-      // The first group starts the five minutes before the second.
-      if (!test.proneBoutId && !test.standingBoutId) { setNow(Date.now()); setRestEndsAt(Date.now() + REST_SECONDS * 1000) }
     } catch (e) {
       setError(errorMessage(e, 'Could not record the group. Check your connection and try again.'))
     } finally {
@@ -529,26 +618,17 @@ export function NationalTestView({
     return pendingTargets.find((p) => p.id === id) ?? { id: id as string, workoutId: workout.id, shotAt: new Date().toISOString(), position }
   }
 
-  /** Whether this precision group has to wait for the rest: the other one is shot and the five minutes are not up. */
-  const mustRest = (position: Position) => {
-    const other = position === 'prone' ? test.standingBoutId : test.proneBoutId
-    return !!other && !restOver
-  }
-
   function partButtonNote(id: PartId): string {
     const st = states[id]
-    if (st === 'locked') return 'Locked until the other four parts are shot'
+    if (st === 'locked') return 'Locked until the other four parts are shot, or the test is finished'
     if (id === 'prone' || id === 'standing') {
-      if (st === 'done') return 'Shot — target to collect at the end'
-      const position = id
-      if (mustRest(position)) return resting ? `Rest first · ${clock(Math.max(0, Math.ceil(((restEndsAt as number) - now) / 1000)))} left` : 'Rest five minutes first'
-      return PART_BLURB[id]
+      return st === 'done' ? 'Shot — target to collect at the end' : PART_BLURB[id]
     }
-    if (id === 'across') {
-      const n = test.stages.filter((x) => x.kind === 'across').length
-      return st === 'done' ? 'All four stages done' : n > 0 ? `${n} of ${ACROSS_STAGES.length} stages done` : PART_BLURB[id]
+    if (id === 'across') return st === 'done' ? 'Done' : PART_BLURB[id]
+    if (id === 'firstShot') {
+      const ran = (['prone', 'standing'] as Position[]).filter((p) => test.stages.some((x) => x.kind === 'firstShot' && x.position === p))
+      return st === 'done' ? 'Prone and standing done' : ran.length === 1 ? `${POSITION_LABEL[ran[0]]} done, ${ran[0] === 'prone' ? 'standing' : 'prone'} to do` : PART_BLURB[id]
     }
-    if (id === 'single') return st === 'done' ? 'Done' : PART_BLURB[id]
     return st === 'done' ? 'Both targets photographed' : st === 'partial' ? 'One target photographed' : 'The range is closed: go and get them'
   }
 
@@ -569,21 +649,12 @@ export function NationalTestView({
             <p className="meta" style={{ marginBottom: 0 }}>This group is shot. Its target waits, where it is, until the range is closed and you collect and photograph it with the others.</p>
           </div>
         )}
-        {position && states[part] !== 'done' && mustRest(position) && (
-          <Rest
-            endsAt={restEndsAt} now={now}
-            onStart={() => { setNow(Date.now()); setRestEndsAt(Date.now() + REST_SECONDS * 1000) }}
-            onSkip={() => setRestSkipped(true)}
-          />
-        )}
-        {position && states[part] !== 'done' && !mustRest(position) && (
+        {position && states[part] !== 'done' && (
           <div className="card">
             <h2 style={{ marginTop: 0 }}>{PART_TITLE[part]}</h2>
             <p className="meta">
               Ten shots on an ISSF 50 m target. You have up to {PRECISION_MINUTES} minutes for both groups, and a coach may spot your shots for you.
-              {position === 'prone'
-                ? ' A shot outside the 8 ring counts as a miss and costs 10 points.'
-                : ' A shot outside the black counts as a miss and costs 10 points.'}
+              Rest at least {REST_MINUTES} minutes before the next component.
             </p>
             <p className="meta">
               The range is open while you shoot, so the target stays where it is. You will collect and photograph both
@@ -596,19 +667,20 @@ export function NationalTestView({
         )}
 
         {part === 'across' && (
-          <AcrossDrill saved={test.stages.filter((x) => x.kind === 'across')} onSaved={(stage) => onTestChanged({ ...test, stages: [...test.stages, stage] })} />
+          <AcrossDrill
+            saved={test.stages.filter((x) => x.kind === 'across')}
+            onSaved={(stages) => onTestChanged({ ...test, stages: [...test.stages.filter((x) => x.kind !== 'across'), ...stages] })}
+            onRestart={() => { opened.current = 'todo'; onTestChanged({ ...test, stages: test.stages.filter((x) => x.kind !== 'across') }) }}
+          />
         )}
 
-        {part === 'single' && (states.single === 'done'
-          ? (
-              <div className="card">
-                <h2 style={{ marginTop: 0 }}>{PART_TITLE.single}</h2>
-                <p className="meta" style={{ marginBottom: 0 }}>
-                  Done: {singleSeconds(test.stages).toFixed(1)} s, {test.stages.filter((x) => x.kind === 'single').reduce((t, x) => t + x.hits, 0)} of {SHOTS_PER_STAGE.single} hit.
-                </p>
-              </div>
-            )
-          : <SingleDrill onSaved={(stage) => onTestChanged({ ...test, stages: [...test.stages, stage] })} />)}
+        {part === 'firstShot' && (
+          <FirstShotPart
+            stages={test.stages}
+            onSaved={(stage) => onTestChanged({ ...test, stages: [...test.stages.filter((x) => !(x.kind === 'firstShot' && x.position === stage.position)), stage] })}
+            onScrub={(p) => { opened.current = 'todo'; onTestChanged({ ...test, stages: test.stages.filter((x) => !(x.kind === 'firstShot' && x.position === p)) }) }}
+          />
+        )}
 
         {part === 'collect' && !rangeClosed && (
           <div className="card">
@@ -626,6 +698,8 @@ export function NationalTestView({
             <p className="meta">The range is closed. Collect each target and photograph it square-on.</p>
             {(['prone', 'standing'] as Position[]).map((p) => {
               const photographed = precisionBouts(bouts)[p]
+              const wasShot = !!(p === 'prone' ? test.proneBoutId : test.standingBoutId)
+              if (!wasShot) return <div key={p} className="meta" style={{ padding: '6px 0' }}>{POSITION_LABEL[p]} was not shot, so there is no target to collect</div>
               return photographed
                 ? <div key={p} className="meta" style={{ padding: '6px 0' }}>✓ {POSITION_LABEL[p]} target photographed</div>
                 : <button key={p} className="primary" style={{ width: '100%', margin: '4px 0' }} onClick={() => setCollecting(targetFor(p))}>Photograph the {p} target</button>
@@ -640,7 +714,7 @@ export function NationalTestView({
     <>
       <h1>National Team Test</h1>
       <p className="lede">
-        Do the parts in any order. Each turns green when it is done. Leaving for the session keeps what you have shot, and you can come back to it.
+        Do the parts in any order. Each turns green when it is done, and the score adds up the parts done. Rest at least {REST_MINUTES} minutes between components. Leaving for the session keeps what you have done.
       </p>
       {error && <div className="notice error">{error}</div>}
 
@@ -664,17 +738,29 @@ export function NationalTestView({
         )
       })}
 
+      {test.finishedAt ? (
+        <p className="meta" style={{ marginTop: 10 }}>
+          Finished with a partial score.{' '}
+          <button className="link" onClick={() => onTestChanged({ ...test, finishedAt: null })}>Reopen the test</button>
+        </p>
+      ) : PART_ORDER.some((id) => states[id] !== 'done') && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            className="confirm" style={{ width: '100%' }}
+            onClick={() => {
+              if (confirm('Finish the test with what has been done? Parts not done score nothing, and the test is shown as a partial score.')) {
+                onTestChanged({ ...test, finishedAt: new Date().toISOString() })
+              }
+            }}
+          >
+            Finish the test with a partial score
+          </button>
+          <p className="meta" style={{ margin: '4px 0 0' }}>Not everything has to be shot. You can still collect the targets you did shoot.</p>
+        </div>
+      )}
+
       <h2>Score so far</h2>
       <NationalTestSummary bouts={bouts} test={test} />
-
-      {test.stages.length > 0 && (
-        <button
-          className="link" style={{ marginBottom: 10 }}
-          onClick={() => { if (confirm(`Remove the last ${takeBack} so it can be shot again?`)) onTestChanged({ ...test, stages: withoutLastTimed(test.stages) }) }}
-        >
-          Take back the last {takeBack}
-        </button>
-      )}
 
       <div className="row" style={{ marginTop: 10 }}>
         <button

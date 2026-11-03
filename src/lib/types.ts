@@ -266,25 +266,25 @@ export interface SensorSession {
   shots: SensorShot[]
 }
 
-/** One timed stage of the National Team test: a 4x5 "across" stage (five shots,
- *  back to the 3 m line) or a 10x1 single-shot stage. The two precision groups
- *  are ordinary Bouts in the same workout, not stages. */
+/** One timed stage of the National Team Test: a 4x5 "across" stage (five shots, back behind
+ *  the 2 m marker) or a first-shot set-up run (shots until five hits, one position). The two
+ *  precision groups are ordinary Bouts in the same workout, not stages. */
 export interface NationalTestStage {
-  kind: 'across' | 'single'
-  /** The position of a 4x5 stage. A 10x1 is timed as a whole (five prone singles, then five
-   *  standing), so its stage is saved as 'prone', its starting position, and the field is not used. */
+  kind: 'across' | 'firstShot'
   position: Position
-  /** Seconds from leaving the 3 m line to being back on it. For the 10x1, the whole drill. */
+  /** Seconds. A 4x5 stage: from the previous return (or "Go") to this return, so the four add up
+   *  to the component's single clock. A first-shot run: from "Go" to the fifth hit. */
   seconds: number
-  /** Clock time (ISO) at "Go" and when the athlete was back over the line, so the stage can be
-   *  matched to a heart-rate stream. The end has the stop-tap allowance taken off. */
+  /** Targets hit: out of 5 for a 4x5 stage, always 5 for a first-shot run (the clock stops there). */
+  hits: number
+  /** Which of the five targets fell, scored as on a metal bout. 4x5 stages carry it. */
+  targets?: Record<MetalTarget, boolean>
+  /** First-shot run only: shots fired to get the five hits, if recorded. Not scored. */
+  shots?: number
+  /** Clock time (ISO) at the start and end of the stage, so it can be matched to a heart-rate
+   *  stream. The end has the stop-tap allowance taken off. */
   startedAt?: string
   endedAt?: string
-  /** Targets hit, out of 5 for an across stage and 10 for the 10x1. */
-  hits: number
-  /** Which of the five targets fell, scored as on a metal bout. Across stages
-   *  scored one target at a time carry it; `hits` is always their count. */
-  targets?: Record<MetalTarget, boolean>
 }
 
 /** A National Team test being shot, or shot: the timed stages in the order
@@ -299,6 +299,9 @@ export interface NationalTest {
    *  the same id. The workout can hold other precision bouts too; only these count. */
   proneBoutId: string | null
   standingBoutId: string | null
+  /** When the athlete finished the test, possibly with parts not shot, for a partial score.
+   *  Null or absent while the test is open. */
+  finishedAt?: string | null
 }
 
 /**

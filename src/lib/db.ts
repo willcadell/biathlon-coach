@@ -536,15 +536,16 @@ export interface NationalTestRow {
   stages: NationalTestStage[]
   prone_bout_id: string | null
   standing_bout_id: string | null
+  finished_at?: string | null
 }
 
 export function toNationalTest(row: NationalTestRow): NationalTest {
-  return { id: row.id, workoutId: row.workout_id, startedAt: row.started_at, stages: row.stages ?? [], proneBoutId: row.prone_bout_id ?? null, standingBoutId: row.standing_bout_id ?? null }
+  return { id: row.id, workoutId: row.workout_id, startedAt: row.started_at, stages: row.stages ?? [], proneBoutId: row.prone_bout_id ?? null, standingBoutId: row.standing_bout_id ?? null, finishedAt: row.finished_at ?? null }
 }
 
 export async function putNationalTest(test: NationalTest): Promise<void> {
   const athleteId = await currentAthleteId()
-  const { error } = await supabase.from('national_tests').upsert({
+  const row = {
     id: test.id,
     workout_id: test.workoutId,
     athlete_id: athleteId,
@@ -552,7 +553,14 @@ export async function putNationalTest(test: NationalTest): Promise<void> {
     stages: test.stages,
     prone_bout_id: test.proneBoutId,
     standing_bout_id: test.standingBoutId,
-  })
+  }
+  const { error } = await supabase.from('national_tests').upsert({ ...row, finished_at: test.finishedAt ?? null })
+  // A database that has not had the finished_at migration yet: save the test without it.
+  if (error && (error.message ?? '').includes('finished_at')) {
+    const retry = await supabase.from('national_tests').upsert(row)
+    if (retry.error) throw retry.error
+    return
+  }
   if (error) throw error
 }
 

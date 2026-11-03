@@ -20,7 +20,7 @@ import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
 import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
-import { ACROSS_STAGES, clock, precisionResult, scoreNationalTest, sectionSeconds, stageSecondsFromTaps, standardFor, testBouts, testParts, withoutLastTimed } from '../src/lib/nationalTest.ts'
+import { ACROSS_STAGES, acrossScore, clock, scoreNationalTest, stageSecondsFromTaps, standardFor, testBouts, testParts } from '../src/lib/nationalTest.ts'
 import type { NationalTestStage } from '../src/lib/types.ts'
 import { fromLocalInput, toLocalInput } from '../src/lib/time.ts'
 import { timeline } from '../src/lib/metal.ts'
@@ -693,83 +693,83 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const inRing = (value: number) => ({ x: (radii[10 - value - 1] + radii[10 - value]) / 2 + half, y: 0 })
   const tens = Array.from({ length: 10 }, () => ({ x: 0, y: 0 }))
   const group = (position: Position, replace: { x: number; y: number }[] = []) => bout(position, [...replace, ...tens.slice(replace.length)])
-  // Every timed stage: the four 4x5 stages (`proneSeconds` and `standingSeconds` split evenly over their
-  // two stages each) and the 10x1, timed overall at `singleSeconds`. Every target hit unless `hits` says otherwise.
-  const allStages = (proneSeconds: number, standingSeconds: number, hits?: (i: number) => number, singleSeconds = 0): NationalTestStage[] => [
-    ...ACROSS_STAGES.map((position, i): NationalTestStage => ({
-      kind: 'across', position, seconds: (position === 'prone' ? proneSeconds : standingSeconds) / 2, hits: hits ? hits(i) : 5,
-    })),
-    { kind: 'single', position: 'prone', seconds: singleSeconds, hits: hits ? hits(4) : 10 },
+  // The four 4x5 stages share `acrossSeconds` between them, `acrossHits` hits in all (spread from the first stage),
+  // and the two first-shot runs take `proneSeconds` and `standingSeconds` to the fifth hit.
+  const acrossStages = (acrossSeconds: number, acrossHits = 20): NationalTestStage[] => {
+    let left = acrossHits
+    return ACROSS_STAGES.map((position): NationalTestStage => {
+      const hits = Math.min(5, left)
+      left -= hits
+      return { kind: 'across', position, seconds: acrossSeconds / 4, hits }
+    })
+  }
+  const firstShot = (proneSeconds: number, standingSeconds: number): NationalTestStage[] => [
+    { kind: 'firstShot', position: 'prone', seconds: proneSeconds, hits: 5 },
+    { kind: 'firstShot', position: 'standing', seconds: standingSeconds, hits: 5 },
   ]
+  const allStages = (acrossSeconds: number, proneSeconds: number, standingSeconds: number, acrossHits = 20) =>
+    [...acrossStages(acrossSeconds, acrossHits), ...firstShot(proneSeconds, standingSeconds)]
   const pair = [group('prone'), group('standing')]
 
-  ok('nt: a prone shot in the 7 ring is a miss', precisionResult(group('prone', [inRing(7)])).misses === 1)
-  ok('nt: a prone shot in the 8 ring is not a miss', precisionResult(group('prone', [inRing(8)])).misses === 0)
-  ok('nt: standing, a 5 is still inside the black and not a miss', precisionResult(group('standing', [inRing(5)])).misses === 0)
-  ok('nt: standing, outside the black is a miss', precisionResult(group('standing', [{ x: face.blackMm / 2 + half + 2, y: 0 }])).misses === 1)
+  ok('nt: the 4x5 order is prone, prone, standing, standing', ACROSS_STAGES.join() === 'prone,prone,standing,standing')
 
-  const perfect = scoreNationalTest(pair, { stages: allStages(100, 100) })
-  ok('nt: precision is the plain ring total, out of 200', perfect.precision === 200, String(perfect.precision))
-  ok('nt: speed is 200 on the baselines, plus a point a second under them', perfect.speed === 200 + 60 + 50 - 0, String(perfect.speed))
-  ok('nt: no misses, no penalties', perfect.penalties === 0)
-  ok('nt: total and A standard', perfect.total === 510 && perfect.standard === 'A', JSON.stringify(perfect))
-  ok('nt: on the baselines speed is exactly 200', scoreNationalTest(pair, { stages: allStages(160, 150) }).speed === 200)
-  ok('nt: slower than baseline loses a point a second', scoreNationalTest(pair, { stages: allStages(170, 160) }).speed === 180)
-  ok('nt: speed never scores above 400, so 600 is the most', (() => {
-    const s = scoreNationalTest(pair, { stages: allStages(0, 0) })
-    return s.speed === 400 && s.total === 600
-  })())
-  ok('nt: a section is held to the 10 minute cutoff', sectionSeconds(allStages(1300, 100), 'prone') === 600)
-
-  ok('nt: a missed shot in a drill costs 10', (() => {
-    const s = scoreNationalTest(pair, { stages: allStages(100, 100, (i) => (i === 0 ? 3 : i === 4 ? 8 : 5)) })
-    return s.drillMisses === 4 && s.penalties === 40 && s.total === 510 - 40
-  })())
-  ok('nt: precision misses cost 10 each, on top of their rings', (() => {
-    const s = scoreNationalTest([group('prone', [inRing(7)]), group('standing')], { stages: allStages(100, 100) })
-    return s.precision === 197 && s.precisionMisses === 1 && s.penalties === 10 && s.total === 197 + 110 + 200 - 10
+  const perfect = scoreNationalTest(pair, { stages: allStages(80, 60, 50) })
+  ok('nt: precision is the plain ring total, out of 200, with no miss penalties', perfect.precision === 200 && scoreNationalTest([group('prone', [inRing(7)]), group('standing')], { stages: [] }).precision === 197)
+  ok('nt: a perfect 4x5 is 200: twenty hits in 80 s', perfect.across === 200, String(perfect.across))
+  ok('nt: a perfect first-shot set-up is 200: 60 s prone and 50 s standing', perfect.firstShot === 200, String(perfect.firstShot))
+  ok('nt: a perfect test is 600 and an A standard', perfect.total === 600 && perfect.standard === 'A', JSON.stringify(perfect))
+  ok('nt: each 4x5 miss costs 10, and each second over 80 costs 1', acrossScore(19, 80) === 190 && acrossScore(20, 95) === 185 && acrossScore(18, 100) === 160)
+  ok('nt: faster than 80 s earns nothing extra', acrossScore(20, 60) === 200)
+  ok('nt: first-shot is its two baselines less its two times', scoreNationalTest(pair, { stages: allStages(80, 100, 90) }).firstShot === (160 - 100) + (150 - 90))
+  ok('nt: first-shot can be negative, and the total is not floored', (() => {
+    const s = scoreNationalTest([], { stages: [...acrossStages(200, 0), ...firstShot(400, 400)] })
+    return s.firstShot === (160 - 400) + (150 - 400) && s.total < 0
   })())
   ok('nt: standards sit at 480 and 510', standardFor(510) === 'A' && standardFor(509.9) === 'B' && standardFor(480) === 'B' && standardFor(479.9) === null)
-  ok('nt: no standard and no speed until the test is complete', (() => {
-    const s = scoreNationalTest([group('prone')], { stages: allStages(100, 100).slice(0, 4) })
-    return s.standard === null && s.speed === 0 && s.missing.includes('standing precision') && s.missing.includes('10x1 single shot') && !s.missing.includes('4x5 across')
-  })())
   ok('nt: a retaken group replaces the first', (() => {
     const first = group('prone', [inRing(5)])
     const second = { ...group('prone'), shotAt: new Date(Date.now() + 1000).toISOString() }
     return scoreNationalTest([first, second, group('standing')], { stages: [] }).precision === 200
   })())
 
+  ok('nt: each component scores as soon as it is done, with no standard until all are', (() => {
+    const only4x5 = scoreNationalTest([], { stages: acrossStages(90, 18) })
+    const onlyProne = scoreNationalTest([], { stages: [firstShot(100, 0)[0]] })
+    return only4x5.across === 180 - 10 && only4x5.total === 170 && only4x5.standard === null && onlyProne.firstShot === 60 && onlyProne.total === 60
+  })())
+  ok('nt: a part-shot 4x5 does not score', scoreNationalTest([], { stages: acrossStages(90).slice(0, 3) }).across === 0)
+
   const none = { stages: [] as NationalTestStage[], proneBoutId: null, standingBoutId: null }
-  const stages = allStages(100, 100)
+  const stages = allStages(80, 60, 50)
   const shotBoth = { proneBoutId: pair[0].id, standingBoutId: pair[1].id }
-  const prone = (extra: object = {}) => ({ ...none, proneBoutId: pair[0].id, ...extra })
   const parts = (b: Bout[], t: Parameters<typeof testParts>[1]) => testParts(b, t)
   ok('nt: every shooting part is open from the start, and collecting is locked', (() => {
     const p = parts([], none)
-    return p.prone === 'todo' && p.standing === 'todo' && p.across === 'todo' && p.single === 'todo' && p.collect === 'locked'
+    return p.prone === 'todo' && p.standing === 'todo' && p.across === 'todo' && p.firstShot === 'todo' && p.collect === 'locked'
   })())
   ok('nt: parts can be done in any order', (() => {
-    const p = parts([], { ...none, standingBoutId: pair[1].id, stages: stages.slice(0, 4) })
-    return p.standing === 'done' && p.prone === 'todo' && p.across === 'done' && p.single === 'todo'
+    const p = parts([], { ...none, standingBoutId: pair[1].id, stages: acrossStages(90) })
+    return p.standing === 'done' && p.prone === 'todo' && p.across === 'done' && p.firstShot === 'todo'
   })())
-  ok('nt: a part-done 4x5 is partial, not done', parts([], { ...none, stages: stages.slice(0, 2) }).across === 'partial')
-  ok('nt: collecting stays locked until every part is shot', parts([], { ...none, ...shotBoth, stages: stages.slice(0, 4) }).collect === 'locked')
+  ok('nt: first-shot is partial with one position done', parts([], { ...none, stages: [firstShot(100, 0)[0]] }).firstShot === 'partial')
+  ok('nt: collecting stays locked until every part is shot', parts([], { ...none, ...shotBoth, stages: acrossStages(90) }).collect === 'locked')
   ok('nt: once everything is shot the targets are to collect, then partial, then done', (
     parts([], { ...none, ...shotBoth, stages }).collect === 'todo' &&
     parts([pair[0]], { ...none, ...shotBoth, stages }).collect === 'partial' &&
     parts(pair, { ...none, ...shotBoth, stages }).collect === 'done'
   ))
+  ok('nt: finishing early unlocks collecting, and only shot groups need collecting', (() => {
+    const early = { ...none, proneBoutId: pair[0].id, finishedAt: new Date().toISOString() }
+    return parts([], early).collect === 'todo' && parts([pair[0]], early).collect === 'done' && parts([], { ...none, finishedAt: 'x' }).collect === 'done'
+  })())
   ok('nt: a group shot but not photographed reads as waiting for its photo, not unshot', (() => {
     const s = scoreNationalTest([pair[0]], { stages, proneBoutId: pair[0].id, standingBoutId: pair[1].id })
     return s.missing.length === 1 && s.missing[0] === 'standing target photo' && s.standard === null
   })())
   ok('nt: a group not yet shot is still precision, not a photo', scoreNationalTest([], { stages: [] }).missing.slice(0, 2).join() === 'prone precision,standing precision')
-  ok('nt: taking back removes the whole 10x1, or just the last 4x5 stage', withoutLastTimed(stages).length === 4 && withoutLastTimed(stages.slice(0, 4)).length === 3 && withoutLastTimed([]).length === 0)
-  ok('nt: the 4x5 is fixed as prone, standing, prone, standing', ACROSS_STAGES.join() === 'prone,standing,prone,standing')
-  ok('nt: the 10x1 is one overall time, whatever position its shots were', (() => {
-    const split = scoreNationalTest(pair, { stages: allStages(100, 100, undefined, 120) })
-    return split.speed === 200 + 310 - 200 - 120 && split.singleSeconds === 120 && split.proneSeconds === 100
+  ok('nt: a stage saved by an earlier version is ignored, not scored as NaN', (() => {
+    const s = scoreNationalTest(pair, { stages: [...stages, { kind: 'single', position: 'prone', seconds: 99, hits: 9 } as never] })
+    return Number.isFinite(s.total) && s.total === 600
   })())
   ok('nt: no allowance leaves the taps as they were', stageSecondsFromTaps([40, 85, 123, 165], 0).join() === '40,45,38,42')
   ok('nt: an allowance comes off every tap, so only the first stage loses it', stageSecondsFromTaps([40, 85, 123, 165], 3).join() === '37,45,38,42')
