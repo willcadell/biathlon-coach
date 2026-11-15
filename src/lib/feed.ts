@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import { myMemberships, type Membership } from './coaching'
 import type { GoalMetric } from './goalProgress'
-import type { Bout, Position, Shot } from './types'
+import type { Bout, Position, RaceType, Shot } from './types'
 
 /** What a target post carries — a snapshot built by post_to_feed, so it can't
  *  include anything the database didn't choose to put there (no notes, no
@@ -31,6 +31,19 @@ export interface WorkoutPayload {
   /** A race's stages in shot order; null for anything that isn't a race. */
   stages?: { position: Position; hits: number }[] | null
   best: { ringTotal: number; ringPossible: number } | null
+}
+
+/** A combo, a metal session or a race result: each bout's position, its five hit/miss flags (alpha to
+ *  echo), its range time and when it was shot. A snapshot built by post_metal_to_feed, so it holds no
+ *  heart rate and no notes. */
+export interface MetalPayload {
+  name: string
+  startedAt: string
+  /** Set for a race result; null for a session or a combo. */
+  raceType: RaceType | null
+  /** A combo's target heart-rate zone, 1-5; null otherwise. */
+  zone: number | null
+  bouts: { position: Position; hits: boolean[]; rangeSeconds: number | null; shotAt: string }[]
 }
 
 export interface AnnouncementPayload {
@@ -65,6 +78,8 @@ export type FeedPost =
   | (PostBase & { kind: 'workout'; payload: WorkoutPayload })
   | (PostBase & { kind: 'announcement'; payload: AnnouncementPayload })
   | (PostBase & { kind: 'goal'; payload: GoalPayload })
+  | (PostBase & { kind: 'combo'; payload: MetalPayload })
+  | (PostBase & { kind: 'metal'; payload: MetalPayload })
 
 export const FEED_PAGE_SIZE = 20
 
@@ -123,6 +138,13 @@ export async function postToFeed(clubId: string, source: { boutId: string } | { 
     p_bout_id: 'boutId' in source ? source.boutId : null,
     p_workout_id: 'workoutId' in source ? source.workoutId : null,
   })
+  if (error) throw error
+}
+
+/** Posts a metal session (a race workout's is its race result), or with a combo id just that combo.
+ *  Idempotent, like postToFeed. */
+export async function postMetalToFeed(clubId: string, workoutId: string, comboId?: string | null): Promise<void> {
+  const { error } = await supabase.rpc('post_metal_to_feed', { p_club_id: clubId, p_workout_id: workoutId, p_combo_id: comboId ?? null })
   if (error) throw error
 }
 

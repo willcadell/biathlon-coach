@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Goal } from '../lib/goalProgress'
 import type { Bout, MetalBout, Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
-import { postGoal, postToFeed, useMemberships } from '../lib/feed'
+import { postGoal, postMetalToFeed, postToFeed, useMemberships } from '../lib/feed'
 import { shareTargetImage } from '../lib/share'
 import { shareComboImage, shareMetalSessionImage } from '../lib/shareMetal'
 import { ShareIcon } from './icons'
@@ -60,6 +60,8 @@ export function ShareSheet({
     setError('')
     try {
       if (goal) await postGoal(clubId, goal.id)
+      else if (combo && workout) await postMetalToFeed(clubId, workout.id, combo.rounds[0]?.comboId)
+      else if (metalBouts && workout) await postMetalToFeed(clubId, workout.id)
       else if (bout) await postToFeed(clubId, { boutId: bout.id })
       else if (workout) await postToFeed(clubId, { workoutId: workout.id })
       setPosted(clubName)
@@ -78,8 +80,8 @@ export function ShareSheet({
     return () => clearTimeout(t)
   }, [posted])
 
-  // A metal card is an image only: posting would put the whole workout out, not this card.
-  const imageOnly = Boolean(metalBouts || combo)
+  // A metal card (a combo, a session or a race result) is its own post, not the whole workout.
+  const metalCard = Boolean(metalBouts || combo)
   const noun = goal ? 'goal' : combo ? 'combo' : metalBouts ? (workout?.raceType ? 'race result' : 'metal session') : bout ? 'target' : 'workout'
 
   return (
@@ -99,13 +101,13 @@ export function ShareSheet({
           <>
             {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
 
-            {(bout || imageOnly) && (
+            {(bout || metalCard) && (
               <button className="secondary" style={{ marginBottom: 10 }} disabled={busy !== null} onClick={() => void shareImage()}>
                 <ShareIcon /> {busy === 'image' ? 'Preparing…' : 'Share as image'}
               </button>
             )}
 
-            {!imageOnly && memberships !== null && memberships.length > 0 && (
+            {memberships !== null && memberships.length > 0 && (
               <>
                 {memberships.map((m) => (
                   <button
@@ -118,12 +120,14 @@ export function ShareSheet({
                 <p className="meta" style={{ marginTop: 0 }}>
                   {goal
                     ? 'Everyone in the club — athletes and coaches — will see the goal and what you finished at, with your name.'
+                    : metalCard
+                    ? 'Everyone in the club — athletes and coaches — will see the card, with your name. Heart rate and notes are never shared.'
                     : 'Everyone in the club — athletes and coaches — will see it, with your name. Your notes and target photos are never shared.'}
                 </p>
               </>
             )}
-            {!imageOnly && memberships !== null && memberships.length === 0 && !bout && (
-              <p className="meta">Join a club from your Profile to post {goal ? 'goals' : 'workouts'} to its feed.</p>
+            {memberships !== null && memberships.length === 0 && !bout && (
+              <p className="meta">Join a club from your Profile to post {goal ? 'goals' : metalCard ? 'results' : 'workouts'} to its feed.</p>
             )}
 
             <button className="secondary" onClick={onClose} disabled={busy !== null}>Cancel</button>

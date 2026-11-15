@@ -1,5 +1,6 @@
-import { DISCS_PER_METAL_BOUT, hitCount, hitsOf, metalStats, targetStats, type MetalStat, type TargetStat } from './metal'
-import { RACE_STAGES, RACE_TYPE_LABEL, type MetalBout, type RaceType } from './types'
+import { DISCS_PER_METAL_BOUT, METAL_TARGETS, comboLabel, hitCount, hitsOf, metalStats, targetStats, type MetalStat, type TargetStat } from './metal'
+import { RACE_STAGES, RACE_TYPE_LABEL, type MetalBout, type MetalTarget, type RaceType, type Workout } from './types'
+import type { MetalPayload } from './feed'
 
 /** What a shareable metal card says about a set of bouts: a whole session's metal, or one combo's
  *  rounds. Everything is worked out here, from the bouts alone, so the card only has to draw it. */
@@ -90,4 +91,42 @@ export function singleCombo(bouts: MetalBout[]): { zone: number | null; rounds: 
   if (!id || bouts.some((b) => b.comboId !== id)) return null
   const rounds = comboRounds(bouts)
   return { zone: rounds[0].targetZone, rounds }
+}
+
+// --- Posts on the club feed -----------------------------------------------------------------------
+
+/** A posted snapshot back as the bouts the card and summary code read. Heart rate is not in a post,
+ *  so it is 0; the card only draws what is there. */
+export function postedBouts(p: MetalPayload): MetalBout[] {
+  return p.bouts.map((b, i) => ({
+    kind: 'metal' as const,
+    id: `posted-${i}`,
+    workoutId: '',
+    shotAt: b.shotAt,
+    position: b.position,
+    hits: Object.fromEntries(METAL_TARGETS.map((t, k) => [t, Boolean(b.hits[k])])) as Record<MetalTarget, boolean>,
+    heartRate: 0,
+    comboId: null,
+    targetZone: p.zone,
+    ...(b.rangeSeconds ? { rangeSeconds: b.rangeSeconds } : {}),
+  }))
+}
+
+/** What a card needs of the workout: its name, its date and, for a race, its format. */
+export const postedWorkout = (p: MetalPayload): Workout =>
+  ({ name: p.name, startedAt: p.startedAt, raceType: p.raceType }) as unknown as Workout
+
+/** The feed line for a post: what it is, and how it went. */
+export function postedHeadline(kind: 'combo' | 'metal', p: MetalPayload): { title: string; detail: string } {
+  const bouts = postedBouts(p)
+  if (p.raceType) {
+    const r = summariseRace(p.raceType, bouts)
+    return { title: raceLabel(p.raceType), detail: `${r.hits}/${r.shots} · ${r.penalty.toLowerCase()}` }
+  }
+  const m = summariseMetal(bouts)
+  const rounds = `${m.bouts} ${kind === 'combo' ? 'round' : 'bout'}${m.bouts === 1 ? '' : 's'}`
+  return {
+    title: kind === 'combo' ? comboLabel(p.zone) : 'Metal session',
+    detail: `${m.hits}/${m.shots} · ${Math.round(m.hitRatePct)}% · ${rounds}`,
+  }
 }

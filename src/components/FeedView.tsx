@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { FEED_PAGE_SIZE, cowbellCounts, deleteFeedPost, currentUserId, feedPosts, myCowbellTotal, setCowbell, useMemberships, type CowbellCount, type FeedPost, type TargetPayload, type WorkoutPayload } from '../lib/feed'
+import { FEED_PAGE_SIZE, cowbellCounts, deleteFeedPost, currentUserId, feedPosts, myCowbellTotal, setCowbell, useMemberships, type CowbellCount, type FeedPost, type MetalPayload, type TargetPayload, type WorkoutPayload } from '../lib/feed'
 import { RACE_TYPE_LABEL, faceById, type Bout, type RaceType, type Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
 import { buildTargetShareImage, tierFor } from '../lib/share'
+import { buildComboImage, buildMetalSessionImage, buildRaceImage } from '../lib/shareMetal'
+import { postedBouts, postedHeadline, postedWorkout } from '../lib/metalSummary'
 import { ClubLogo } from './ClubLogo'
 import { TargetPlot } from './TargetPlot'
 import { formatValue, goalTitle } from '../lib/goalProgress'
@@ -80,18 +82,19 @@ const BELL_REFRESH_MS = 10_000
 const THUMB_W = 96
 const THUMB_H = 120
 
-/** A small copy of the trading card the Share dialog produces, redrawn from
- *  the post's own snapshot; tap for the full card. Only drawn once it scrolls
- *  near view — the card is a full-size canvas, and a long feed shouldn't draw
- *  dozens up front — then shrunk, so a feed of these stays light. Falls back
- *  to a plain mini target if the card can't be drawn. */
-function CardThumb({ p }: { p: TargetPayload }) {
+/** A small copy of a card the Share dialog produces, redrawn from the post's own snapshot; tap for the
+ *  full card. Only drawn once it scrolls near view: a card is a full-size canvas, and a long feed
+ *  shouldn't draw dozens up front. It is then shrunk, so a feed of these stays light. `source` is the
+ *  post's snapshot, which keys the drawing; `fallback` shows if the card can't be drawn. */
+function CardThumb({ source, build, alt, fallback }: { source: object; build: () => Promise<Blob>; alt: string; fallback?: ReactNode }) {
   const box = useRef<HTMLButtonElement>(null)
   const [visible, setVisible] = useState(false)
   const [full, setFull] = useState<Blob | null>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
   const [fullUrl, setFullUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const buildRef = useRef(build)
+  buildRef.current = build
 
   useEffect(() => {
     const el = box.current
@@ -107,15 +110,8 @@ function CardThumb({ p }: { p: TargetPayload }) {
     if (!visible) return
     let url: string | null = null
     let cancelled = false
-    // The card only reads these fields; the rest of a Bout/Workout isn't
-    // part of a post, so it isn't invented here.
-    const bout = {
-      kind: 'precision', shotAt: p.shotAt, position: p.position, targetFaceId: p.targetFaceId,
-      bulletDiameterMm: p.bulletDiameterMm, shots: p.shots, metrics: p.metrics,
-    } as unknown as Bout
-    const workout = { name: p.workoutName, startedAt: p.shotAt } as unknown as Workout
     void (async () => {
-      const blob = await buildTargetShareImage(bout, workout)
+      const blob = await buildRef.current()
       const bitmap = await createImageBitmap(blob)
       // 2x for sharp screens; the full card is kept only as a blob until asked for.
       const canvas = document.createElement('canvas')
@@ -133,7 +129,7 @@ function CardThumb({ p }: { p: TargetPayload }) {
       cancelled = true
       if (url) URL.revokeObjectURL(url)
     }
-  }, [visible, p])
+  }, [visible, source])
 
   // The full-size URL only exists while the card is open.
   function open() {
@@ -144,7 +140,6 @@ function CardThumb({ p }: { p: TargetPayload }) {
     setFullUrl(null)
   }
 
-  const alt = `${p.position} target, ${p.metrics.ringTotal} out of ${p.metrics.ringPossible}`
   return (
     <>
       <button
@@ -155,21 +150,62 @@ function CardThumb({ p }: { p: TargetPayload }) {
         }}
       >
         {thumbUrl && <img src={thumbUrl} alt={alt} style={{ width: '100%', height: '100%', display: 'block' }} />}
-        {failed && (
-          <TargetPlot
-            shots={p.shots} position={p.position} metrics={p.metrics}
-            face={faceById(p.targetFaceId)} bulletDiameterMm={p.bulletDiameterMm} size={THUMB_W - 4}
-          />
-        )}
+        {failed && fallback}
       </button>
       {fullUrl && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Target card" onClick={close}>
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Card" onClick={close}>
           <div className="modal-card" style={{ padding: 12, maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
             <img src={fullUrl} alt={alt} style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', display: 'block', borderRadius: 8 }} />
             <button className="secondary" style={{ marginTop: 10 }} onClick={close}>Close</button>
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+/** The target's trading card as a thumbnail. The card only reads some fields; the rest of a Bout or
+ *  Workout isn't part of a post, so it isn't invented here. */
+function TargetThumb({ p }: { p: TargetPayload }) {
+  const bout = {
+    kind: 'precision', shotAt: p.shotAt, position: p.position, targetFaceId: p.targetFaceId,
+    bulletDiameterMm: p.bulletDiameterMm, shots: p.shots, metrics: p.metrics,
+  } as unknown as Bout
+  const workout = { name: p.workoutName, startedAt: p.shotAt } as unknown as Workout
+  return (
+    <CardThumb
+      source={p} build={() => buildTargetShareImage(bout, workout)}
+      alt={`${p.position} target, ${p.metrics.ringTotal} out of ${p.metrics.ringPossible}`}
+      fallback={
+        <TargetPlot
+          shots={p.shots} position={p.position} metrics={p.metrics}
+          face={faceById(p.targetFaceId)} bulletDiameterMm={p.bulletDiameterMm} size={THUMB_W - 4}
+        />
+      }
+    />
+  )
+}
+
+/** A posted combo, metal session or race result as its card, redrawn from the snapshot. */
+function MetalThumb({ kind, p }: { kind: 'combo' | 'metal'; p: MetalPayload }) {
+  const { title, detail } = postedHeadline(kind, p)
+  const build = () => {
+    const bouts = postedBouts(p)
+    const workout = postedWorkout(p)
+    return kind === 'combo' ? buildComboImage(workout, p.zone, bouts) : p.raceType ? buildRaceImage(workout, bouts) : buildMetalSessionImage(workout, bouts)
+  }
+  return <CardThumb source={p} build={build} alt={`${title}, ${detail}`} />
+}
+
+/** The line beside a posted card: what it is, how it went, and when. */
+function MetalSummary({ kind, p, trailing }: { kind: 'combo' | 'metal'; p: MetalPayload; trailing?: ReactNode }) {
+  const { title, detail } = postedHeadline(kind, p)
+  return (
+    <>
+      <div style={{ fontSize: 16, fontWeight: 600 }}>{title}</div>
+      <LastLine trailing={trailing}>
+        <div className="meta">{p.name ? `${p.name} · ` : ''}{detail}</div>
+      </LastLine>
     </>
   )
 }
@@ -492,9 +528,20 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
             </div>
           )
         }
+        if (post.kind === 'combo' || post.kind === 'metal') {
+          return (
+            <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <MetalThumb kind={post.kind} p={post.payload} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {header}
+                <MetalSummary kind={post.kind} p={post.payload} trailing={bell} />
+              </div>
+            </div>
+          )
+        }
         return post.kind === 'target' ? (
           <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <CardThumb p={post.payload} />
+            <TargetThumb p={post.payload} />
             <div style={{ flex: 1, minWidth: 0 }}>
               {header}
               <TargetSummary p={post.payload} trailing={bell} />
