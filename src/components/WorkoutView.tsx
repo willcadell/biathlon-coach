@@ -26,6 +26,7 @@ import { SensorSessionCard } from './SensorSessionCard'
 import { NationalTestCard, NationalTestView } from './NationalTestView'
 import { SaveTemplateCard, TemplateRunSteps, WorkoutChooser } from './TemplateViews'
 import { pendingAsShot, type ShotLike } from '../lib/templates'
+import { singleCombo } from '../lib/metalSummary'
 import { DryfireIcon, GoArrow, PencilIcon, RaceMedalIcon, RangeIcon, ShareIcon, TrashIcon } from './icons'
 
 const WIND_CLOCK_LABEL: Record<WindDirection, string> = {
@@ -585,12 +586,13 @@ function SessionComplete({
   const [choosing, setChoosing] = useState(false)
   // Which thing the share sheet is open for: one of this session's targets,
   // or the whole workout.
-  const [sheet, setSheet] = useState<{ bout?: Bout; metal?: boolean } | null>(null)
+  const [sheet, setSheet] = useState<{ bout?: Bout; metal?: boolean; combo?: boolean } | null>(null)
   const memberships = useMemberships()
   const best = bestBout(precisionBouts)
   const shownScore = useCountUp(best?.metrics.ringTotal ?? 0, 450, 600)
   const inOrder = [...precisionBouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
   const inClub = memberships !== null && memberships.length > 0
+  const onlyCombo = singleCombo(metalBouts)
 
   // One target has nothing to choose between, so it opens straight away;
   // with several, the button opens a list to pick from instead.
@@ -644,8 +646,9 @@ function SessionComplete({
         )}
       </div>
       {metalBouts.length > 0 && (
-        <button className="secondary" style={{ marginTop: 14, maxWidth: 320 }} onClick={() => setSheet({ metal: true })}>
-          <ShareIcon /> {workout.raceType ? 'Share race result as image' : 'Share metal session as image'}
+        // One image per combo: a session that is just one combo offers the combo's card, not a second, session-wide one.
+        <button className="secondary" style={{ marginTop: 14, maxWidth: 320 }} onClick={() => setSheet(onlyCombo ? { combo: true } : { metal: true })}>
+          <ShareIcon /> {onlyCombo ? 'Share combo as image' : workout.raceType ? 'Share race result as image' : 'Share metal session as image'}
         </button>
       )}
       {inClub && inOrder.length > 0 && (
@@ -653,7 +656,7 @@ function SessionComplete({
           Post this workout to the club feed
         </button>
       )}
-      {sheet && <ShareSheet bout={sheet.bout} workout={workout} metalBouts={sheet.metal ? metalBouts : undefined} onClose={() => setSheet(null)} onPostedDone={onDone} />}
+      {sheet && <ShareSheet bout={sheet.bout} workout={workout} metalBouts={sheet.metal ? metalBouts : undefined} combo={sheet.combo ? onlyCombo ?? undefined : undefined} onClose={() => setSheet(null)} onPostedDone={onDone} />}
     </div>
   )
 }

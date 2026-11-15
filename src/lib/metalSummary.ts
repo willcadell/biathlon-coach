@@ -80,3 +80,14 @@ export function summariseRace(raceType: RaceType, stagesIn: MetalBout[]): RaceSu
 }
 
 export const raceLabel = (raceType: RaceType): string => RACE_TYPE_LABEL[raceType]
+
+/** When every metal bout in a session is a round of one and the same combo, that combo: its target
+ *  zone and its rounds in the order shot. Otherwise null. The combo's own card already says all there
+ *  is to say about such a session, so a second, session-wide card would only repeat it. */
+export function singleCombo(bouts: MetalBout[]): { zone: number | null; rounds: MetalBout[] } | null {
+  if (bouts.length === 0) return null
+  const id = bouts[0].comboId
+  if (!id || bouts.some((b) => b.comboId !== id)) return null
+  const rounds = comboRounds(bouts)
+  return { zone: rounds[0].targetZone, rounds }
+}

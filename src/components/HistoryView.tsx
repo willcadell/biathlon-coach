@@ -3,6 +3,7 @@ import { clickSummary } from '../lib/clicks'
 import type { Bout, MetalBout, NationalTest, SensorSession, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, comboLabel, groupEntries, hitCount, hitsOf } from '../lib/metal'
+import { singleCombo } from '../lib/metalSummary'
 import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteSensorSession, deleteWorkout, putWorkout } from '../lib/db'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { errorMessage } from '../lib/errors'
@@ -525,7 +526,8 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         )}
 
         {shareSheet}
-        {!readOnly && ownMetal.length > 0 && (
+        {/* A session that is just one combo already has its combo card, from the icon above: no second card. */}
+        {!readOnly && ownMetal.length > 0 && !singleCombo(ownMetal) && (
           <button className="secondary" style={{ marginTop: 16 }} onClick={() => setSheet({ workout: openWorkout, metalBouts: ownMetal })}>
             <ShareIcon /> {openWorkout.raceType ? 'Share race result as image' : 'Share metal session as image'}
           </button>

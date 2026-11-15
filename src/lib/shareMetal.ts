@@ -90,11 +90,48 @@ function drawDot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
 
 const pct = (n: number) => `${Math.round(n)}%`
 
+/** A long combo in two columns: label, five dots and the round's hits, row after row down each
+ *  column. Up to 36 rounds fit; every combo, whatever its length, is one image. The range time and
+ *  heart rate are left off here, where there is no room for them: the figures are in the app. */
+function drawRoundGrid(ctx: CanvasRenderingContext2D, rounds: MetalBout[], prefix: string, dot: string, top: number, bottom: number) {
+  const MAX = 36
+  const shown = rounds.slice(0, MAX)
+  const perCol = Math.ceil(shown.length / 2)
+  const rowH = Math.min(76, (bottom - top) / perCol)
+  const dotR = Math.min(21, rowH * 0.3)
+  const colW = (WIDTH - 140) / 2
+  shown.forEach((b, i) => {
+    const col = i < perCol ? 0 : 1
+    const row = col === 0 ? i : i - perCol
+    const x0 = 70 + col * (colW + 0)
+    const cy = top + rowH * row + rowH / 2
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = COLORS.textPrimary
+    ctx.font = `700 ${Math.min(32, rowH * 0.46)}px ${FONT}`
+    ctx.fillText(`${prefix}${i + 1}`, x0, cy)
+    const hits = hitsOf(b)
+    METAL_TARGETS.forEach((t, k) => drawDot(ctx, x0 + 96 + k * (dotR * 2 + 8) + dotR, cy, dotR, hits[t], dot))
+    ctx.textAlign = 'right'
+    ctx.fillStyle = COLORS.textMuted
+    ctx.font = `600 ${Math.min(28, rowH * 0.42)}px ${FONT}`
+    ctx.fillText(`${METAL_TARGETS.filter((t) => hits[t]).length}/5`, x0 + colW - 30, cy)
+  })
+  ctx.textBaseline = 'alphabetic'
+  if (rounds.length > shown.length) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = COLORS.textMuted
+    ctx.font = `500 26px ${FONT}`
+    ctx.fillText(`+ ${rounds.length - shown.length} more`, WIDTH / 2, bottom + 30)
+  }
+}
+
 /** One row per round or stage: its label and position, the five targets as dots, and the range
  *  time and heart rate when any were recorded. Rows shrink as there are more; a dozen fit. */
 function drawRoundRows(ctx: CanvasRenderingContext2D, rounds: MetalBout[], prefix: string, dot: string) {
   const top = 520
   const bottom = 1120
+  if (rounds.length > 12) return drawRoundGrid(ctx, rounds, prefix, dot, top, bottom)
   const shown = rounds.slice(0, 12)
   const rowH = Math.min(104, (bottom - top) / Math.max(1, shown.length))
   const dotR = Math.min(30, rowH * 0.32)

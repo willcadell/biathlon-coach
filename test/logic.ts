@@ -24,7 +24,7 @@ import { ACROSS_STAGES, acrossScore, clock, scoreNationalTest, stageSecondsFromT
 import type { NationalTestStage } from '../src/lib/types.ts'
 import { formatRangeTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../src/lib/time.ts'
 import { timeline } from '../src/lib/metal.ts'
-import { comboRounds, summariseMetal, summariseRace } from '../src/lib/metalSummary.ts'
+import { comboRounds, singleCombo, summariseMetal, summariseRace } from '../src/lib/metalSummary.ts'
 import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
 import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
@@ -886,6 +886,10 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('race summary: a stage count against the format', sprintRace.expectedStages === 2 && sprintRace.complete && !summariseRace('individual', [mbx('i', 1, [])]).complete)
   ok('race summary: nothing missed is clean shooting', summariseRace('sprint', [mbx('c', 1, [])]).cleanShoot && summariseRace('sprint', [mbx('c', 1, [])]).penalty === 'Clean shooting')
   ok('race summary: no stages is not a clean race', !summariseRace('sprint', []).cleanShoot)
+  const inCombo = (id: string, at: number, combo: string | null) => mbx(id, at, [], { comboId: combo, targetZone: combo ? 3 : null })
+  ok('single combo: a session that is one combo, of any number of rounds', singleCombo([inCombo('x2', 2, 'c1'), inCombo('x1', 1, 'c1')])?.rounds.map((b) => b.id).join() === 'x1,x2' && singleCombo([inCombo('x1', 1, 'c1')])?.zone === 3)
+  ok('single combo: two combos, or a combo and a standalone bout, is not one', singleCombo([inCombo('a', 1, 'c1'), inCombo('b', 2, 'c2')]) === null && singleCombo([inCombo('a', 1, 'c1'), inCombo('b', 2, null)]) === null)
+  ok('single combo: standalone bouts and an empty session are not a combo', singleCombo([inCombo('a', 1, null)]) === null && singleCombo([]) === null)
   ok('metal summary: combo rounds come back in the order shot', comboRounds(bs).map((b) => b.id).join('') === 'bca')
 }
 
