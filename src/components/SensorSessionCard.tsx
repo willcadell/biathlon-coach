@@ -30,7 +30,7 @@ export function SensorSessionCard({ session, onDelete }: { session: SensorSessio
   const hold = holds.length ? (holds.reduce((a, b) => a + b, 0) / holds.length) * 10 : null     // 5 m millimetres to the 50 m range
 
   return (
-    <div className="card">
+    <div className="card dryfire-violet">
       <div className="sensor-head">
         <DryfireIcon size={26} />
         <div>

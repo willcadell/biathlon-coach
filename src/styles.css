@@ -596,13 +596,13 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .sensor-legend i { display: inline-block; width: 16px; height: 4px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
 .sensor-route-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 6px; }
 .sensor-route-head h3 { margin: 0; }
-.sensor-route-head .seg button { padding: 5px 10px; font-size: 12px; width: auto; }
+.sensor-route-head .seg button { padding: 5px 10px; font-size: 14px; width: auto; }
 .sensor-replay { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .sensor-replay > * { flex: none; }
-.sensor-replay button { width: auto; padding: 8px 12px; font-size: 13px; }
+.sensor-replay button { width: auto; padding: 8px 12px; font-size: 14px; }
 .sensor-replay input[type='range'] { flex: 1; min-width: 80px; accent-color: var(--series-1); }
-.sensor-replay select { width: auto; padding: 7px 6px; font-size: 13px; }
-.sensor-route-head button.secondary { width: auto; padding: 5px 10px; font-size: 12px; margin-left: auto; }
+.sensor-replay select { width: auto; padding: 7px 6px; font-size: 14px; }
+.sensor-route-head button.secondary { width: auto; padding: 5px 10px; font-size: 14px; margin-left: auto; }
 
 /* --- National Team test timer --------------------------------------------- */
 .count-in {
@@ -668,3 +668,45 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 .range-calc span { white-space: nowrap; font-size: 20px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .range-calc .op { font-size: 24px; color: var(--text-muted); padding-bottom: 2px; }
 .range-calc .final span { font-size: 34px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+
+/* Dry-fire's tools (the sensor trainer and its saved sessions) are dry-fire violet throughout. Only
+   finishing or cancelling the workout itself keeps its own colour. */
+.dryfire-violet button.primary, .dryfire-violet button.secondary {
+  background: color-mix(in srgb, var(--dryfire) 72%, black); border-color: transparent; color: #fff;
+}
+.dryfire-violet button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Choices (prone / standing, which bout) are violet either way; the chosen one is outlined and ticked. */
+.dryfire-violet .seg button {
+  background: color-mix(in srgb, var(--dryfire) 72%, black); border-color: transparent; color: #fff;
+}
+.dryfire-violet .seg button[aria-pressed='true'] {
+  font-weight: 700; outline: 3px solid var(--text-primary); outline-offset: 2px;
+}
+.dryfire-violet .seg button[aria-pressed='true']::before { content: '✓ '; }
+.dryfire-violet button.link { color: var(--dryfire); }
+.dryfire-violet .sensor-replay input[type='range'] { accent-color: var(--dryfire); }
+.dryfire-violet .sensor-route-head .seg button[aria-pressed='true']::before { content: none; }
+
+/* One type scale across the sensor trainer and its saved sessions: 18 px guide title, 14 px titles
+   and every button, 13 px supporting text and data, 11 px capitals labels. */
+.dryfire-violet h3 { font-size: 14px; }
+.dryfire-violet button.primary, .dryfire-violet button.secondary, .dryfire-violet .seg button { font-size: 14px; font-weight: 600; }
+.dryfire-violet .meta, .dryfire-violet .sensor-table, .dryfire-violet .sg-pip, .dryfire-violet .sensor-chip,
+.dryfire-violet summary { font-size: 13px; }
+.dryfire-violet .sensor-table, .dryfire-violet .meta, .dryfire-violet .sensor-replay { font-variant-numeric: tabular-nums; }
+.dryfire-violet .sensor-table th, .dryfire-violet .sg-step { font-size: 11px; }
+
+/* Sensor controls fill the box: Prone / Standing share one full row, and whichever action buttons
+   are showing (Connect and start, Calibrate again, Finish, Close) share one line below it, edge to edge. */
+.dryfire-violet .sensor-controls .seg { flex: 1 1 100%; }
+.dryfire-violet .sensor-controls > button { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; }
+.dryfire-violet .sensor-controls button, .dryfire-violet .seg button { white-space: nowrap; }
+
+/* Cancel in the sensor trainer is the red bin icon, as everywhere else, not dry-fire violet. */
+.dryfire-violet .sensor-controls > button.sensor-cancel {
+  flex: none; width: 44px; padding: 13px 0; background: transparent; color: var(--critical); border-color: var(--axis);
+}
+
+/* --- Metal bout: 5 for 5 --- */
+.five-for-five { color: var(--good); font-size: 16px; font-weight: 700; display: inline-block; animation: check-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) { .five-for-five { animation: none; } }

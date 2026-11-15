@@ -19,6 +19,7 @@ import { clockTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../lib/t
 import { RangeTimeField } from './RangeTimeField'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
+import { fireSmallConfetti } from './Confetti'
 import { SensorTrainerCard } from './SensorTrainer'
 import { DryfireTimer } from './DryfireTimer'
 import { SensorSessionCard } from './SensorSessionCard'
@@ -353,29 +354,28 @@ function ClickLog({ workout, onChange, onConfirmed }: { workout: Workout; onChan
  * getting missed show up later.
  */
 function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; onChange: (hits: Record<MetalTarget, boolean>) => void }) {
+  // Sized like the target circles in Analysis: five equal columns, each target a circle filling its
+  // column, with the name inside and type scaled from the circle (cqw) so it stays in proportion.
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6, maxWidth: 680, margin: '0 auto' }}>
       {METAL_TARGETS.map((t) => (
         <button
           key={t}
           type="button"
           aria-pressed={hits[t]}
+          aria-label={`${t}, ${hits[t] ? 'hit' : 'not hit'}`}
           onClick={() => onChange({ ...hits, [t]: !hits[t] })}
           style={{
-            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-            background: 'none', border: 0, cursor: 'pointer', padding: '4px 0',
+            aspectRatio: '1', borderRadius: '50%', minWidth: 0, padding: 0, cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+            containerType: 'inline-size', boxSizing: 'border-box',
+            background: hits[t] ? 'var(--raised)' : 'var(--series-1)',
+            border: '3px solid var(--series-1)',
+            color: hits[t] ? 'var(--series-1)' : '#fff',
           }}
         >
-          <span
-            aria-hidden="true"
-            style={{
-              width: 40, height: 40, borderRadius: '50%',
-              background: hits[t] ? 'var(--raised)' : 'var(--series-1)',
-              border: '2.5px solid var(--series-1)',
-              boxSizing: 'border-box',
-            }}
-          />
-          <span className="meta" style={{ textTransform: 'capitalize' }}>{t}</span>
+          <span style={{ fontSize: 'max(10px, 15cqw)', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'capitalize' }}>{t}</span>
+          <span aria-hidden="true" style={{ fontSize: 'max(14px, 30cqw)', fontWeight: 700, lineHeight: 1 }}>{hits[t] ? '✓' : ''}</span>
         </button>
       ))}
     </div>
@@ -407,6 +407,7 @@ function MetalForm({
   const [rangeSeconds, setRangeSeconds] = useState<number | undefined>(initial?.rangeSeconds)
   const [timing, setTiming] = useState(false)
   // The two optional measures: shown once added, or when an edited bout already has them.
+  const downNow = hitCount(hits)
   const [showHr, setShowHr] = useState((initial?.heartRate ?? 0) > 0)
   const [showRange, setShowRange] = useState((initial?.rangeSeconds ?? 0) > 0)
   // When it was shot: stamped as the form opens, so the time is close to the shooting, not to the
@@ -433,6 +434,9 @@ function MetalForm({
     }
     try {
       await putMetalBout(bout)
+      // A clean bout is celebrated once it is saved (the form is about to close, so the confetti is
+      // mounted outside it). Re-saving a bout that was already 5 for 5 does not repeat it.
+      if (downNow === DISCS_PER_METAL_BOUT && !(initial && hitCount(hitsOf(initial)) === DISCS_PER_METAL_BOUT)) fireSmallConfetti()
       onSaved()
     } catch (e) {
       setError(errorMessage(e, 'Could not save this bout. Check your connection and try again.'))
@@ -442,8 +446,7 @@ function MetalForm({
 
   return (
     <>
-      <h1>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? `${comboLabel(comboZone ?? null)} round` : 'Metal bout')}</h1>
-      <p className="lede">Five targets, prone or standing. Tap the ones that fell.</p>
+      <h1 style={{ marginBottom: 14 }}>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? `${comboLabel(comboZone ?? null)} round` : 'Metal bout')}</h1>
       <div className="card">
         {!initial && presetPosition ? (
           <p className="meta" style={{ marginTop: 0 }}>{presetPosition === 'prone' ? 'Prone' : 'Standing'}, set by the race format.</p>
@@ -460,7 +463,9 @@ function MetalForm({
           </label>
         )}
         <label className="field">
-          <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
+          <span>Targets<small>{downNow === DISCS_PER_METAL_BOUT
+            ? <b className="five-for-five">5 for 5! A clean bout.</b>
+            : `${downNow}/${DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.`}</small></span>
           <TargetDial hits={hits} onChange={setHits} />
         </label>
         <div className="field">

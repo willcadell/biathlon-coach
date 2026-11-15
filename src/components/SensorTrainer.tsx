@@ -6,7 +6,7 @@ import {
 } from '../lib/sensor'
 import type { Position, SensorShot } from '../lib/types'
 import { sensorShotsFrom } from '../lib/sensorStats'
-import { DryfireIcon } from './icons'
+import { DryfireIcon, TrashIcon } from './icons'
 import { SensorReplay } from './SensorReplay'
 import { RouteLegend, SensorRoute } from './SensorRoute'
 import { SensorTargets, type GuideState, type ShotMark } from './SensorTargets'
@@ -47,7 +47,7 @@ export function SensorTrainerCard({ position, onFinish }: { position: Position; 
   const [open, setOpen] = useState(false)
   if (!support.ok) return null
   return (
-    <div className="card">
+    <div className="card dryfire-violet">
       <div className="sensor-head">
         <DryfireIcon size={26} />
         <div>
@@ -277,7 +277,9 @@ function SensorSession({ position: initialPosition, onClose, onFinish }: { posit
         {!running && <button className="primary" disabled={phase === 'connecting'} onClick={() => void start()}>{phase === 'connecting' ? 'Connecting…' : phase === 'review' ? 'Start another' : 'Connect and start'}</button>}
         {running && phase === 'shooting' && <button className="secondary" onClick={() => beginCalibration()}>Calibrate again</button>}
         {running && <button className="secondary" onClick={() => void finish()}>Finish</button>}
-        {(phase === 'idle' || phase === 'review') && <button className="secondary" onClick={onClose}>Close</button>}
+        {(phase === 'idle' || phase === 'review') && (
+          <button className="secondary danger sensor-cancel" aria-label="Cancel" title="Cancel" onClick={onClose}><TrashIcon /></button>
+        )}
       </div>
 
       {status === 'ready' && !running && <p className="meta">Receiver connected.</p>}
