@@ -141,6 +141,23 @@ export async function myProgramGoals(): Promise<{ goal: Goal; programName: strin
   return goals.map((goal) => ({ goal, programName: nameById.get(goal.programId as string) ?? '' }))
 }
 
+/** The program goals this athlete has archived from their own page, with when. Only theirs: the
+ *  database hands over nothing else. Archiving here hides the goal from this athlete alone. */
+export async function myDismissedProgramGoals(): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from('goal_dismissals').select('goal_id, dismissed_at').eq('athlete_id', await currentUserId())
+  if (error) throw error
+  return new Map((data ?? []).map((r) => [r.goal_id as string, r.dismissed_at as string]))
+}
+
+/** Archives a program goal from this athlete's page, or brings it back. */
+export async function setProgramGoalDismissed(goalId: string, dismissed: boolean): Promise<void> {
+  const athleteId = await currentUserId()
+  const { error } = dismissed
+    ? await supabase.from('goal_dismissals').upsert({ goal_id: goalId, athlete_id: athleteId })
+    : await supabase.from('goal_dismissals').delete().eq('goal_id', goalId).eq('athlete_id', athleteId)
+  if (error) throw error
+}
+
 export async function createProgramGoal(programId: string, g: ProgramGoalInput): Promise<void> {
   const { error } = await supabase.from('goals').insert({
     scope: 'program',

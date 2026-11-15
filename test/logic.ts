@@ -18,12 +18,13 @@ import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats 
 import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
-import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
+import { applyDismissals, canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 import { ACROSS_STAGES, acrossScore, clock, scoreNationalTest, stageSecondsFromTaps, standardFor, testBouts, testParts } from '../src/lib/nationalTest.ts'
 import type { NationalTestStage } from '../src/lib/types.ts'
 import { formatRangeTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../src/lib/time.ts'
 import { timeline } from '../src/lib/metal.ts'
+import { comboRounds, summariseMetal, summariseRace } from '../src/lib/metalSummary.ts'
 import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
 import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
@@ -654,6 +655,16 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('goal: live filter hides archived goals only', goalsFor(rows, 'live').length === 2 && goalsFor(rows, 'live').every(({ g }) => !g.archivedAt))
   ok('goal: all filter shows archived goals too', goalsFor(rows, 'all').length === 3)
   ok('goal: only a finished goal can be archived', !canArchive(rows[0].p) && canArchive(rows[1].p))
+  // An athlete archiving a program goal from their own page
+  const programRow = (id: string, over: Partial<Goal> = {}) => { const r = rowOf({ id, scope: 'program', metric: 'dryfire_minutes', endsOn: '2026-09-15', ...over }); return r }
+  const dismissRows = [programRow('p1'), programRow('p2'), programRow('p3', { archivedAt: day(10) }), rowOf({ id: 'own' })]
+  const dismissedAt = new Map([['p1', day(16)], ['p3', day(17)], ['own', day(17)]])
+  const applied = applyDismissals(dismissRows, dismissedAt)
+  ok('goal: a program goal the athlete archived is archived on their page', applied[0].g.archivedAt === day(16) && goalsFor(applied, 'live').map(({ g }) => g.id).join() === 'p2,own')
+  ok('goal: a program goal they have not archived stays live', applied[1].g.archivedAt === null || applied[1].g.archivedAt === undefined)
+  ok("goal: a coach's archive keeps the coach's date", applied[2].g.archivedAt === day(10))
+  ok('goal: the athlete switch never touches their own goals', applied[3].g.archivedAt === dismissRows[3].g.archivedAt)
+  ok('goal: nothing dismissed changes nothing', applyDismissals(dismissRows, new Map()).every((r, i) => r === dismissRows[i]))
   const won = rowOf({ achievedAt: day(14), achievedValue: 90 })
   ok('goal: an achieved goal not yet celebrated is celebrated', needsCelebration(won.g, won.p))
   ok('goal: it is celebrated only once', !needsCelebration(...((r) => [r.g, r.p] as const)(rowOf({ achievedAt: day(14), achievedValue: 90, celebratedAt: day(15) }))))
@@ -846,6 +857,36 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('range time: a minute or more reads as m:ss.t', formatRangeTime(65.3) === '1:05.3' && formatRangeTime(120) === '2:00.0')
   ok('range time: the meta note is empty when untimed', rangeTimeNote(undefined) === '' && rangeTimeNote(0) === '')
   ok('range time: the meta note leads with a separator', rangeTimeNote(34.2) === ' · 34.2 s range')
+}
+
+// Metal summary (the shareable session and combo cards)
+{
+  const mbx = (id: string, at: number, missed: MetalTarget[], over: Partial<MetalBout> = {}): MetalBout => ({
+    kind: 'metal', id, workoutId: 'w', shotAt: new Date(2026, 10, 14, 10, at).toISOString(), position: 'prone', heartRate: 0, comboId: null, targetZone: null,
+    hits: Object.fromEntries(METAL_TARGETS.map((t) => [t, !missed.includes(t)])) as Record<MetalTarget, boolean>, ...over,
+  })
+  const bs = [
+    mbx('a', 3, [], { heartRate: 150, rangeSeconds: 30 }),
+    mbx('b', 1, ['beta', 'echo'], { position: 'standing', heartRate: 160, rangeSeconds: 40.5 }),
+    mbx('c', 2, ['alpha']),
+  ]
+  const sm = summariseMetal(bs)
+  ok('metal summary: hits, shots and rate', sm.bouts === 3 && sm.shots === 15 && sm.hits === 12 && Math.abs(sm.hitRatePct - 80) < 1e-9)
+  ok('metal summary: clean bouts are all five down', sm.clean === 1)
+  ok('metal summary: prone against standing', sm.byPosition.length === 2 && sm.byPosition.find((p) => p.position === 'prone')!.bouts === 2 && Math.round(sm.byPosition.find((p) => p.position === 'standing')!.hitRatePct) === 60)
+  ok('metal summary: a rate for each of the five targets', sm.byTarget.length === 5 && sm.byTarget[1].hitRatePct === 67 && sm.byTarget[2].hitRatePct === 100)
+  ok('metal summary: heart rate and range time average only what was recorded', sm.avgHeartRate === 155 && sm.avgRangeSeconds === 35.3 && sm.timedBouts === 2 && sm.bestRangeSeconds === 30)
+  const none = summariseMetal([mbx('d', 1, [])])
+  ok('metal summary: untimed bouts have no range time or heart rate', none.avgHeartRate === null && none.avgRangeSeconds === null && none.bestRangeSeconds === null)
+  ok('metal summary: nothing shot is a zero rate, not NaN', summariseMetal([]).hitRatePct === 0 && summariseMetal([]).bouts === 0)
+  const sprintRace = summariseRace('sprint', [mbx('s2', 20, ['delta', 'echo'], { position: 'standing' }), mbx('s1', 10, [])])
+  ok('race summary: stages in the order shot, hits and misses', sprintRace.stages.map((b) => b.id).join() === 's1,s2' && sprintRace.hits === 8 && sprintRace.misses === 2)
+  ok('race summary: a sprint miss is a penalty loop', sprintRace.penalty === '2 penalty loops' && !sprintRace.cleanShoot)
+  ok('race summary: an individual miss is a penalty minute', summariseRace('individual', [mbx('i', 1, ['alpha'])]).penalty === '1 penalty minute')
+  ok('race summary: a stage count against the format', sprintRace.expectedStages === 2 && sprintRace.complete && !summariseRace('individual', [mbx('i', 1, [])]).complete)
+  ok('race summary: nothing missed is clean shooting', summariseRace('sprint', [mbx('c', 1, [])]).cleanShoot && summariseRace('sprint', [mbx('c', 1, [])]).penalty === 'Clean shooting')
+  ok('race summary: no stages is not a clean race', !summariseRace('sprint', []).cleanShoot)
+  ok('metal summary: combo rounds come back in the order shot', comboRounds(bs).map((b) => b.id).join('') === 'bca')
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

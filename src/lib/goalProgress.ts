@@ -150,6 +150,16 @@ export const goalsFor = <T extends { g: Goal }>(rows: T[], filter: GoalFilter): 
 /** Only a finished goal — met, or past its end date — can be archived. */
 export const canArchive = (p: GoalProgress) => p.status !== 'active'
 
+/** Marks the program goals an athlete archived from their own page as archived, for their view only.
+ *  A goal a coach already archived keeps the coach's date: that one is hidden for everyone, and the
+ *  athlete's own switch does not change it. Athlete-scope goals are never touched. */
+export function applyDismissals<T extends { g: Goal }>(rows: T[], dismissed: Map<string, string>): T[] {
+  return rows.map((r) =>
+    r.g.scope === 'program' && !r.g.archivedAt && dismissed.has(r.g.id)
+      ? { ...r, g: { ...r.g, archivedAt: dismissed.get(r.g.id) as string } }
+      : r)
+}
+
 /** Achieved, and the athlete hasn't yet been shown the celebration for it. */
 export const needsCelebration = (goal: Goal, p: GoalProgress) =>
   p.status === 'achieved' && !goal.celebratedAt && !goal.archivedAt

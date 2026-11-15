@@ -572,18 +572,20 @@ function useCountUp(target: number, delayMs: number, durationMs: number): number
  *  before dropping back to "Start a session", with a one-tap route into
  *  sharing the session's best target right when it's most relevant. */
 function SessionComplete({
-  workout, precisionBouts, onDone, saveAsTemplate,
+  workout, precisionBouts, onDone, saveAsTemplate, metalBouts = [],
 }: {
   workout: Workout
   precisionBouts: Bout[]
   onDone: () => void
   /** Present when this session can be kept as a template: its bouts, and how to save. */
   saveAsTemplate?: { entries: ShotLike[]; onSave: (name: string, steps: TemplateStep[]) => Promise<void> }
+  /** This session's metal bouts, to offer the metal card as an image. */
+  metalBouts?: MetalBout[]
 }) {
   const [choosing, setChoosing] = useState(false)
   // Which thing the share sheet is open for: one of this session's targets,
   // or the whole workout.
-  const [sheet, setSheet] = useState<{ bout?: Bout } | null>(null)
+  const [sheet, setSheet] = useState<{ bout?: Bout; metal?: boolean } | null>(null)
   const memberships = useMemberships()
   const best = bestBout(precisionBouts)
   const shownScore = useCountUp(best?.metrics.ringTotal ?? 0, 450, 600)
@@ -641,12 +643,17 @@ function SessionComplete({
           </button>
         )}
       </div>
+      {metalBouts.length > 0 && (
+        <button className="secondary" style={{ marginTop: 14, maxWidth: 320 }} onClick={() => setSheet({ metal: true })}>
+          <ShareIcon /> {workout.raceType ? 'Share race result as image' : 'Share metal session as image'}
+        </button>
+      )}
       {inClub && inOrder.length > 0 && (
         <button className="link" style={{ marginTop: 14 }} onClick={() => setSheet({})}>
           Post this workout to the club feed
         </button>
       )}
-      {sheet && <ShareSheet bout={sheet.bout} workout={workout} onClose={() => setSheet(null)} onPostedDone={onDone} />}
+      {sheet && <ShareSheet bout={sheet.bout} workout={workout} metalBouts={sheet.metal ? metalBouts : undefined} onClose={() => setSheet(null)} onPostedDone={onDone} />}
     </div>
   )
 }
@@ -1072,7 +1079,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
   if (complete) {
     return (
       <SessionComplete
-        workout={workout} precisionBouts={precisionBouts} onDone={handleDone}
+        workout={workout} precisionBouts={precisionBouts} metalBouts={metalBouts} onDone={handleDone}
         // Only a free-form range session offers to become a template: a race has its own
         // fixed stages, and one that followed a template or the test already is one.
         saveAsTemplate={!workout.raceType && workout.workoutType === 'range' && !workout.template && !nationalTest && shotSoFar.length > 0 && onSaveTemplate

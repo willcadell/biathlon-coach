@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Goal } from '../lib/goalProgress'
-import type { Bout, Workout } from '../lib/types'
+import type { Bout, MetalBout, Workout } from '../lib/types'
 import { errorMessage } from '../lib/errors'
 import { postGoal, postToFeed, useMemberships } from '../lib/feed'
 import { shareTargetImage } from '../lib/share'
+import { shareComboImage, shareMetalSessionImage } from '../lib/shareMetal'
 import { ShareIcon } from './icons'
 
 /**
@@ -14,9 +15,13 @@ import { ShareIcon } from './icons'
  * plainly who will see it before the athlete taps.
  */
 export function ShareSheet({
-  bout, workout, goal, onClose, onPostedDone,
+  bout, workout, goal, metalBouts, combo, onClose, onPostedDone,
 }: {
   bout?: Bout
+  /** With a workout: share that session's metal as an image card. Image only, nothing to post. */
+  metalBouts?: MetalBout[]
+  /** With a workout: share one combo's rounds as an image card. Image only. */
+  combo?: { zone: number | null; rounds: MetalBout[] }
   /** Required for a target or a workout; a goal stands on its own. */
   workout?: Workout
   /** An achieved goal to post — only ever posted, there's no image of one. */
@@ -33,11 +38,13 @@ export function ShareSheet({
   const [error, setError] = useState('')
 
   async function shareImage() {
-    if (!bout || !workout) return
+    if (!workout || !(bout || metalBouts || combo)) return
     setBusy('image')
     setError('')
     try {
-      await shareTargetImage(bout, workout)
+      if (combo) await shareComboImage(workout, combo.zone, combo.rounds)
+      else if (metalBouts) await shareMetalSessionImage(workout, metalBouts)
+      else if (bout) await shareTargetImage(bout, workout)
       onClose()
     } catch (e) {
       // Closing the share sheet without choosing anything is a cancel, not a failure.
@@ -71,7 +78,9 @@ export function ShareSheet({
     return () => clearTimeout(t)
   }, [posted])
 
-  const noun = goal ? 'goal' : bout ? 'target' : 'workout'
+  // A metal card is an image only: posting would put the whole workout out, not this card.
+  const imageOnly = Boolean(metalBouts || combo)
+  const noun = goal ? 'goal' : combo ? 'combo' : metalBouts ? (workout?.raceType ? 'race result' : 'metal session') : bout ? 'target' : 'workout'
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={`Share this ${noun}`}>
@@ -90,13 +99,13 @@ export function ShareSheet({
           <>
             {error && <div className="notice error" style={{ marginBottom: 12 }}>{error}</div>}
 
-            {bout && (
+            {(bout || imageOnly) && (
               <button className="secondary" style={{ marginBottom: 10 }} disabled={busy !== null} onClick={() => void shareImage()}>
                 <ShareIcon /> {busy === 'image' ? 'Preparing…' : 'Share as image'}
               </button>
             )}
 
-            {memberships !== null && memberships.length > 0 && (
+            {!imageOnly && memberships !== null && memberships.length > 0 && (
               <>
                 {memberships.map((m) => (
                   <button
@@ -113,7 +122,7 @@ export function ShareSheet({
                 </p>
               </>
             )}
-            {memberships !== null && memberships.length === 0 && !bout && (
+            {!imageOnly && memberships !== null && memberships.length === 0 && !bout && (
               <p className="meta">Join a club from your Profile to post {goal ? 'goals' : 'workouts'} to its feed.</p>
             )}
 

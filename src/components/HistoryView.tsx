@@ -205,8 +205,9 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // What the share sheet is open for: a target, or (no bout) a whole workout.
-  const [sheet, setSheet] = useState<{ bout?: Bout; workout: Workout } | null>(null)
-  const shareSheet = sheet ? <ShareSheet bout={sheet.bout} workout={sheet.workout} onClose={() => setSheet(null)} /> : null
+  // Or a metal card: the session's metal bouts, or one combo's rounds.
+  const [sheet, setSheet] = useState<{ bout?: Bout; workout: Workout; metalBouts?: MetalBout[]; combo?: { zone: number | null; rounds: MetalBout[] } } | null>(null)
+  const shareSheet = sheet ? <ShareSheet bout={sheet.bout} workout={sheet.workout} metalBouts={sheet.metalBouts} combo={sheet.combo} onClose={() => setSheet(null)} /> : null
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -432,9 +433,20 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         {groupEntries(entries).map((e) =>
           'rounds' in e ? (
             <div key={e.comboId} className="card">
-              <div className="title" style={{ marginBottom: 8 }}>
-                {comboLabel(e.targetZone)} · {e.rounds.length} round{e.rounds.length === 1 ? '' : 's'} ·{' '}
-                {e.rounds.reduce((n, r) => n + hitCount(hitsOf(r)), 0)}/{e.rounds.length * DISCS_PER_METAL_BOUT} hits
+              <div className="title" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  {comboLabel(e.targetZone)} · {e.rounds.length} round{e.rounds.length === 1 ? '' : 's'} ·{' '}
+                  {e.rounds.reduce((n, r) => n + hitCount(hitsOf(r)), 0)}/{e.rounds.length * DISCS_PER_METAL_BOUT} hits
+                </span>
+                {!readOnly && (
+                  <button
+                    className="link" style={{ flex: 'none' }}
+                    aria-label="Share this combo as an image" title="Share this combo as an image"
+                    onClick={() => setSheet({ workout: openWorkout, combo: { zone: e.targetZone, rounds: e.rounds } })}
+                  >
+                    <ShareIcon />
+                  </button>
+                )}
               </div>
               {e.rounds.map((r, i) => (
                 <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
@@ -445,7 +457,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                   </span>
                   {!readOnly && (
                     <button
-                      className="link danger"
+                      className="link danger" style={{ flex: 'none' }}
                       aria-label="Remove"
                       onClick={async () => {
                         if (!confirm('Delete this round?')) return
@@ -513,6 +525,11 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
         )}
 
         {shareSheet}
+        {!readOnly && ownMetal.length > 0 && (
+          <button className="secondary" style={{ marginTop: 16 }} onClick={() => setSheet({ workout: openWorkout, metalBouts: ownMetal })}>
+            <ShareIcon /> {openWorkout.raceType ? 'Share race result as image' : 'Share metal session as image'}
+          </button>
+        )}
         <div className="row" style={{ marginTop: 16 }}>
           {!readOnly && (
             <>

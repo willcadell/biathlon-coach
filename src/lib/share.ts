@@ -3,17 +3,17 @@ import type { Bout, Position, Workout } from './types'
 import { HIT_ZONE_MM, faceById } from './types'
 import { ringRadii } from './scoring'
 
-const WIDTH = 1080
-const HEIGHT = 1350
+export const WIDTH = 1080
+export const HEIGHT = 1350
 
-const APP_URL = 'https://545.coach'
+export const APP_URL = 'https://545.coach'
 
 // Fixed literal colors, independent of the viewer's own light/dark theme —
 // a shared image should look the same to everyone it's shared with, not
 // shift with whoever generated it. Values mirror the app's own light-theme
 // tokens (styles.css :root) rather than inventing a separate palette, so a
 // shared card, the icon, and the app itself all read as one brand.
-const COLORS = {
+export const COLORS = {
   paperBase: '#f7f6f2', // ~ --page
   paper: '#ffffff', // ~ --raised — target disc + QR backing
   targetBlack: '#17181c', // the target's own scoring black, not a UI colour
@@ -39,7 +39,7 @@ const POSITION_LABEL: Record<Position, string> = { prone: 'Prone', standing: 'St
  *  brand colours; Elite gets a one-off gold as its celebratory exception.
  *  Tagline stays encouraging at the low end, same spirit as diagnostics.ts
  *  staying conservative rather than ever reading as a scolding. */
-interface Tier {
+export interface Tier {
   name: string
   tagline: string
   wash: string
@@ -53,7 +53,7 @@ export function tierFor(pct: number): Tier {
   return { name: 'LOGGED', tagline: 'Logged and learning.', wash: '#9aa0a8', deep: '#6b6f76' }
 }
 
-function hexToRgba(hex: string, alpha: number): string {
+export function hexToRgba(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16)
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
 }
@@ -152,7 +152,7 @@ function drawTargetDiagram(ctx: CanvasRenderingContext2D, bout: Bout, cx: number
   })
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number): number {
+export function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number): number {
   const words = text.split(' ')
   let line = ''
   let cy = y
@@ -172,7 +172,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
 
 /** A tier-graded corner badge — the closest thing this card has to foil on
  *  a physical trading card. */
-function drawBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
+export function drawBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
   ctx.save()
   ctx.font = '800 26px -apple-system, sans-serif'
   const textWidth = ctx.measureText(tier.name).width
@@ -202,7 +202,7 @@ function drawBadge(ctx: CanvasRenderingContext2D, tier: Tier) {
 
 /** A QR square with its own light backing and a hairline border, so it stays
  *  scannable and visually distinct on the card's own light background. */
-async function drawQrCode(ctx: CanvasRenderingContext2D, url: string, x: number, y: number, size: number) {
+export async function drawQrCode(ctx: CanvasRenderingContext2D, url: string, x: number, y: number, size: number) {
   const pad = 16
   ctx.fillStyle = COLORS.paper
   ctx.fillRect(x - pad, y - pad, size + pad * 2, size + pad * 2)
@@ -301,12 +301,32 @@ export async function buildTargetShareImage(bout: Bout, workout: Workout): Promi
     90 + qrSize + 32, footerY + 112,
   )
 
+  return canvasToBlob(canvas)
+}
+
+export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
       else reject(new Error('Could not export this image.'))
     }, 'image/png')
   })
+}
+
+/** Hands an image to the OS share sheet, or downloads it where file sharing is not available
+ *  (mainly desktop browsers without the Web Share API). */
+export async function deliverImage(blob: Blob, fileName: string, title: string, text: string): Promise<void> {
+  const file = new File([blob], fileName, { type: 'image/png' })
+  if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title, text })
+    return
+  }
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.name
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function shareFileName(bout: Bout, workout: Workout): string {
@@ -325,15 +345,5 @@ export async function shareTargetImage(bout: Bout, workout: Workout): Promise<vo
   const title = workout.name || 'Precision bout'
   const text = `${bout.metrics.ringTotal}/${bout.metrics.ringPossible} — ${POSITION_LABEL[bout.position]}`
 
-  if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title, text })
-    return
-  }
-
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = file.name
-  a.click()
-  URL.revokeObjectURL(url)
+  await deliverImage(blob, file.name, title, text)
 }

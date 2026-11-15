@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  canArchive, evaluateGoal, evaluateProgramGoal, formatValue, goalTitle, goalsFor, needsCelebration, newlyAchieved,
+  applyDismissals, canArchive, evaluateGoal, evaluateProgramGoal, formatValue, goalTitle, goalsFor, needsCelebration, newlyAchieved,
   type Goal, type GoalData, type GoalFilter, type GoalProgress,
 } from '../lib/goalProgress'
 import {
-  markGoalAchieved, markGoalsCelebrated, myGoals, myProgramGoals, programGoalProgress, setGoalArchived, sharedGoalsOf,
+  markGoalAchieved, markGoalsCelebrated, myDismissedProgramGoals, myGoals, myProgramGoals, programGoalProgress, setGoalArchived, setProgramGoalDismissed, sharedGoalsOf,
 } from '../lib/goals'
 import { Confetti } from './Confetti'
 import { GoalRow } from './GoalRow'
@@ -37,6 +37,8 @@ export function GoalsProgress({ data }: { data: GoalData }) {
   // Goals a coach set for the athlete's program, with the program's totals from
   // the server. Read-only here: the athlete can't archive or change them.
   const [programRows, setProgramRows] = useState<{ g: Goal; p: GoalProgress; programName: string }[]>([])
+  // Program goals this athlete has archived from their own page (goal id -> when). Private to them.
+  const [dismissed, setDismissed] = useState<Map<string, string>>(new Map())
   const recorded = useRef(new Set<string>())
   const celebrated = useRef(new Set<string>())
 
@@ -57,6 +59,13 @@ export function GoalsProgress({ data }: { data: GoalData }) {
       }))
       if (!cancelled) setProgramRows(rows)
     })().catch(() => undefined) // program goals are an extra: the athlete's own goals work without them
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    // An extra: without it (or before its migration) every program goal simply stays live.
+    void myDismissedProgramGoals().then((m) => { if (!cancelled) setDismissed(m) }).catch(() => undefined)
     return () => { cancelled = true }
   }, [])
 
@@ -87,6 +96,21 @@ export function GoalsProgress({ data }: { data: GoalData }) {
     setGoals((prev) => prev && prev.map((x) => (ids.includes(x.id) ? { ...x, celebratedAt: new Date().toISOString() } : x)))
   }, [goals, data, celebrating])
 
+  async function dismissProgram(g: Goal, hide: boolean) {
+    const set = (on: boolean) => setDismissed((prev) => {
+      const next = new Map(prev)
+      if (on) next.set(g.id, new Date().toISOString())
+      else next.delete(g.id)
+      return next
+    })
+    set(hide)
+    try {
+      await setProgramGoalDismissed(g.id, hide)
+    } catch {
+      set(!hide)
+    }
+  }
+
   async function archive(g: Goal, archived: boolean) {
     const at = archived ? new Date().toISOString() : null
     setGoals((prev) => prev && prev.map((x) => (x.id === g.id ? { ...x, archivedAt: at } : x)))
@@ -100,7 +124,12 @@ export function GoalsProgress({ data }: { data: GoalData }) {
   if (!goals || (goals.length === 0 && programRows.length === 0)) return null
   const programName = new Map(programRows.map((r) => [r.g.id, r.programName]))
   // The program's goals first, then the athlete's own.
-  const rows = [...programRows.map(({ g, p }) => ({ g, p })), ...goals.map((g) => ({ g, p: evaluateGoal(g, data) }))]
+  // A program goal the athlete archived is treated as archived on their page; one a coach archived
+  // already is, for everyone, and is theirs to restore.
+  const rows = applyDismissals(
+    [...programRows.map(({ g, p }) => ({ g, p })), ...goals.map((g) => ({ g, p: evaluateGoal(g, data) }))],
+    dismissed,
+  )
   const shown = goalsFor(rows, filter)
   const hiddenCount = rows.length - goalsFor(rows, 'live').length
 
@@ -140,7 +169,16 @@ export function GoalsProgress({ data }: { data: GoalData }) {
                 <GoalRow
                   key={g.id} goal={g} progress={p} archived={Boolean(g.archivedAt)}
                   tag={g.scope === 'program' ? programName.get(g.id) || 'Program' : undefined}
-                  action={g.scope === 'program' ? undefined : (
+                  action={g.scope === 'program' ? (
+                    // The athlete can tidy an ended program goal off their own page; a coach's archive is not theirs to undo.
+                    dismissed.has(g.id) ? (
+                      <button className="link" style={{ flex: 'none' }} onClick={() => void dismissProgram(g, false)}>Restore</button>
+                    ) : !g.archivedAt && canArchive(p) ? (
+                      <button className="link" style={{ flex: 'none' }} aria-label={`Archive the goal ${goalTitle(g)}`} title="Archive this goal on your page" onClick={() => void dismissProgram(g, true)}>
+                        <ArchiveIcon />
+                      </button>
+                    ) : undefined
+                  ) : (
                     <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
                       {p.status === 'achieved' && !g.archivedAt && (
                         <button className="link" style={{ flex: 'none' }} aria-label={`Share the goal ${goalTitle(g)}`} title="Share this goal" onClick={() => setSharing(g)}>

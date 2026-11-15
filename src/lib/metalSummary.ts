@@ -1,0 +1,82 @@
+import { DISCS_PER_METAL_BOUT, hitCount, hitsOf, metalStats, targetStats, type MetalStat, type TargetStat } from './metal'
+import { RACE_STAGES, RACE_TYPE_LABEL, type MetalBout, type RaceType } from './types'
+
+/** What a shareable metal card says about a set of bouts: a whole session's metal, or one combo's
+ *  rounds. Everything is worked out here, from the bouts alone, so the card only has to draw it. */
+export interface MetalSummary {
+  bouts: number
+  shots: number
+  hits: number
+  /** Hits over shots, 0-100. */
+  hitRatePct: number
+  /** Bouts with all five down. */
+  clean: number
+  byPosition: MetalStat[]
+  byTarget: TargetStat[]
+  /** Mean heart rate on entry across the bouts that recorded one, or null. */
+  avgHeartRate: number | null
+  /** Mean range time (seconds) across the bouts that were timed, or null. */
+  avgRangeSeconds: number | null
+  timedBouts: number
+  bestRangeSeconds: number | null
+}
+
+const mean = (xs: number[]) => (xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / xs.length)
+
+export function summariseMetal(bouts: MetalBout[]): MetalSummary {
+  const ordered = [...bouts].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
+  const shots = ordered.length * DISCS_PER_METAL_BOUT
+  const hits = ordered.reduce((n, b) => n + hitCount(hitsOf(b)), 0)
+  const hrs = ordered.filter((b) => b.heartRate > 0).map((b) => b.heartRate)
+  const times = ordered.filter((b) => (b.rangeSeconds ?? 0) > 0).map((b) => b.rangeSeconds as number)
+  const avgHr = mean(hrs)
+  const avgTime = mean(times)
+  return {
+    bouts: ordered.length,
+    shots,
+    hits,
+    hitRatePct: shots > 0 ? (hits / shots) * 100 : 0,
+    clean: ordered.filter((b) => hitCount(hitsOf(b)) === DISCS_PER_METAL_BOUT).length,
+    byPosition: metalStats(ordered),
+    byTarget: targetStats(ordered),
+    avgHeartRate: avgHr === null ? null : Math.round(avgHr),
+    avgRangeSeconds: avgTime === null ? null : Math.round(avgTime * 10) / 10,
+    timedBouts: times.length,
+    bestRangeSeconds: times.length === 0 ? null : Math.min(...times),
+  }
+}
+
+/** A combo's rounds in the order they were shot. */
+export const comboRounds = (rounds: MetalBout[]): MetalBout[] => [...rounds].sort((a, b) => a.shotAt.localeCompare(b.shotAt))
+
+export interface RaceSummary extends MetalSummary {
+  /** The shooting stages in the order they were shot. */
+  stages: MetalBout[]
+  /** How many stages the format has, and whether every one was recorded. */
+  expectedStages: number
+  complete: boolean
+  /** Every miss costs something: a penalty loop, or a minute in an individual. */
+  misses: number
+  penalty: string
+  /** No miss at all. (`clean`, from the metal summary, counts 5-for-5 bouts: a different thing.) */
+  cleanShoot: boolean
+}
+
+/** A race's result from its stages: hits, misses and what the misses cost. */
+export function summariseRace(raceType: RaceType, stagesIn: MetalBout[]): RaceSummary {
+  const stages = comboRounds(stagesIn)
+  const base = summariseMetal(stages)
+  const misses = base.shots - base.hits
+  const unit = raceType === 'individual' ? 'penalty minute' : 'penalty loop'
+  return {
+    ...base,
+    stages,
+    expectedStages: RACE_STAGES[raceType].length,
+    complete: stages.length >= RACE_STAGES[raceType].length,
+    misses,
+    penalty: misses === 0 ? 'Clean shooting' : `${misses} ${unit}${misses === 1 ? '' : 's'}`,
+    cleanShoot: misses === 0 && stages.length > 0,
+  }
+}
+
+export const raceLabel = (raceType: RaceType): string => RACE_TYPE_LABEL[raceType]
