@@ -239,7 +239,7 @@ export async function buildComboImage(workout: Workout, zone: number | null, rou
   const sum = summariseMetal(rounds)
   const tier = tierFor(sum.hitRatePct)
   const { canvas, ctx } = newCanvas()
-  drawCardTop(ctx, tier, comboLabel(zone), `${PAGE_TITLE(workout)} · ${rounds.length} round${rounds.length === 1 ? '' : 's'}`)
+  drawCardTop(ctx, tier, comboLabel(zone), `${PAGE_TITLE(workout)} · ${rounds.length} bout${rounds.length === 1 ? '' : 's'}`)
 
   ctx.textAlign = 'center'
   ctx.fillStyle = tier.deep
@@ -249,7 +249,7 @@ export async function buildComboImage(workout: Workout, zone: number | null, rou
   ctx.font = `500 32px ${FONT}`
   ctx.fillText(`${pct(sum.hitRatePct)} hit rate`, WIDTH / 2, 470)
 
-  drawRoundRows(ctx, rounds, 'R', RANGE_BLUE)
+  drawRoundRows(ctx, rounds, 'B', RANGE_BLUE)
 
   await drawCardFooter(ctx, rounds[0]?.shotAt ?? workout.startedAt)
   return canvasToBlob(canvas)

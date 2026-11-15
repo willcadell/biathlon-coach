@@ -68,7 +68,7 @@ on the paper.
 **Logs a metal bout.** The biathlon range itself: five falling discs, prone or
 standing, recorded per target — which ones fell — not just a count, so a pattern
 in *which* target keeps getting missed can be found later. Repeated ski-and-shoot
-rounds can be grouped as a combo. A metal bout has no shot positions to read
+bouts can be grouped as a combo. A metal bout has no shot positions to read
 shape from, so it can't feed the coaching findings a precision bout can; what it
 tracks instead is hit rate over time, split by position.
 

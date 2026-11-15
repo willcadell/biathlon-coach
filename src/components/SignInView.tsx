@@ -97,7 +97,7 @@ export function SignInView({ notice }: { notice?: string }) {
                 </button>
               }
             >
-              Score a target photo automatically, log metal hits round by round, and see where your
+              Score a target photo automatically, log metal hits bout by bout, and see where your
               groups drift and which targets you miss — a coaching read built from your own data, not a
               generic tip.
             </Feature>

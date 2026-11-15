@@ -259,7 +259,7 @@ export const DRILLS: Drill[] = [
       'Ski a 1.5 km loop hard enough that you cannot hold a conversation.',
       'Come straight into the range and shoot five prone. No recovery pause.',
       'Ski the loop again, shoot five standing.',
-      'Five rounds of this. Record hit count and heart rate on entry for every bout in this app.',
+      'Five bouts of this. Record hit count and heart rate on entry for every bout in this app.',
       'Compare the numbers with your calm-range bouts — the gap is the thing you are training away.',
     ],
     minutes: 60,

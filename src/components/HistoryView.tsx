@@ -436,7 +436,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             <div key={e.comboId} className="card">
               <div className="title" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  {comboLabel(e.targetZone)} · {e.rounds.length} round{e.rounds.length === 1 ? '' : 's'} ·{' '}
+                  {comboLabel(e.targetZone)} · {e.rounds.length} bout{e.rounds.length === 1 ? '' : 's'} ·{' '}
                   {e.rounds.reduce((n, r) => n + hitCount(hitsOf(r)), 0)}/{e.rounds.length * DISCS_PER_METAL_BOUT} hits
                 </span>
                 {!readOnly && (
@@ -453,7 +453,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
                   <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <MiniTargets hits={hitsOf(r)} />
-                    Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
+                    Bout {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
                     {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}
                   </span>
                   {!readOnly && (
@@ -461,7 +461,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                       className="link danger" style={{ flex: 'none' }}
                       aria-label="Remove"
                       onClick={async () => {
-                        if (!confirm('Delete this round?')) return
+                        if (!confirm('Delete this bout?')) return
                         await deleteMetalBout(r.id)
                         onChanged()
                       }}

@@ -236,7 +236,7 @@ export function PrivacyPolicyView() {
         <div className="card" style={{ marginBottom: 0 }}>
           <p style={{ marginTop: 0 }}>You can, at any time:</p>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: 'var(--text-secondary)' }}>
-            <li style={{ marginBottom: 5 }}>Delete individual bouts, metal rounds, or whole workouts from History.</li>
+            <li style={{ marginBottom: 5 }}>Delete individual bouts (metal or precision) or whole workouts from History.</li>
             <li style={{ marginBottom: 5 }}>Delete every stored photo while keeping your scored results, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Export everything you've logged as a JSON file, from Settings.</li>
             <li style={{ marginBottom: 5 }}>Invite a personal coach, cancel an unused invite, or remove a personal coach at any time, from Profile.</li>

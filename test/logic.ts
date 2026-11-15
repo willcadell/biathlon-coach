@@ -887,7 +887,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('race summary: nothing missed is clean shooting', summariseRace('sprint', [mbx('c', 1, [])]).cleanShoot && summariseRace('sprint', [mbx('c', 1, [])]).penalty === 'Clean shooting')
   ok('race summary: no stages is not a clean race', !summariseRace('sprint', []).cleanShoot)
   const inCombo = (id: string, at: number, combo: string | null) => mbx(id, at, [], { comboId: combo, targetZone: combo ? 3 : null })
-  ok('single combo: a session that is one combo, of any number of rounds', singleCombo([inCombo('x2', 2, 'c1'), inCombo('x1', 1, 'c1')])?.rounds.map((b) => b.id).join() === 'x1,x2' && singleCombo([inCombo('x1', 1, 'c1')])?.zone === 3)
+  ok('single combo: a session that is one combo, of any number of bouts', singleCombo([inCombo('x2', 2, 'c1'), inCombo('x1', 1, 'c1')])?.rounds.map((b) => b.id).join() === 'x1,x2' && singleCombo([inCombo('x1', 1, 'c1')])?.zone === 3)
   ok('single combo: two combos, or a combo and a standalone bout, is not one', singleCombo([inCombo('a', 1, 'c1'), inCombo('b', 2, 'c2')]) === null && singleCombo([inCombo('a', 1, 'c1'), inCombo('b', 2, null)]) === null)
   ok('single combo: standalone bouts and an empty session are not a combo', singleCombo([inCombo('a', 1, null)]) === null && singleCombo([]) === null)
   // A posted snapshot (club feed) read back as bouts
@@ -901,7 +901,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const back = postedBouts(snap)
   ok('post: a snapshot reads back as bouts with hits per target', back.length === 2 && back[0].hits.echo === true && back[1].hits.beta === false && back[1].hits.charlie === true)
   ok('post: heart rate is never in a snapshot, range time only when timed', back[0].heartRate === 0 && back[0].rangeSeconds === 31.4 && back[1].rangeSeconds === undefined)
-  ok('post: a combo headline', postedHeadline('combo', snap).title === 'Zone 3 Combo' && postedHeadline('combo', snap).detail === '8/10 · 80% · 2 rounds')
+  ok('post: a combo headline', postedHeadline('combo', snap).title === 'Zone 3 Combo' && postedHeadline('combo', snap).detail === '8/10 · 80% · 2 bouts')
   ok('post: a metal session headline', postedHeadline('metal', { ...snap, zone: null }).title === 'Metal session' && postedHeadline('metal', { ...snap, zone: null }).detail.endsWith('2 bouts'))
   ok('post: a race headline names the format and what the misses cost', postedHeadline('metal', { ...snap, zone: null, raceType: 'sprint' }).title === 'Sprint' && postedHeadline('metal', { ...snap, zone: null, raceType: 'sprint' }).detail === '8/10 · 2 penalty loops')
   ok('metal summary: combo rounds come back in the order shot', comboRounds(bs).map((b) => b.id).join('') === 'bca')

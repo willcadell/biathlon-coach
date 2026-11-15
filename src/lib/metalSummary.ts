@@ -124,9 +124,9 @@ export function postedHeadline(kind: 'combo' | 'metal', p: MetalPayload): { titl
     return { title: raceLabel(p.raceType), detail: `${r.hits}/${r.shots} · ${r.penalty.toLowerCase()}` }
   }
   const m = summariseMetal(bouts)
-  const rounds = `${m.bouts} ${kind === 'combo' ? 'round' : 'bout'}${m.bouts === 1 ? '' : 's'}`
+  const count = `${m.bouts} bout${m.bouts === 1 ? '' : 's'}`
   return {
     title: kind === 'combo' ? comboLabel(p.zone) : 'Metal session',
-    detail: `${m.hits}/${m.shots} · ${Math.round(m.hitRatePct)}% · ${rounds}`,
+    detail: `${m.hits}/${m.shots} · ${Math.round(m.hitRatePct)}% · ${count}`,
   }
 }

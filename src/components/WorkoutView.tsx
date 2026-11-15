@@ -447,7 +447,7 @@ function MetalForm({
 
   return (
     <>
-      <h1 style={{ marginBottom: 14 }}>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? `${comboLabel(comboZone ?? null)} round` : 'Metal bout')}</h1>
+      <h1 style={{ marginBottom: 14 }}>{stageLabel ?? (initial ? 'Edit metal bout' : comboId ? `${comboLabel(comboZone ?? null)} bout` : 'Metal bout')}</h1>
       <div className="card">
         {!initial && presetPosition ? (
           <p className="meta" style={{ marginTop: 0 }}>{presetPosition === 'prone' ? 'Prone' : 'Standing'}, set by the race format.</p>
@@ -839,7 +839,7 @@ function ComboRow({
     <div className="card">
       <div className="row" style={{ alignItems: 'baseline', marginBottom: 8 }}>
         <div className="title" style={{ flex: 1 }}>
-          {comboLabel(targetZone)}{onEnd ? ' in progress' : ''} · {rounds.length} round{rounds.length === 1 ? '' : 's'}
+          {comboLabel(targetZone)}{onEnd ? ' in progress' : ''} · {rounds.length} bout{rounds.length === 1 ? '' : 's'}
           {rounds.length > 0 && ` · ${shots - misses}/${shots} hits`}
         </div>
         {onEnd && <button className="link" style={{ flex: 'none' }} onClick={onEnd}>End combo</button>}
@@ -851,18 +851,18 @@ function ComboRow({
         <div key={r.id} className="row" style={{ alignItems: 'center', marginBottom: 4 }}>
           <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
             <MiniTargets hits={hitsOf(r)} />
-            Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT} · {clockTime(r.shotAt)}
+            Bout {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT} · {clockTime(r.shotAt)}
             {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}
           </span>
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
-            <button className="link" aria-label="Edit this round" title="Edit this round" onClick={() => onEditRound(r)}>
+            <button className="link" aria-label="Edit this bout" title="Edit this bout" onClick={() => onEditRound(r)}>
               <PencilIcon />
             </button>
             <button
               className="link danger"
               aria-label="Remove"
               onClick={async () => {
-                if (!confirm('Delete this round?')) return
+                if (!confirm('Delete this bout?')) return
                 await deleteMetalBout(r.id)
                 onDeleted()
               }}
@@ -1378,7 +1378,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
               <div className="card tight row" style={{ alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, lineHeight: 1.25 }}>
                   <strong>Combo</strong>
-                  <div className="meta">Repeated ski-and-shoot rounds</div>
+                  <div className="meta">Repeated ski-and-shoot bouts</div>
                 </div>
                 <button className="primary" style={{ flex: 'none', width: '50%', padding: '9px 0' }} onClick={() => setStartingCombo(true)}>Start a combo</button>
               </div>
