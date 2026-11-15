@@ -209,7 +209,7 @@ button.primary, .filelabel { background: var(--series-1); color: #fff; }
 button.secondary { background: transparent; color: var(--text-primary); border-color: var(--axis); }
 /* Deepened, as the session tiles are, so white text on the gentle green stays readable. */
 button.confirm { background: color-mix(in srgb, var(--good) 78%, black); color: #fff; }
-button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary:disabled, button.confirm:disabled { opacity: 0.45; cursor: not-allowed; }
 button.link {
   background: none; border: 0; padding: 0; font: inherit;
   color: var(--series-1); cursor: pointer; text-decoration: underline;
@@ -236,6 +236,18 @@ button.danger { color: var(--critical); }
   color: #fff;
   font-weight: 600;
 }
+
+/* The metal bout form's choices read as range blue even when off; filled blue still means chosen. */
+.seg.range-blue button { border-color: var(--series-1); color: var(--series-1); font-weight: 500; }
+/* The chosen one is unmistakable: bold, ticked and outlined. */
+.seg.range-blue button[aria-pressed='true'] {
+  color: #fff; font-weight: 700;
+  outline: 3px solid var(--text-primary); outline-offset: 2px;
+}
+.seg.range-blue button[aria-pressed='true']::before { content: '✓ '; }
+/* The optional add-ons are solid blue either way: "+" to add one, a tick once it is added. */
+.seg.range-blue.filled button { background: var(--series-1); color: #fff; }
+.seg.range-blue.add button[aria-pressed='false']::before { content: '+ '; }
 
 label.field, div.field { display: block; margin-bottom: 12px; }
 label.field > span, div.field > span {

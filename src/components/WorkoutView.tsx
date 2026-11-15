@@ -450,7 +450,7 @@ function MetalForm({
         ) : (
           <label className="field">
             <span>Position</span>
-            <div className="seg">
+            <div className="seg range-blue filled">
               {(['prone', 'standing'] as Position[]).map((p) => (
                 <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
                   {p === 'prone' ? 'Prone' : 'Standing'}
@@ -465,7 +465,7 @@ function MetalForm({
         </label>
         <div className="field">
           <span>Add to this bout<small>Both optional.</small></span>
-          <div className="seg">
+          <div className="seg range-blue filled add">
             <button
               type="button" aria-pressed={showHr}
               onClick={() => {
@@ -512,8 +512,14 @@ function MetalForm({
       </div>
       {error && <div className="notice error">{error}</div>}
       <div className="row">
-        <button className="secondary" onClick={onCancel}>Cancel</button>
-        <button className="primary" disabled={saving || timing} onClick={() => void save()}>
+        <button
+          className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+          aria-label={initial ? 'Discard changes' : 'Discard this bout'} title={initial ? 'Discard changes' : 'Discard this bout'}
+          onClick={onCancel}
+        >
+          <TrashIcon />
+        </button>
+        <button className="confirm" disabled={saving || timing} onClick={() => void save()}>
           {saving ? 'Saving…' : timing ? 'Stop the timer first' : 'Save'}
         </button>
       </div>
