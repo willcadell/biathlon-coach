@@ -48,7 +48,7 @@ function SessionTile({ p }: { p: WorkoutPayload }) {
 function LastLine({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
   if (!trailing) return <>{children}</>
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto' }}>
       <div style={{ minWidth: 0 }}>{children}</div>
       <div style={{ flex: 'none' }}>{trailing}</div>
     </div>
@@ -530,9 +530,9 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
         }
         if (post.kind === 'combo' || post.kind === 'metal') {
           return (
-            <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
               <MetalThumb kind={post.kind} p={post.payload} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 {header}
                 <MetalSummary kind={post.kind} p={post.payload} trailing={bell} />
               </div>
@@ -540,9 +540,9 @@ export function FeedView({ role, clubs }: { role: 'athlete' | 'coach'; clubs?: {
           )
         }
         return post.kind === 'target' ? (
-          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div key={post.id} className="card" style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
             <TargetThumb p={post.payload} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
               {header}
               <TargetSummary p={post.payload} trailing={bell} />
             </div>
