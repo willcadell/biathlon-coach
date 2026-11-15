@@ -213,6 +213,9 @@ export interface MetalBout {
    *  more here than on a precision bout — cold-vs-raced heart rate is
    *  exactly what separates a calm-range hit rate from a race one. */
   heartRate: number
+  /** Range time in seconds (tenths kept): from setting up on the mat, through the shooting, to
+   *  leaving it. Absent when the bout was not timed. */
+  rangeSeconds?: number
   /** Ties this bout to others fired in the same ski-shoot combo — a
    *  repeated interval session (ski a loop, shoot, repeat) — so they read
    *  together as one round-by-round set instead of loose entries. Null for

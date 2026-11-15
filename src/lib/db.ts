@@ -358,6 +358,8 @@ export interface MetalRow {
   heart_rate: number
   combo_id: string | null
   target_zone: number | null
+  /** Rows only carry it once the range-time migration has run. */
+  range_seconds?: number | string | null
 }
 
 export function toMetalBout(row: MetalRow): MetalBout {
@@ -376,6 +378,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
       echo: row.hit_echo,
     },
     heartRate: row.heart_rate,
+    ...(row.range_seconds != null && Number(row.range_seconds) > 0 ? { rangeSeconds: Number(row.range_seconds) } : {}),
     comboId: row.combo_id,
     targetZone: row.target_zone,
   }
@@ -398,9 +401,12 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     combo_id: bout.comboId,
     target_zone: bout.targetZone,
   }
-  const { error } = await supabase.from('metal_bouts').upsert(withTimeSource(row, bout.timeSource))
-  // A database that has not had the time_source migration yet: save the bout without it.
-  if (error && missingTimeSource(error)) {
+  // Always sent, null included, so clearing a range time while editing really clears it.
+  const { error } = await supabase.from('metal_bouts').upsert({ ...withTimeSource(row, bout.timeSource), range_seconds: bout.rangeSeconds ?? null })
+  if (error && ((error.message ?? '').includes('range_seconds') || missingTimeSource(error))) {
+    // A time that was asked for cannot be saved before the range-time migration: say so, don't drop it.
+    if (bout.rangeSeconds) throw error
+    // A database that has not had the newer migrations yet: save the bout without them.
     const retry = await supabase.from('metal_bouts').upsert(row)
     if (retry.error) throw retry.error
     return

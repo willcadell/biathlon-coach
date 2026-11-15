@@ -3,7 +3,7 @@ import { clickSummary } from '../lib/clicks'
 import type { Bout, MetalBout, NationalTest, SensorSession, Settings, Workout } from '../lib/types'
 import { RACE_TYPE_LABEL, faceById } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, comboLabel, groupEntries, hitCount, hitsOf } from '../lib/metal'
-import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteSensorSession, deleteWorkout } from '../lib/db'
+import { boutImageUrl, boutThumbUrls, deleteBout, deleteMetalBout, deleteSensorSession, deleteWorkout, putWorkout } from '../lib/db'
 import { devModeOn, makeWorkoutLive } from '../lib/dev'
 import { errorMessage } from '../lib/errors'
 import { ResultsView } from './ResultsView'
@@ -14,7 +14,8 @@ import { buildCoachContext, isRangeOrRace, localDate } from '../lib/coachContext
 import { downloadJson } from '../lib/download'
 import { NationalTestSummary } from './NationalTestView'
 import { testBouts } from '../lib/nationalTest'
-import { DownloadIcon, GoArrow, PlusIcon, ShareIcon, TrashIcon } from './icons'
+import { fromLocalInput, rangeTimeNote, toLocalInput } from '../lib/time'
+import { DownloadIcon, GoArrow, PencilIcon, PlusIcon, ShareIcon, TrashIcon } from './icons'
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -68,6 +69,62 @@ function CoachNotesCard({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Edit a saved dry-fire session: its name, when it started, the minutes and the notes. The
+ *  minutes matter most: they are what the Dry-fire totals in Analysis add up, and a session saved
+ *  without them could not be corrected afterwards. */
+function DryfireEditor({ workout, onSaved, onCancel }: { workout: Workout; onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(workout.name ?? '')
+  const [started, setStarted] = useState(toLocalInput(workout.startedAt))
+  const [minutes, setMinutes] = useState(workout.dryfireMinutes ? String(workout.dryfireMinutes) : '')
+  const [notes, setNotes] = useState(workout.notes ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function save() {
+    const startedAt = fromLocalInput(started)
+    if (!startedAt) {
+      setError('Enter a valid start date and time.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await putWorkout({ ...workout, name: name.trim(), startedAt, dryfireMinutes: Math.max(0, Math.round(Number(minutes) || 0)), notes })
+      onSaved()
+    } catch (e) {
+      setError(errorMessage(e, 'Could not save the changes. Check your connection and try again.'))
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3>Edit session</h3>
+      <label className="field">
+        <span>Name<small>Optional — shown instead of the date.</small></span>
+        <input type="text" value={name} placeholder={fmt(workout.startedAt)} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Started</span>
+        <input type="datetime-local" value={started} onChange={(e) => setStarted(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Minutes</span>
+        <input type="number" inputMode="numeric" min={0} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Notes</span>
+        <textarea value={notes} placeholder="How it went, what to try next time…" onChange={(e) => setNotes(e.target.value)} />
+      </label>
+      {error && <p className="meta" role="alert" style={{ color: 'var(--bad, #c0392b)' }}>{error}</p>}
+      <div className="row">
+        <button className="secondary" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button className="confirm" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+      </div>
     </div>
   )
 }
@@ -145,6 +202,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
   const [openBoutImage, setOpenBoutImage] = useState<string | null>(null)
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [selecting, setSelecting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // What the share sheet is open for: a target, or (no bout) a whole workout.
   const [sheet, setSheet] = useState<{ bout?: Bout; workout: Workout } | null>(null)
@@ -256,7 +314,15 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           </h1>
           <p className="lede">{fmt(openWorkout.startedAt)} · {openWorkout.dryfireMinutes} min</p>
 
-          {openWorkout.notes && (
+          {!readOnly && editingId === openWorkout.id && (
+            <DryfireEditor
+              workout={openWorkout}
+              onCancel={() => setEditingId(null)}
+              onSaved={() => { setEditingId(null); onChanged() }}
+            />
+          )}
+
+          {editingId !== openWorkout.id && openWorkout.notes && (
             <div className="card">
               <h3>Notes</h3>
               <p className="meta" style={{ marginBottom: 0 }}>{openWorkout.notes}</p>
@@ -286,6 +352,13 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           {shareSheet}
           {!readOnly && (
             <div className="row" style={{ marginTop: 10 }}>
+              <button
+                className="secondary" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+                aria-label="Edit this session" title="Edit this session"
+                onClick={() => setEditingId(openWorkout.id)}
+              >
+                <PencilIcon />
+              </button>
               <button
                 className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
                 aria-label="Delete this session" title="Delete this session"
@@ -368,7 +441,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                   <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <MiniTargets hits={hitsOf(r)} />
                     Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
-                    {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
+                    {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}
                   </span>
                   {!readOnly && (
                     <button
@@ -419,7 +492,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 <div className="title">{hitCount(hitsOf(e))}/{DISCS_PER_METAL_BOUT} hits <span className="pill">{e.position}</span></div>
                 <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <MiniTargets hits={hitsOf(e)} />
-                  {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}
+                  {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}{rangeTimeNote(e.rangeSeconds)}
                 </div>
               </div>
               {!readOnly && (

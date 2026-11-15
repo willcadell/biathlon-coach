@@ -9,6 +9,7 @@ import { errorMessage } from '../lib/errors'
 import { playCountIn, type CountInSound } from '../lib/beep'
 import { allMissed, METAL_TARGETS } from '../lib/metal'
 import { CaptureView } from './CaptureView'
+import { COUNT_IN_SECONDS, TimerOptions, loadPrefs, savePrefs, type TimerPrefs } from './TimerOptions'
 import { GoArrow, TrashIcon } from './icons'
 
 const POSITION_LABEL: Record<Position, string> = { prone: 'Prone', standing: 'Standing' }
@@ -86,49 +87,6 @@ const DRILL_BRIEF: Record<'across' | 'firstShot', string> = {
     'Start standing next to the cone, 2 m from the shooting line. On Go, take prone and fire one shot at each of the five targets. Leave the position with the rifle on your back, move behind the 2 m marker with both feet, and return for the next five. Two rounds prone, then two standing. To finish, move behind the 2 m marker with the rifle on your back. One clock runs the whole way; tap each time you are behind the marker.',
   firstShot:
     'Start off the mat, next to the cone, 2 m from the shooting line. On Go, step on the mat, set up, shoot one shot, and exit the mat with the rifle on your back, behind the 2 m marker, for each shot. Keep going until you have five hits; the clock stops on the fifth. Then rest, and repeat standing.',
-}
-
-/** Beeps and a count on screen before the clock starts, so the athlete can get behind the pylon. */
-const COUNT_IN_SECONDS = 5
-/** Seconds that can be taken off each tap, for an athlete alone who has to reach the phone. */
-const ALLOWANCES = [0, 1, 2, 3]
-const PREFS_KEY = 'biathlon-coach:test-timer'
-
-interface TimerPrefs { sound: boolean; allowance: number }
-
-/** A per-device convenience, so it is kept in the browser and the timer works without it. */
-function loadPrefs(): TimerPrefs {
-  try {
-    const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<TimerPrefs>
-    return { sound: p.sound !== false, allowance: ALLOWANCES.includes(p.allowance as number) ? (p.allowance as number) : 0 }
-  } catch {
-    return { sound: true, allowance: 0 }
-  }
-}
-function savePrefs(p: TimerPrefs) {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)) } catch { /* the timer still works */ }
-}
-
-/** The count-in sound and the time allowed to reach the phone, shared by every timer. */
-function TimerOptions({ prefs, onChange }: { prefs: TimerPrefs; onChange: (next: TimerPrefs) => void }) {
-  return (
-    <>
-      <label className="check">
-        <input type="checkbox" checked={prefs.sound} onChange={(e) => onChange({ ...prefs, sound: e.target.checked })} />
-        Beep the {COUNT_IN_SECONDS}-second count-in
-      </label>
-      <label className="field">
-        <span>Time to reach the phone</span>
-        <div className="seg">
-          {ALLOWANCES.map((a) => (
-            <button key={a} aria-pressed={prefs.allowance === a} onClick={() => onChange({ ...prefs, allowance: a })}>
-              {a === 0 ? 'None' : `${a} s`}
-            </button>
-          ))}
-        </div>
-      </label>
-    </>
-  )
 }
 
 /** The five targets of a stage, as on a metal bout: black until it falls, white once hit.

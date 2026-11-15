@@ -31,6 +31,7 @@ export interface CoachContextFile {
     zeroClicks: string
     windDirection: string
     windStrength: string
+    rangeTime: string
   }
 }
 
@@ -48,6 +49,9 @@ export interface MetalContext {
   targetZone: number | null
   /** Additive: the race format, when the session was a race rather than training. */
   race: string | null
+  /** Additive: seconds from setting up on the mat to leaving it, when the bout was timed.
+   *  The phone-reach allowance is already taken off. Null when it was not timed. */
+  rangeTimeSeconds: number | null
 }
 
 export interface ZeroAdjustment {
@@ -107,6 +111,7 @@ export function buildCoachContext(
         hitRate: discHits.filter(Boolean).length / METAL_TARGETS.length,
         targetZone: b.targetZone,
         race: w.raceType,
+        rangeTimeSeconds: b.rangeSeconds ?? null,
       }
     })
 
@@ -145,6 +150,7 @@ export function buildCoachContext(
       zeroClicks: 'Signed net clicks per logged adjustment, as movement of the point of impact: + up / + right, − down / − left',
       windDirection: 'Clock position the wind blows FROM, facing the target: 12 headwind, 6 tailwind, 3 and 9 full crosswind',
       windStrength: 'Strength band only (none, light, moderate, strong) — no speed is recorded',
+      rangeTime: 'rangeTimeSeconds: seconds on the range for the bout — set-up, shooting and exit — to 0.1 s, with any phone-reach allowance already taken off; null when the bout was not timed',
     },
   }
 }

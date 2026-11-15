@@ -22,8 +22,9 @@ import { canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalSt
 import { locateBlack, type PixelBuffer } from '../src/lib/blackLocator.ts'
 import { ACROSS_STAGES, acrossScore, clock, scoreNationalTest, stageSecondsFromTaps, standardFor, testBouts, testParts } from '../src/lib/nationalTest.ts'
 import type { NationalTestStage } from '../src/lib/types.ts'
-import { fromLocalInput, toLocalInput } from '../src/lib/time.ts'
+import { formatRangeTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../src/lib/time.ts'
 import { timeline } from '../src/lib/metal.ts'
+import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
 import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -573,7 +574,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
     ...over,
   })
   const metal = [
-    mb('m1', 't', ['beta', 'echo'], { comboId: 'combo-1', targetZone: 2 }),
+    mb('m1', 't', ['beta', 'echo'], { comboId: 'combo-1', targetZone: 2, rangeSeconds: 38.4 }),
     mb('m2', 'r', []),
     mb('m3', 'd', []), // a metal bout hanging off a dry-fire session must not leak in
   ]
@@ -585,6 +586,7 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('coach-context: target order is alpha..echo', JSON.stringify(ctx.metalSessions[0].discHits) === '[true,false,true,true,false]')
   ok('coach-context: hit rate is hits over five', Math.abs(ctx.metalSessions[0].hitRate - 0.6) < 1e-9)
   ok('coach-context: combo, zone and race carry through', ctx.metalSessions[0].comboGroup === 'combo-1' && ctx.metalSessions[0].targetZone === 2 && ctx.metalSessions[1].race === 'sprint')
+  ok('coach-context: range time carries through, null when untimed', ctx.metalSessions[0].rangeTimeSeconds === 38.4 && ctx.metalSessions[1].rangeTimeSeconds === null)
   ok('coach-context: clicks are signed, up/right positive', ctx.zeroAdjustments[0].verticalClicks === -3 && ctx.zeroAdjustments[0].horizontalClicks === 2 && ctx.zeroAdjustments[1].verticalClicks === 1 && ctx.zeroAdjustments[1].horizontalClicks === -4)
   ok('coach-context: click notes are never exported', ctx.zeroAdjustments.every((z) => z.note === null) && !JSON.stringify(ctx).includes('back a bit'))
   ok('coach-context: wind keeps band and clock direction, no speed', ctx.windConditions[0].note === 'moderate' && ctx.windConditions[0].direction === '3' && ctx.windConditions[0].speedKph === null)
@@ -820,6 +822,30 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('template: a session with pending targets saves them as precision steps', stepsFromEntries([pendingAsShot({ id: 'x', workoutId: 'w', shotAt: when(1), position: 'prone' }), met('prone', 2)]).map((s) => s.kind).join() === 'precision,metal')
   ok('template: a step is its position and kind', stepLabel({ kind: 'precision', position: 'prone' }) === 'Prone precision')
   ok('template: a summary groups repeats', summariseSteps([...steps.slice(0, 2), { kind: 'metal', position: 'prone' }, { kind: 'metal', position: 'prone' }]) === 'Prone precision, standing precision, 2 × prone metal')
+}
+
+// Dry-fire timer
+{
+  const t0 = startTimer(IDLE_TIMER, 1000)
+  ok('timer: idle is zero', elapsedMs(IDLE_TIMER, 5000) === 0)
+  ok('timer: running counts from its start', elapsedMs(t0, 61_000) === 60_000)
+  const paused = pauseTimer(t0, 61_000)
+  ok('timer: pausing banks the time and stops counting', paused.runningSince === null && elapsedMs(paused, 999_000) === 60_000)
+  ok('timer: resuming adds to what was banked', elapsedMs(startTimer(paused, 100_000), 130_000) === 90_000)
+  ok('timer: starting a running timer changes nothing', startTimer(t0, 50_000) === t0)
+  ok('timer: a clock set back never counts negative', elapsedMs(t0, 0) === 0)
+  ok('timer: clock format', formatClock(0) === '0:00' && formatClock(65_000) === '1:05' && formatClock(3_725_000) === '1:02:05')
+  ok('timer: under 30 s logs no minutes', minutesToLog(29_000) === 0)
+  ok('timer: 30 s logs one minute, never zero', minutesToLog(30_000) === 1 && minutesToLog(89_000) === 1)
+  ok('timer: minutes round to the nearest', minutesToLog(90_000) === 2 && minutesToLog(25 * 60_000 + 20_000) === 25)
+}
+
+// Range time
+{
+  ok('range time: seconds with a tenth', formatRangeTime(34.2) === '34.2 s' && formatRangeTime(5) === '5.0 s')
+  ok('range time: a minute or more reads as m:ss.t', formatRangeTime(65.3) === '1:05.3' && formatRangeTime(120) === '2:00.0')
+  ok('range time: the meta note is empty when untimed', rangeTimeNote(undefined) === '' && rangeTimeNote(0) === '')
+  ok('range time: the meta note leads with a separator', rangeTimeNote(34.2) === ' · 34.2 s range')
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

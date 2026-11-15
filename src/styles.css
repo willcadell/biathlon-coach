@@ -237,15 +237,15 @@ button.danger { color: var(--critical); }
   font-weight: 600;
 }
 
-label.field { display: block; margin-bottom: 12px; }
-label.field > span {
+label.field, div.field { display: block; margin-bottom: 12px; }
+label.field > span, div.field > span {
   display: block;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 5px;
 }
-label.field small { display: block; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
+label.field small, div.field small { display: block; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
 input[type='text'], input[type='number'], input[type='password'], input[type='date'], textarea, select {
   width: 100%;
   padding: 10px 12px;
@@ -607,3 +607,52 @@ button.dev-switch { background: var(--critical); border-color: var(--critical); 
 @media (prefers-reduced-motion: reduce) {
   .count-in, .go-flash { animation-duration: 0.01ms !important; }
 }
+
+/* --- Dry-fire timer ----------------------------------------------------- */
+/* Sticks to the top of the scrolling .main so it stays in view during a session. */
+.dryfire-timer {
+  position: sticky; top: 0; z-index: 5;
+  margin: 0 0 14px; padding: 14px 14px 16px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--dryfire) 72%, black);
+  color: #fff; text-align: center;
+  box-shadow: var(--shadow);
+}
+.dryfire-timer.running { outline: 3px solid #fff; outline-offset: -6px; }
+.dryfire-timer-label { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
+.dryfire-timer-digits {
+  font-size: clamp(64px, 24vw, 120px); font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin: 4px 0 10px;
+}
+.dryfire-timer-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.dryfire-timer-row .dryfire-timer-btn { flex: 1 1 0; min-width: 96px; }
+.dryfire-timer-btn {
+  width: 100%; padding: 14px 16px; border-radius: 10px; border: 2px solid #fff;
+  background: #fff; color: color-mix(in srgb, var(--dryfire) 60%, black);
+  font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.dryfire-timer-btn.alt { background: transparent; color: #fff; font-size: 15px; }
+
+/* --- Range time on a metal bout ---------------------------------------- */
+.range-time {
+  margin-bottom: 12px; padding: 12px; text-align: center;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2, var(--surface-1));
+}
+.range-time.running { border: 3px solid var(--series-1); padding: 10px; }
+.range-time-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.range-time-label small { display: block; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+.range-time-digits {
+  font-size: clamp(48px, 18vw, 80px); font-weight: 700; line-height: 1.1; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; color: var(--text-primary); margin: 6px 0 10px;
+}
+.range-time.running .range-time-digits { color: var(--series-1); }
+.range-time-btn {
+  width: 100%; padding: 14px 16px; border-radius: 10px; border: 0; background: var(--series-1);
+  color: #fff; font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.range-calc { display: flex; align-items: flex-end; justify-content: center; gap: 6px; margin: 8px 0 10px; }
+.range-calc > div { display: flex; flex-direction: column; align-items: center; }
+.range-calc small { white-space: nowrap; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.range-calc span { white-space: nowrap; font-size: 20px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.range-calc .op { font-size: 24px; color: var(--text-muted); padding-bottom: 2px; }
+.range-calc .final span { font-size: 34px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }

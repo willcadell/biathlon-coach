@@ -15,10 +15,12 @@ import { ShareSheet } from './ShareSheet'
 import { useMemberships } from '../lib/feed'
 import { Help } from './Help'
 import { clickSummary } from '../lib/clicks'
-import { clockTime, fromLocalInput, toLocalInput } from '../lib/time'
+import { clockTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../lib/time'
+import { RangeTimeField } from './RangeTimeField'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
 import { SensorTrainerCard } from './SensorTrainer'
+import { DryfireTimer } from './DryfireTimer'
 import { SensorSessionCard } from './SensorSessionCard'
 import { NationalTestCard, NationalTestView } from './NationalTestView'
 import { SaveTemplateCard, TemplateRunSteps, WorkoutChooser } from './TemplateViews'
@@ -192,6 +194,7 @@ function RaceStages({
               <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MiniTargets hits={hits} />
                 {bout.heartRate > 0 && `${bout.heartRate} bpm on entry`}
+                {rangeTimeNote(bout.rangeSeconds).replace(/^ · /, bout.heartRate > 0 ? ' · ' : '')}
               </div>
             </div>
           </button>
@@ -401,6 +404,11 @@ function MetalForm({
   const [position, setPosition] = useState<Position>(initial?.position ?? presetPosition ?? 'prone')
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
+  const [rangeSeconds, setRangeSeconds] = useState<number | undefined>(initial?.rangeSeconds)
+  const [timing, setTiming] = useState(false)
+  // The two optional measures: shown once added, or when an edited bout already has them.
+  const [showHr, setShowHr] = useState((initial?.heartRate ?? 0) > 0)
+  const [showRange, setShowRange] = useState((initial?.rangeSeconds ?? 0) > 0)
   // When it was shot: stamped as the form opens, so the time is close to the shooting, not to the
   // moment of saving. Changing it by hand marks the time as entered.
   const [shotAt, setShotAt] = useState(() => initial?.shotAt ?? new Date().toISOString())
@@ -419,6 +427,7 @@ function MetalForm({
       // Editing a bout keeps how its time was set, unless the time is changed now.
       ...(timeEntered ? { timeSource: 'entered' as const } : initial ? (initial.timeSource ? { timeSource: initial.timeSource } : {}) : { timeSource: 'live' as const }),
       position, hits, heartRate,
+      ...(rangeSeconds ? { rangeSeconds } : {}),
       comboId: initial ? initial.comboId : (comboId ?? null),
       targetZone: initial ? initial.targetZone : (comboZone ?? null),
     }
@@ -454,14 +463,42 @@ function MetalForm({
           <span>Targets<small>{hitCount(hits)}/{DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.</small></span>
           <TargetDial hits={hits} onChange={setHits} />
         </label>
-        <label className="field">
-          <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
-          <input
-            type="number" inputMode="numeric" placeholder="—" min={0} max={230}
-            value={heartRate || ''}
-            onChange={(e) => setHeartRate(Number(e.target.value) || 0)}
-          />
-        </label>
+        <div className="field">
+          <span>Add to this bout<small>Both optional.</small></span>
+          <div className="seg">
+            <button
+              type="button" aria-pressed={showHr}
+              onClick={() => {
+                if (showHr && heartRate > 0 && !confirm('Remove the heart rate from this bout?')) return
+                if (showHr) setHeartRate(0)
+                setShowHr(!showHr)
+              }}
+            >
+              Heart rate
+            </button>
+            <button
+              type="button" aria-pressed={showRange} disabled={timing}
+              onClick={() => {
+                if (showRange && rangeSeconds && !confirm('Remove the range time from this bout?')) return
+                if (showRange) setRangeSeconds(undefined)
+                setShowRange(!showRange)
+              }}
+            >
+              Range time
+            </button>
+          </div>
+        </div>
+        {showHr && (
+          <label className="field">
+            <span>Heart rate on entry<small>Coming off the ski or straight from the start.</small></span>
+            <input
+              type="number" inputMode="numeric" placeholder="—" min={0} max={230}
+              value={heartRate || ''}
+              onChange={(e) => setHeartRate(Number(e.target.value) || 0)}
+            />
+          </label>
+        )}
+        {showRange && <RangeTimeField value={rangeSeconds} onChange={setRangeSeconds} onBusyChange={setTiming} />}
         <label className="field" style={{ marginBottom: 0 }}>
           <span>Time shot<small>{timeEntered ? 'Set by you.' : initial ? 'As recorded.' : 'Stamped when you opened this. Change it if you are entering a bout after the fact.'}</small></span>
           <input
@@ -476,8 +513,8 @@ function MetalForm({
       {error && <div className="notice error">{error}</div>}
       <div className="row">
         <button className="secondary" onClick={onCancel}>Cancel</button>
-        <button className="primary" disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save'}
+        <button className="primary" disabled={saving || timing} onClick={() => void save()}>
+          {saving ? 'Saving…' : timing ? 'Stop the timer first' : 'Save'}
         </button>
       </div>
     </>
@@ -702,7 +739,7 @@ function MetalRow({ bout, onEdit, onDeleted }: { bout: MetalBout; onEdit: () => 
         </div>
         <div className="meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <MiniTargets hits={hits} />
-          metal · {clockTime(bout.shotAt)}{bout.timeSource === 'entered' && ' (set by hand)'}{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}
+          metal · {clockTime(bout.shotAt)}{bout.timeSource === 'entered' && ' (set by hand)'}{bout.heartRate > 0 && ` · ${bout.heartRate} bpm on entry`}{rangeTimeNote(bout.rangeSeconds)}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
@@ -794,7 +831,7 @@ function ComboRow({
           <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
             <MiniTargets hits={hitsOf(r)} />
             Round {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT} · {clockTime(r.shotAt)}
-            {r.heartRate > 0 && ` · ${r.heartRate} bpm`}
+            {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}
           </span>
           <div style={{ display: 'flex', gap: 12, flex: 'none' }}>
             <button className="link" aria-label="Edit this round" title="Edit this round" onClick={() => onEditRound(r)}>
@@ -1039,6 +1076,11 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
       <>
         <h1>{workout.name || 'Dry-fire session'}</h1>
         <p className="lede">Started {fmt(workout.startedAt)}.</p>
+
+        <DryfireTimer
+          workoutId={workout.id}
+          onMinutesChange={(d) => onWorkoutChanged({ ...workout, dryfireMinutes: Math.max(0, (workout.dryfireMinutes || 0) + d) })}
+        />
 
         <label className="field">
           <span>Name<small>Optional — shown instead of the date in History.</small></span>
