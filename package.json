@@ -18,7 +18,8 @@
     "cv-synth-learn": "esbuild test/synth/learn.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/synth-learn.mjs && node node_modules/.cache/synth-learn.mjs",
     "cv-tune": "esbuild test/cv-tune.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/cv-tune.mjs && node node_modules/.cache/cv-tune.mjs",
     "test:logic": "esbuild test/logic.ts --bundle --format=esm --platform=node --log-level=error --outfile=node_modules/.cache/logic.mjs && node node_modules/.cache/logic.mjs",
-    "test:sensor": "esbuild test/sensor.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/sensor.mjs && node node_modules/.cache/sensor.mjs"
+    "test:sensor": "esbuild test/sensor.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/sensor.mjs && node node_modules/.cache/sensor.mjs",
+    "ml-export": "esbuild ml/export_dataset.ts --bundle --format=esm --platform=node --packages=external --log-level=error --outfile=node_modules/.cache/ml-export.mjs && node node_modules/.cache/ml-export.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

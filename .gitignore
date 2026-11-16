@@ -6,3 +6,8 @@ tsconfig.tsbuildinfo
 test-images
 test-images-out
 supabase/.temp
+
+# ML experiment: environment, exported data and trained weights stay local
+ml/.venv
+ml/data
+ml/runs
