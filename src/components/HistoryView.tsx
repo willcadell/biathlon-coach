@@ -1,3 +1,4 @@
+import { checkinText, tagsText } from '../lib/sessionFeel'
 import { useEffect, useState } from 'react'
 import { clickSummary } from '../lib/clicks'
 import type { Bout, MetalBout, NationalTest, SensorSession, Settings, Workout } from '../lib/types'
@@ -315,6 +316,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
             <span className="pill">Dry-fire</span>
           </h1>
           <p className="lede">{fmt(openWorkout.startedAt)} · {openWorkout.dryfireMinutes} min</p>
+          {checkinText(openWorkout.checkin) && <p className="meta checkin-line">How it felt · {checkinText(openWorkout.checkin)}</p>}
 
           {!readOnly && editingId === openWorkout.id && (
             <DryfireEditor
@@ -396,6 +398,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
           {openWorkout.wind !== 'none' && ` from ${openWorkout.windDirection} o'clock`}
           {openWorkout.clickLog.length > 0 && ` · ${clickSummary(openWorkout.clickLog)}`}
         </p>
+        {checkinText(openWorkout.checkin) && <p className="meta checkin-line">How it felt · {checkinText(openWorkout.checkin)}</p>}
 
         {openWorkout.notes && (
           <div className="card">
@@ -454,7 +457,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                   <span className="meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <MiniTargets hits={hitsOf(r)} />
                     Bout {i + 1} · {r.position} · {hitCount(hitsOf(r))}/{DISCS_PER_METAL_BOUT}
-                    {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}
+                    {r.heartRate > 0 && ` · ${r.heartRate} bpm`}{rangeTimeNote(r.rangeSeconds)}{r.tags?.length ? ` · ${tagsText(r.tags)}` : ''}
                   </span>
                   {!readOnly && (
                     <button
@@ -486,6 +489,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                 <div className="grow">
                   <div className="title">{e.metrics.ringTotal}/{e.metrics.ringPossible} <span className="pill">{e.position}</span><GoArrow /></div>
                   <div className="meta">{fmt(e.shotAt)} · {e.metrics.meanRadius.toFixed(0)} mm mean radius</div>
+                  {e.context.tags?.length ? <div className="meta bout-tags-line">Noticed: {tagsText(e.context.tags)}</div> : null}
                 </div>
               </button>
               {!readOnly && (
@@ -507,6 +511,7 @@ export function HistoryView({ workouts, bouts, metalBouts, settings, onChanged, 
                   <MiniTargets hits={hitsOf(e)} />
                   {fmt(e.shotAt)} · metal{e.heartRate > 0 && ` · ${e.heartRate} bpm on entry`}{rangeTimeNote(e.rangeSeconds)}
                 </div>
+                {e.tags?.length ? <div className="meta bout-tags-line">Noticed: {tagsText(e.tags)}</div> : null}
               </div>
               {!readOnly && (
                 <button

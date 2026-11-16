@@ -11,6 +11,7 @@ import { uuid } from '../lib/id'
 import { MarkupView } from './MarkupView'
 import { TrashIcon } from './icons'
 import { ResultsView } from './ResultsView'
+import { BoutTagPicker } from './SessionFeel'
 
 type Stage = 'setup' | 'reading' | 'markup' | 'done'
 
@@ -314,6 +315,8 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
           />
           I skied in before this bout
         </label>
+
+        <BoutTagPicker value={context.tags ?? []} onChange={(tags) => setContext({ ...context, tags })} />
 
         <label className="field">
           <span>Notes<small>Ammunition, rifle, how the position felt.</small></span>

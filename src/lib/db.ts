@@ -1,3 +1,4 @@
+import { cleanCheckin, cleanTags } from './sessionFeel'
 import { supabase } from './supabase'
 import type { Bout, Bull, ClickAdjustment, CoachNote, MetalBout, NationalTest, NationalTestStage, PendingTarget, Position, RaceType, SensorSession, SensorShot, Shot, TemplateRun, TemplateStep, TimeSource, Wind, WindDirection, Workout, WorkoutTemplate, WorkoutType } from './types'
 import { PRECISION_SHOTS } from './types'
@@ -17,6 +18,8 @@ export interface WorkoutRow {
   wind_logged_at?: string | null
   weather_notes?: string | null
   zero_confirmed_at?: string | null
+  /** Rows only carry it once the check-in migration has run. */
+  checkin?: unknown
   wind: Wind
   wind_direction: WindDirection
   notes: string
@@ -78,6 +81,7 @@ export function toWorkout(row: WorkoutRow, clicks: ClickRow[], coachNotes: Coach
     windLoggedAt: row.wind_logged_at ?? null,
     weatherNotes: row.weather_notes ?? '',
     zeroConfirmedAt: row.zero_confirmed_at ?? null,
+    checkin: cleanCheckin(row.checkin),
     clickLog: clicks
       .filter((c) => c.workout_id === row.id)
       .map(toClick)
@@ -105,12 +109,14 @@ export async function putWorkout(workout: Workout): Promise<void> {
     // Only sent when set, so a session saves the same as before wherever the column is missing.
     ...(workout.template ? { template: workout.template } : {}),
   }
-  const { error: firstErr } = await supabase.from('workouts').upsert({
-    ...row, wind_logged_at: workout.windLoggedAt ?? null, weather_notes: workout.weatherNotes ?? '', zero_confirmed_at: workout.zeroConfirmedAt ?? null,
-  })
-  // A database that has not had the weather migration yet: save the workout without it.
-  const missing = ['wind_logged_at', 'weather_notes', 'zero_confirmed_at'].some((c) => (firstErr?.message ?? '').includes(c))
-  const error = firstErr && missing ? (await supabase.from('workouts').upsert(row)).error : firstErr
+  const weather = { wind_logged_at: workout.windLoggedAt ?? null, weather_notes: workout.weatherNotes ?? '', zero_confirmed_at: workout.zeroConfirmedAt ?? null }
+  const { error: firstErr } = await supabase.from('workouts').upsert({ ...row, ...weather, checkin: workout.checkin ?? null })
+  // A database that has not had the newer migrations yet: save the workout without what it lacks.
+  const missingCheckin = (firstErr?.message ?? '').includes('checkin')
+  const missingWeather = ['wind_logged_at', 'weather_notes', 'zero_confirmed_at'].some((c) => (firstErr?.message ?? '').includes(c))
+  const error = firstErr && missingCheckin
+    ? (await supabase.from('workouts').upsert({ ...row, ...weather })).error
+    : firstErr && missingWeather ? (await supabase.from('workouts').upsert(row)).error : firstErr
   if (error) throw error
 
   // The click log is small and always saved as a whole workout — replace it
@@ -184,6 +190,8 @@ export interface BoutRow {
   metrics: Bout['metrics']
   skied_in: boolean
   notes: string
+  /** Rows only carry it once the tags migration has run. */
+  tags?: unknown
 }
 
 export function toBout(row: BoutRow): Bout {
@@ -200,7 +208,7 @@ export function toBout(row: BoutRow): Bout {
     imagePath: row.image_path,
     shots: row.shots,
     bulls: row.bulls ?? undefined,
-    context: { skiedIn: row.skied_in, notes: row.notes },
+    context: { skiedIn: row.skied_in, notes: row.notes, tags: cleanTags(row.tags) },
     mmPerUnit: row.mm_per_unit,
     metrics: row.metrics,
   }
@@ -246,8 +254,11 @@ export async function putBout(bout: Omit<Bout, 'imagePath'>, image: { full: Blob
     metrics: full.metrics,
     skied_in: full.context.skiedIn,
     notes: full.context.notes,
+    // Only sent when there are some, so an untagged bout saves the same as before the column existed.
+    ...(full.context.tags?.length ? { tags: full.context.tags } : {}),
   }
   const { error } = await supabase.from('precision_bouts').insert(withTimeSource(row, full.timeSource))
+  if (error && (error.message ?? '').includes('tags')) throw new Error('Tags cannot be saved yet: the database needs updating. Remove them to save this bout.')
   if (error && missingTimeSource(error)) {
     const retry = await supabase.from('precision_bouts').insert(row)
     if (retry.error) throw retry.error
@@ -360,6 +371,8 @@ export interface MetalRow {
   target_zone: number | null
   /** Rows only carry it once the range-time migration has run. */
   range_seconds?: number | string | null
+  /** Rows only carry it once the tags migration has run. */
+  tags?: unknown
 }
 
 export function toMetalBout(row: MetalRow): MetalBout {
@@ -381,6 +394,7 @@ export function toMetalBout(row: MetalRow): MetalBout {
     ...(row.range_seconds != null && Number(row.range_seconds) > 0 ? { rangeSeconds: Number(row.range_seconds) } : {}),
     comboId: row.combo_id,
     targetZone: row.target_zone,
+    tags: cleanTags(row.tags),
   }
 }
 
@@ -401,11 +415,11 @@ export async function putMetalBout(bout: MetalBout): Promise<void> {
     combo_id: bout.comboId,
     target_zone: bout.targetZone,
   }
-  // Always sent, null included, so clearing a range time while editing really clears it.
-  const { error } = await supabase.from('metal_bouts').upsert({ ...withTimeSource(row, bout.timeSource), range_seconds: bout.rangeSeconds ?? null })
-  if (error && ((error.message ?? '').includes('range_seconds') || missingTimeSource(error))) {
-    // A time that was asked for cannot be saved before the range-time migration: say so, don't drop it.
-    if (bout.rangeSeconds) throw error
+  // Always sent, empty and null included, so clearing tags or a range time while editing really clears it.
+  const { error } = await supabase.from('metal_bouts').upsert({ ...withTimeSource(row, bout.timeSource), range_seconds: bout.rangeSeconds ?? null, tags: bout.tags ?? [] })
+  if (error && ((error.message ?? '').includes('range_seconds') || (error.message ?? '').includes('tags') || missingTimeSource(error))) {
+    // A time or tags that were asked for cannot be saved before their migration: say so, don't drop them.
+    if (bout.rangeSeconds || bout.tags?.length) throw error
     // A database that has not had the newer migrations yet: save the bout without them.
     const retry = await supabase.from('metal_bouts').upsert(row)
     if (retry.error) throw retry.error

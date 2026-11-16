@@ -177,6 +177,19 @@ Step 2, coach-style feedback:
 - Coaches see the athlete's answers, read-only.
 - Storage: table `advice_feedback`, migration `20261115000000_advice_feedback.sql`.
 
+Step 1, capture:
+- A "How did that feel?" check-in on the Session logged screen after every session:
+  energy, head and hold on a three-point scale. Each row can be skipped, and there is a
+  Skip for the whole card.
+- "Anything you noticed?" tag chips on the precision capture screen and the metal bout
+  form, including race stages (labels in `src/lib/sessionFeel.ts`; "Wind / gust" reads
+  "Wind or gusts").
+- Both show in History (and so to coaches): the check-in under the workout's heading,
+  and tags under each bout.
+- Storage: `workouts.checkin`, `precision_bouts.tags`, `metal_bouts.tags`, migration
+  `20261115000100_checkin_and_tags.sql`.
+- Not yet used by the advice. That's steps 3 and 4.
+
 Not yet:
 - Drill feedback can be given at any time, rather than only after a week on the
   plan. That would need the app to remember when each drill first appeared.

@@ -791,3 +791,18 @@ button.season-ribbon__phase { cursor: pointer; }
   margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, var(--surface-1)); border: 1px solid var(--border);
 }
 .feedback__drill { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+
+/* --- How a session felt, and what was noticed on a bout (SessionFeel.tsx) --- */
+.checkin { margin: 4px 0 14px; }
+.checkin__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.checkin__row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; margin-top: 6px; }
+.checkin__label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.checkin__seg button { padding: 8px 6px; font-size: 13px; }
+.bout-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.bout-tags button {
+  padding: 6px 10px; font: inherit; font-size: 13px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--axis); background: transparent; color: var(--text-secondary);
+}
+.bout-tags button[aria-pressed='true'] { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
+.checkin-line { margin: -10px 0 14px; }
+.bout-tags-line { margin-top: 2px; }

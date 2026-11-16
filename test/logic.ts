@@ -30,10 +30,11 @@ import { comboRounds, postedBouts, postedHeadline, singleCombo, summariseMetal, 
 import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
 import { formatMinutes, sessionsPerWeek, suggestWeek } from '../src/lib/weeklyPlan.ts'
 import { precisionWindow } from '../src/lib/advice.ts'
-import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
-
+import { BOUT_TAGS, checkinText, cleanCheckin, cleanTags, tagsText } from '../src/lib/sessionFeel.ts'
 import { assessFinding, planWithFeedback, type FeedbackEvent } from '../src/lib/feedbackRules.ts'
 import { DIFFERENTIALS, alternativesFor, checkFor } from '../src/lib/differentials.ts'
+import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
+
 const CTX = settingsContext(DEFAULT_SETTINGS)
 
 let failures = 0
@@ -914,8 +915,16 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
 }
 
 
-// --- Training week: suggestions sized to the athlete's time, never to days.
+// --- How a session felt, and what was noticed on a bout.
 {
+  ok('feel: tags read back keep only known ones', cleanTags(['rushed', 'nonsense', 3, 'wind']).join() === 'rushed,wind' && cleanTags(null).length === 0)
+  ok('feel: every tag has a label, and ids are unique', BOUT_TAGS.every((t) => t.label) && new Set(BOUT_TAGS.map((t) => t.id)).size === BOUT_TAGS.length)
+  ok('feel: tags read as a short lower-case line', tagsText(['rushed', 'breathing-off']) === 'rushed it, breathing off' && tagsText(undefined) === '')
+  ok('feel: a check-in keeps only ratings 1 to 3', JSON.stringify(cleanCheckin({ energy: 3, head: 7, hold: 'x' })) === '{"energy":3}')
+  ok('feel: an empty or skipped check-in reads as none', cleanCheckin({}) === null && cleanCheckin(null) === null)
+  ok('feel: a check-in reads naturally in History', checkinText({ energy: 3, head: 1, hold: 2 }) === 'Energy: tired · Head: calm · Hold: OK' && checkinText(null) === '')
+}
+
 // --- Athlete feedback: "not me", checks and drill verdicts, the way a coach would use them.
 {
   const allDrills = new Set(DRILLS.map((d) => d.id))
@@ -987,6 +996,8 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('feedback: a drill that helped stays at or near the top', up.findIndex((r) => r.drill.id === 'ball-and-dummy') <= base.findIndex((r) => r.drill.id === 'ball-and-dummy'))
 }
 
+// --- Training week: suggestions sized to the athlete's time, never to days.
+{
   ok('week: frequency text reads as times a week', sessionsPerWeek('2–3× per week, dry') === 3 && sessionsPerWeek('3× per week, dry') === 3 && sessionsPerWeek('1–2× per week') === 2)
   ok('week: no weekly count reads as once, and counts are capped', sessionsPerWeek('Every live session') === 1 && sessionsPerWeek('4-week block') === 1 && sessionsPerWeek('5× per week') === 3)
   ok('week: minutes read naturally', formatMinutes(30) === '30 min' && formatMinutes(60) === '1 h' && formatMinutes(90) === '1 h 30 min')

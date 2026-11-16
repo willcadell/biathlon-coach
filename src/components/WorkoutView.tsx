@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, MetalTarget, NationalTest, PendingTarget, Position, RaceType, SensorSession, Settings, ShootingDirection, TemplateStep, Wind, WindDirection, Workout, WorkoutEntry, WorkoutTemplate } from '../lib/types'
+import type { Bout, BoutTag, Checkin, ClickAdjustment, MetalBout, MetalTarget, NationalTest, PendingTarget, Position, RaceType, SensorSession, Settings, ShootingDirection, TemplateStep, Wind, WindDirection, Workout, WorkoutEntry, WorkoutTemplate } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, hitCount, hitsOf, missCount, timeline } from '../lib/metal'
 import { deleteBout, deleteMetalBout, deleteSensorSession, putMetalBout, putSensorSession } from '../lib/db'
@@ -21,6 +21,7 @@ import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
 import { Confetti, fireSmallConfetti, type ConfettiKind } from './Confetti'
 import { TrainingWeekLine } from './TrainingWeek'
+import { BoutTagPicker, CheckinCard } from './SessionFeel'
 import { SensorTrainerCard } from './SensorTrainer'
 import { DryfireTimer } from './DryfireTimer'
 import { SensorSessionCard } from './SensorSessionCard'
@@ -409,6 +410,7 @@ function MetalForm({
   const [hits, setHits] = useState<Record<MetalTarget, boolean>>(initial ? hitsOf(initial) : allMissed())
   const [heartRate, setHeartRate] = useState(initial?.heartRate ?? 0)
   const [rangeSeconds, setRangeSeconds] = useState<number | undefined>(initial?.rangeSeconds)
+  const [tags, setTags] = useState<BoutTag[]>(initial?.tags ?? [])
   const [timing, setTiming] = useState(false)
   // The two optional measures: shown once added, or when an edited bout already has them.
   const downNow = hitCount(hits)
@@ -433,6 +435,7 @@ function MetalForm({
       ...(timeEntered ? { timeSource: 'entered' as const } : initial ? (initial.timeSource ? { timeSource: initial.timeSource } : {}) : { timeSource: 'live' as const }),
       position, hits, heartRate,
       ...(rangeSeconds ? { rangeSeconds } : {}),
+      tags,
       comboId: initial ? initial.comboId : (comboId ?? null),
       targetZone: initial ? initial.targetZone : (comboZone ?? null),
     }
@@ -472,6 +475,7 @@ function MetalForm({
             : `${downNow}/${DISCS_PER_METAL_BOUT} down. Tap a target to mark it hit.`}</small></span>
           <TargetDial hits={hits} onChange={setHits} />
         </label>
+        <BoutTagPicker value={tags} onChange={setTags} />
         <div className="field">
           <span>Add to this bout<small>Both optional.</small></span>
           <div className="seg range-blue filled add">
@@ -576,9 +580,11 @@ function useCountUp(target: number, delayMs: number, durationMs: number): number
  *  before dropping back to "Start a session", with a one-tap route into
  *  sharing the session's best target right when it's most relevant. */
 function SessionComplete({
-  workout, precisionBouts, onDone, saveAsTemplate, metalBouts = [],
+  workout, precisionBouts, onDone, saveAsTemplate, metalBouts = [], onCheckin,
 }: {
   workout: Workout
+  /** Saves how the session felt, from the check-in card. */
+  onCheckin?: (checkin: Checkin) => void
   precisionBouts: Bout[]
   onDone: () => void
   /** Present when this session can be kept as a template: its bouts, and how to save. */
@@ -632,6 +638,11 @@ function SessionComplete({
               <ShareIcon />
             </button>
           ))}
+        </div>
+      )}
+      {onCheckin && (
+        <div style={{ width: '100%', maxWidth: 420, textAlign: 'left' }}>
+          <CheckinCard value={workout.checkin} onChange={onCheckin} />
         </div>
       )}
       {saveAsTemplate && <SaveTemplateCard entries={saveAsTemplate.entries} defaultName={workout.name} onSave={saveAsTemplate.onSave} />}
@@ -1095,6 +1106,7 @@ export function WorkoutView({ settings, shootingDirection, onOpenWeek, workout, 
     return (
       <SessionComplete
         workout={workout} precisionBouts={precisionBouts} metalBouts={metalBouts} onDone={handleDone}
+        onCheckin={(checkin) => onWorkoutChanged({ ...workout, checkin })}
         // Only a free-form range session offers to become a template: a race has its own
         // fixed stages, and one that followed a template or the test already is one.
         saveAsTemplate={!workout.raceType && workout.workoutType === 'range' && !workout.template && !nationalTest && shotSoFar.length > 0 && onSaveTemplate

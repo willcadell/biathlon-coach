@@ -128,6 +128,24 @@ export interface Context {
   skiedIn: boolean
   /** Free notes: ammo lot, rifle, how it felt. */
   notes: string
+  /** What the athlete noticed on this bout. Absent or empty when nothing was tagged. */
+  tags?: BoutTag[]
+}
+
+/** What an athlete can tag a bout with: what they noticed as they shot it. Labels
+ *  and what each points at are in sessionFeel.ts. */
+export type BoutTag =
+  | 'jerked-trigger' | 'rushed' | 'held-too-long' | 'breathing-off' | 'steered'
+  | 'arrived-hot' | 'distracted' | 'wind' | 'felt-good'
+
+/** 1 good, 2 OK, 3 rough. */
+export type FeelRating = 1 | 2 | 3
+
+/** How a session felt, asked when it is finished. Each row can be skipped. */
+export interface Checkin {
+  energy?: FeelRating
+  head?: FeelRating
+  hold?: FeelRating
 }
 
 /**
@@ -228,6 +246,8 @@ export interface MetalBout {
    *  against it. Null for a standalone metal bout, or a combo with no target
    *  set. */
   targetZone: number | null
+  /** What the athlete noticed on this bout. Absent or empty when nothing was tagged. */
+  tags?: BoutTag[]
 }
 
 /**
@@ -422,6 +442,8 @@ export interface Workout {
   weatherNotes?: string
   /** When the zero was confirmed, once per workout; null or absent until it has been. */
   zeroConfirmedAt?: string | null
+  /** How the session felt, from the check-in on Finish. Null or absent if skipped. */
+  checkin?: Checkin | null
 }
 
 export interface Ellipse {
