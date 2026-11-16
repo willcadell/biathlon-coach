@@ -581,6 +581,9 @@ export interface Settings {
    *  merged cluster is flagged rather than split for you. On by default;
    *  the ring itself is always found this way regardless of this setting. */
   localHoleDetection: boolean
+  /** Which detector the local option uses: the trained model (the default) or the older classic one. The model
+   *  applies only to target faces it has been trained on; anything else uses the classic detector either way. */
+  localDetector: 'model' | 'classic'
 }
 
 /** A precision (paper, photo-scored) bout is always this many shots. A metal
@@ -639,4 +642,5 @@ export const DEFAULT_SETTINGS: Settings = {
   aimingMarkMm: 112.4,
   handedness: 'right',
   localHoleDetection: true,
+  localDetector: 'model',
 }

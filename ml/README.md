@@ -49,3 +49,8 @@ output of each run).
 6. **Train on everything and save the weights** (for Stage 2, running it in the browser).
 
        ml/.venv/bin/python ml/train.py final --name final-v2
+
+7. **Export the model for the app.** Writes `public/models/<name>.onnx` and checks it matches PyTorch. The app loads the
+   file named in `src/lib/holeModelFiles.ts`; give each new model a new name.
+
+       ml/.venv/bin/python ml/export_onnx.py final-v2 hole-finder-v2

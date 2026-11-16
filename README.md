@@ -35,7 +35,12 @@ draggable, and the button reads *Confirm and score*. Nothing is scored until you
 say so. Without a key the same screen starts empty and you tap the shots in —
 pinch or use the zoom buttons to see small or overlapping holes while you do.
 
-Detection runs in two passes. The first finds where each aiming mark sits, using
+By default the shots are found on the device, with no API call: a small trained model (under 1 MB, built from
+athletes' contributed targets, see `docs/vision-model-plan.md`) reads the target on the ISSF 50 m face and the older
+classical detector covers anything else or steps in if the model cannot run. Settings has a Detector choice between
+them. The two-pass Claude reading below is the optional alternative for athletes who add their own key.
+
+Claude's detection runs in two passes. The first finds where each aiming mark sits, using
 classical image processing on the photo itself (`blackLocator.ts`: threshold, find
 the largest solid dark region, fit an ellipse) — the same answer every time, no
 API call. The second crops the original, full-resolution photo tightly around each

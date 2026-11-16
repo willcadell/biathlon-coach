@@ -273,7 +273,20 @@ export async function detectShots(
   /** How many shots this bout is expected to have — 5 normally, 10 for a precision test. */
   expectedShots: number,
 ): Promise<Detection> {
-  if (settings.localHoleDetection) return detectShotsLocally(file, settings, aspect)
+  if (settings.localHoleDetection) {
+    if (settings.localDetector !== 'classic') {
+      try {
+        // Loaded on demand: the runtime is a 14 MB download that most of the app never needs.
+        const { detectWithModel } = await import('./holeModel')
+        const found = await detectWithModel(file, settings.targetFaceId, expectedShots)
+        if (found) return found
+      } catch (error) {
+        // No model (first use with no signal), no WebAssembly, an unreadable file: the classic detector still works.
+        console.warn('The trained model could not run; using the classic detector.', error)
+      }
+    }
+    return detectShotsLocally(file, settings, aspect)
+  }
 
   if (!settings.apiKey) throw new VisionError('No API key set. Add one in Settings.')
 

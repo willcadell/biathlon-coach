@@ -11,3 +11,4 @@ supabase/.temp
 ml/.venv
 ml/data
 ml/runs
+public/ort

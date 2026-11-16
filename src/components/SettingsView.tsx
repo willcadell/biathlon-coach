@@ -244,13 +244,32 @@ export function SettingsView({ settings, onChange, boutCount, onDataChanged, onB
             checked={settings.localHoleDetection}
             onChange={(e) => set('localHoleDetection', e.target.checked)}
           />
-          Experimental: find shots without Claude
+          Find shots on this device, without Claude
         </label>
         <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted)' }}>
-          Free and instant, no API call at all — the ring is always found this way regardless, but
-          this also skips Claude for the shots themselves. Rougher: it can miss a real hole, and marks
-          a merged group with one flagged marker instead of splitting it. Check every marker closely.
+          Free, and no API call at all. The ring is always found this way regardless; this also skips
+          Claude for the shots themselves. Check every marker: it can miss a hole, or mark a merged
+          group as one.
         </small>
+
+        {settings.localHoleDetection && (
+          <label className="field" style={{ marginTop: 12 }}>
+            <span>Detector</span>
+            <div className="seg" role="group" aria-label="Detector">
+              {(['model', 'classic'] as const).map((d) => (
+                <button key={d} aria-pressed={settings.localDetector === d} onClick={() => set('localDetector', d)}>
+                  {d === 'model' ? 'Trained model' : 'Classic'}
+                </button>
+              ))}
+            </div>
+            <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted)' }}>
+              The trained model was built from athletes' contributed targets and finds noticeably more
+              holes, but so far it has been checked on one athlete's photos and on the ISSF 50 m target
+              only. The first time you use it, it downloads about 15 MB, then works offline. Classic is the
+              older detector. If the model cannot run, Classic is used instead.
+            </small>
+          </label>
+        )}
       </div>
 
       <ContributeCard value={contribution} onChange={onContributionChange} />

@@ -1,6 +1,7 @@
 # Counting shots without Claude: a trained model that runs on the phone
 
-Status: started 2026-11-15. Stage 1 (feasibility experiment) in progress.
+Status: started 2026-11-15. Stages 0 to 3 done: the trained model is in the app as the default shot finder, with the classic
+detector as a fallback. Stage 4 (logging what it guessed) is next.
 
 ## Why
 
@@ -86,8 +87,8 @@ not clear it, we do not ship it; we keep the current detector and keep collectin
 |---|---|---|
 | 0 | Measure the current detector on every labelled target (the baseline) | numbers recorded, fixed folds |
 | 1 | Feasibility: a small heatmap model, cross-validated against the baseline | go / no-go against the gate |
-| 2 | Port rectification and inference to the browser (lazy-loaded, cached by the service worker) | same answers in the browser as in training; model size and speed on a phone |
-| 3 | Ship it as the default; keep the athlete correction; version the model file | field use |
+| 2 | Port rectification and inference to the browser (lazy-loaded, cached by the service worker) | **done**, see "Shipped" below |
+| 3 | Ship it as the default; keep the athlete correction; version the model file | **done** 2026-11-15, field use now |
 | 4 | Contributions also record which detector or model version guessed and what it guessed, so accuracy in real use is measured. Do this before precision shooting returns, even if the new model has not shipped | a number from real use, for every version |
 | 5 | Remove the Claude call, the API key setting and the Anthropic library | smaller app, no key needed |
 | 6 | Automate retraining as a scheduled job with the gate, once contributions are numerous | no manual retrains |
@@ -156,6 +157,50 @@ rest.
 - The 27 targets registered with a model's help are scored here with their original labels, so that step cannot flatter the
   headline numbers; the separate "detection only" figure (88% found) does lean on it slightly and is not used as the
   headline.
+
+## Shipped (Stages 2 and 3, 2026-11-15)
+
+The trained model is the default shot finder for everyone who uses the on-device option (which is on by default and was
+already the default for new accounts, so no settings change is needed). It was made available to everyone at once, on
+the decision that the default it replaces (the classic detector, 51% found, 4.1 invented per target) is much weaker. The
+numbers above were measured on one athlete's photos; see the risks.
+
+How it works in the app:
+- `src/lib/vision.ts` `detectShots`: if the on-device option is on and the detector setting is "Trained model" (the
+  default), it reads the target with the model. It falls back to the classic detector, quietly, whenever the model
+  cannot run (no signal on first use, no WebAssembly, a read failure) or does not apply.
+- It applies only to the **ISSF 50 m target**, the only face it was trained and checked on. Any other face uses the classic
+  detector.
+- `src/lib/holeModelCore.ts`: the pure parts, written to mirror `ml/` step for step (warp the photo into the flat target
+  plane at 4 px per mm, normalise, find heatmap peaks, drop anything outside the outermost ring, cap at the bout's shot
+  count). Tested in `test/logic.ts`.
+- `src/lib/holeModel.ts` and `holeWorker.ts`: the network runs in a web worker so the screen never freezes. onnxruntime-web
+  (a 14 MB WebAssembly file, served from `/ort/<version>/`) and the model (0.9 MB, `public/models/hole-finder-v2.onnx`)
+  are loaded the first time a target is read, or quietly when the capture screen opens (not on a save-data or slow
+  connection), and the service worker keeps them for use with no signal. `scripts/copy-ort.mjs` puts the runtime in place
+  before `dev` and `build`.
+- Settings: under "Find shots on this device", a **Detector** choice, Trained model or Classic, for anyone who wants the
+  old behaviour.
+- The athlete still checks and corrects every marker. Nothing about scoring, contributing or storage changed.
+
+Measured in the real app code, in a browser, on all 44 labelled photos: 374 of 440 found (85%), 31 invented (0.7 per
+target), error 1.27 mm. Those include the 38 targets this final model trained on, so the honest figure is the
+cross-validated one (84%, 1.0 invented). It took about 0.4 s per photo in the production build on a laptop, with the page
+freezing for under 20 ms (about 2.4 s in the dev server, which is unoptimised). Phones are untested and will be slower.
+
+To go back: set the detector to Classic in Settings, or change `localDetector` in `DEFAULT_SETTINGS` (`src/lib/types.ts`)
+to `'classic'` for everyone. To ship a new model, export it with `ml/export_onnx.py`, which writes a new file name, and
+change `MODEL_FILE` in `src/lib/holeModelFiles.ts` (the service worker serves cached files without rechecking, so a
+changed model needs a new name).
+
+## What to watch
+
+- **Other athletes' photos.** This is the first time the model meets a different phone, light or printed sheet. The
+  contribution pipeline will keep collecting corrected targets, but it does not yet record what the model guessed, so how
+  it does in real use cannot be measured until Stage 4 is built.
+- **First use with no signal.** The first target read needs the 15 MB download. With no signal and nothing cached it
+  falls back to the classic detector.
+- **Phones.** Speed and memory on an older phone have not been measured.
 
 ## Running it
 

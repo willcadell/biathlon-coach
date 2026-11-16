@@ -24,6 +24,8 @@ import { ACROSS_STAGES, acrossScore, clock, scoreNationalTest, stageSecondsFromT
 import type { NationalTestStage } from '../src/lib/types.ts'
 import { formatRangeTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../src/lib/time.ts'
 import { timeline } from '../src/lib/metal.ts'
+import { PX_PER_MM, STRIDE, findPeaks, modelInput, onTarget, peakToPhoto, planeToPhoto, viewFor, normalise } from '../src/lib/holeModelCore.ts'
+import { toTargetPlane } from '../src/lib/geometry.ts'
 import { comboRounds, postedBouts, postedHeadline, singleCombo, summariseMetal, summariseRace } from '../src/lib/metalSummary.ts'
 import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
 import { formatMinutes, sessionsPerWeek, suggestWeek } from '../src/lib/weeklyPlan.ts'
@@ -1017,6 +1019,59 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   const old = { ...({} as Bout), shotAt: '2026-01-01T10:00:00Z' } as Bout
   const w = precisionWindow([old], Date.parse('2026-11-15T10:00:00Z'))
   ok('advice window: after a long break it falls back to the last bouts and says how long', w.stale && w.recent.length === 1 && w.daysSince > 300)
+}
+
+// The trained hole-finding model: the parts that do not need the network
+{
+  const face = faceById('issf-50m')
+  const view = viewFor(face)
+  ok('hole model: the view of the ISSF 50 m target is 667 px square at 4 px per mm', view.size === 667 && PX_PER_MM === 4 && Math.abs(view.outerMm - 77.25) < 1)
+
+  // The plane to photo conversion is the inverse of the app's own photo to plane conversion.
+  const W = 1400
+  const fit = { cx: 0.47 * W, cy: 0.52 * W, semiMajor: 0.22 * W, semiMinor: 0.17 * W, rotationDeg: 24 }
+  const bull = { id: 'b', holes: [], centre: { x: fit.cx / W, y: fit.cy / W }, semiMajor: fit.semiMajor / W, semiMinor: fit.semiMinor / W, rotationDeg: fit.rotationDeg }
+  const back = [[12, -20], [-33.5, 41], [0, 0], [60, 5]].map(([X, Y]) => {
+    const p = planeToPhoto(X, Y, fit, face.blackMm)
+    const q = toTargetPlane({ x: p.x / W, y: p.y / W }, bull, face.blackMm)
+    return Math.hypot(q.x - X, q.y - Y)
+  })
+  ok('hole model: plane to photo undoes photo to plane', Math.max(...back) < 1e-6)
+
+  // Peaks: a blob in a quiet heatmap is one hole, at its centre; a faint blob is nothing; two blobs are two holes.
+  const cols = 40
+  const logits = new Float32Array(cols * cols).fill(-6)
+  const blob = (cx: number, cy: number, peak: number) => {
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) logits[(cy + dy) * cols + cx + dx] = peak - Math.hypot(dx, dy) * 1.2
+  }
+  blob(10, 12, 4)
+  blob(30, 25, 3)
+  blob(20, 5, -0.5)
+  const pk = findPeaks(logits, cols, cols, cols)
+  ok('hole model: two real blobs are found, the faint one is not', pk.length === 2 && pk[0].score > pk[1].score)
+  ok('hole model: a peak sits at the centre of its blob, in rectified pixels', Math.abs(pk[0].u - 10.5 * STRIDE) < 0.5 && Math.abs(pk[0].v - 12.5 * STRIDE) < 0.5)
+
+  // Outside the outermost ring is margin, not target; a known shot count keeps the strongest.
+  const c = view.size / 2
+  const inside = { u: c + 30 * PX_PER_MM, v: c, score: 0.9 }
+  const second = { u: c - 20 * PX_PER_MM, v: c + 10 * PX_PER_MM, score: 0.7 }
+  const margin = { u: c + (view.outerMm + 6) * PX_PER_MM, v: c, score: 0.95 }
+  ok('hole model: a detection in the margin is dropped', onTarget([margin, inside, second], view).length === 2)
+  ok('hole model: with the shot count known only the strongest are kept', onTarget([margin, inside, second], view, 1).length === 1 && onTarget([margin, inside, second], view, 1)[0] === inside)
+  const centre = peakToPhoto({ u: c, v: c, score: 1 }, view, fit, face.blackMm)
+  ok('hole model: the middle of the view is the middle of the aiming mark', Math.hypot(centre.x - fit.cx, centre.y - fit.cy) < 1e-6)
+
+  // The network's input is padded to a multiple of 8 by repeating the edge, and scaled.
+  const g = new Float32Array(10 * 10).fill(25)
+  g[9 * 10 + 9] = 225
+  const inp = modelInput(g, 10)
+  ok('hole model: input is padded to a multiple of 8 and scaled', inp.width === 16 && inp.height === 16 && Math.abs(inp.data[0] - (25 / 255 - 0.5) / 0.25) < 1e-6 && Math.abs(inp.data[15 * 16 + 15] - (225 / 255 - 0.5) / 0.25) < 1e-6)
+
+  // Luminance is stretched so the black reads about 25 and the paper about 225, in whole levels.
+  const lum = new Float32Array(30 * 30)
+  for (let i = 0; i < lum.length; i++) lum[i] = i % 2 === 0 ? 60 : 180
+  normalise(lum, 30)
+  ok('hole model: luminance is normalised to whole levels between about 25 and 225', lum.every((v) => Number.isInteger(v)) && Math.min(...lum) >= 0 && Math.max(...lum) <= 255 && Math.abs(Math.min(...lum) - 25) < 12 && Math.abs(Math.max(...lum) - 225) < 12)
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

@@ -3,6 +3,7 @@ import type { Bout, Bull, Context, PendingTarget, Position, Settings, Workout } 
 import { PRECISION_SHOTS, settingsContext } from '../lib/types'
 import { bullsToShots, computeMetrics, mmPerUnitFor } from '../lib/geometry'
 import { detectShots, VisionError, COST_PER_IMAGE } from '../lib/vision'
+import { MODEL_FACES } from '../lib/holeModelCore'
 import { aspectOf, forStorage, forThumb, locateBlackInBlob } from '../lib/imaging'
 import { deletePendingTarget, putBout, updateBoutShots } from '../lib/db'
 import { errorMessage } from '../lib/errors'
@@ -66,6 +67,12 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
   const urlRef = useRef<string>('')
 
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current) }, [])
+  // About to photograph a target: start fetching the trained model quietly, so the first read is not waiting on it.
+  useEffect(() => {
+    if (!settings.localHoleDetection || settings.localDetector === 'classic' || !MODEL_FACES.includes(settings.targetFaceId)) return
+    void import('../lib/holeModel').then((m) => m.warmUpHoleModel())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function onFile(picked: File) {
     setError('')
