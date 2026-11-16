@@ -8,7 +8,7 @@ import {
   ellipseBoundingBox, outerRingCrop, fromCropFraction, fromCropWidthFraction,
 } from '../src/lib/geometry.ts'
 import { analyse, analyseSingleBout } from '../src/lib/diagnostics.ts'
-import { recommend } from '../src/lib/training.ts'
+import { DRILLS, recommend } from '../src/lib/training.ts'
 import { scoreShot, scoreBout, ringRadii } from '../src/lib/scoring.ts'
 import { ENTRIES, FINDING_LIBRARY, FOCUS_LABEL, SOURCES, entriesForFinding, entriesForPhase, formatReference, shortCitation, sourceById } from '../src/lib/library.ts'
 import { legsOf, rowsFromLegs, sensorAsBouts, sensorBouts, sensorLine, sensorShotsFrom, sensorSummary } from '../src/lib/sensorStats.ts'
@@ -26,6 +26,8 @@ import { formatRangeTime, fromLocalInput, rangeTimeNote, toLocalInput } from '..
 import { timeline } from '../src/lib/metal.ts'
 import { comboRounds, postedBouts, postedHeadline, singleCombo, summariseMetal, summariseRace } from '../src/lib/metalSummary.ts'
 import { IDLE_TIMER, elapsedMs, formatClock, minutesToLog, pauseTimer, startTimer } from '../src/lib/dryfireTimer.ts'
+import { formatMinutes, sessionsPerWeek, suggestWeek } from '../src/lib/weeklyPlan.ts'
+import { precisionWindow } from '../src/lib/advice.ts'
 import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
 const CTX = settingsContext(DEFAULT_SETTINGS)
@@ -905,6 +907,43 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
   ok('post: a metal session headline', postedHeadline('metal', { ...snap, zone: null }).title === 'Metal session' && postedHeadline('metal', { ...snap, zone: null }).detail.endsWith('2 bouts'))
   ok('post: a race headline names the format and what the misses cost', postedHeadline('metal', { ...snap, zone: null, raceType: 'sprint' }).title === 'Sprint' && postedHeadline('metal', { ...snap, zone: null, raceType: 'sprint' }).detail === '8/10 · 2 penalty loops')
   ok('metal summary: combo rounds come back in the order shot', comboRounds(bs).map((b) => b.id).join('') === 'bca')
+}
+
+
+// --- Training week: suggestions sized to the athlete's time, never to days.
+{
+  ok('week: frequency text reads as times a week', sessionsPerWeek('2–3× per week, dry') === 3 && sessionsPerWeek('3× per week, dry') === 3 && sessionsPerWeek('1–2× per week') === 2)
+  ok('week: no weekly count reads as once, and counts are capped', sessionsPerWeek('Every live session') === 1 && sessionsPerWeek('4-week block') === 1 && sessionsPerWeek('5× per week') === 3)
+  ok('week: minutes read naturally', formatMinutes(30) === '30 min' && formatMinutes(60) === '1 h' && formatMinutes(90) === '1 h 30 min')
+
+  const drill = (id: string) => DRILLS.find((d) => d.id === id)!
+  const rec = (id: string, score = 1) => ({ drill: drill(id), reason: 'test', score })
+  const total = (as: { drill: { minutes: number }; sessions: number }[]) => as.reduce((n, a) => n + a.drill.minutes * a.sessions, 0)
+
+  const none = suggestWeek([], { homeMinutes: 60, rangeMinutes: 60 })
+  ok('week: no findings yet gives foundation drills', none.foundations && none.home.length > 0 && none.range.some((a) => a.drill.id === 'zero-check'))
+
+  const recs = [rec('hold-build'), rec('range-entry'), rec('balance-ladder'), rec('breathing-pause'), rec('npa-check'), rec('combo-intervals')]
+  const small = suggestWeek(recs, { homeMinutes: 30, rangeMinutes: 0 })
+  ok('week: 30 min at home fits inside 30 min', total(small.home) <= 30 && small.range.length === 0)
+  ok('week: the top drill is never dropped for a lower one', small.home[0]?.drill.id === 'hold-build')
+  ok('week: live drills stay off the home list', small.home.every((a) => a.drill.dryFire))
+
+  const big = suggestWeek(recs, { homeMinutes: 120, rangeMinutes: 120 })
+  ok('week: neither place goes over its budget', total(big.home) <= 120 && total(big.range) <= 120)
+  ok('week: spare time is what is left', big.spare.homeMinutes === 120 - total(big.home) && big.spare.rangeMinutes === 120 - total(big.range))
+  ok('week: at most three drills in a place', big.home.length <= 3 && big.range.length <= 3)
+  ok('week: no drill twice across home and range', new Set([...big.home, ...big.range].map((a) => a.drill.id)).size === big.home.length + big.range.length)
+  ok('week: no drill more often than it asks for', [...big.home, ...big.range].every((a) => a.sessions <= sessionsPerWeek(a.drill.frequency)))
+  ok('week: range time goes to live drills first', big.range[0]?.drill.id === 'range-entry')
+
+  const rangeOnly = suggestWeek(recs, { homeMinutes: 0, rangeMinutes: 60 })
+  ok('week: with no home time, dry drills can use spare range time', rangeOnly.home.length === 0 && rangeOnly.range.some((a) => a.drill.dryFire))
+  ok('week: a drill too long for the budget is left out', !suggestWeek([rec('combo-intervals')], { homeMinutes: 0, rangeMinutes: 30 }).range.length)
+
+  const old = { ...({} as Bout), shotAt: '2026-01-01T10:00:00Z' } as Bout
+  const w = precisionWindow([old], Date.parse('2026-11-15T10:00:00Z'))
+  ok('advice window: after a long break it falls back to the last bouts and says how long', w.stale && w.recent.length === 1 && w.daysSince > 300)
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) failed.`)

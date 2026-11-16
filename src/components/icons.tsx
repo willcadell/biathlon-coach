@@ -203,6 +203,18 @@ export function AppMark({ size = 22 }: { size?: number }) {
   )
 }
 
+/** A week on a calendar page, with a tick: the training week built to the athlete's time. */
+export function TrainingWeekIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 9.5h17" />
+      <path d="M8 3v4M16 3v4" />
+      <path d="M8.6 14.9l2.2 2.2 4.6-4.6" />
+    </svg>
+  )
+}
+
 /** An open book: the IBU coaching library. */
 export function BookOpenIcon({ size = 22 }: { size?: number }) {
   return (

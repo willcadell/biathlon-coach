@@ -97,9 +97,10 @@ export function LibraryView({
     setCited(sourceId)
     document.getElementById(`src-${sourceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
-  const related = about ? entriesForFinding(about.findingId) : []
+  const finding = about && 'findingId' in about ? about : undefined
+  const related = finding ? entriesForFinding(finding.findingId) : []
   const now = seasonPhase(new Date())
-  const [phase, setPhase] = useState<SeasonPhase | 'all'>(now)
+  const [phase, setPhase] = useState<SeasonPhase | 'all'>(about && 'phase' in about ? about.phase : now)
   const [focus, setFocus] = useState<Focus | 'all'>('all')
 
   const presentFocus = useMemo(
@@ -141,10 +142,10 @@ export function LibraryView({
         options={[{ id: 'all' as Focus | 'all', text: 'All topics' }, ...presentFocus.map((f) => ({ id: f as Focus | 'all', text: FOCUS_LABEL[f] }))]}
       />
 
-      {about && related.length > 0 ? (
+      {finding && related.length > 0 ? (
         <>
           <div className="notice" style={{ margin: '14px 0 8px' }}>
-            Showing what the library says about <strong>{about.title}</strong>.{' '}
+            Showing what the library says about <strong>{finding.title}</strong>.{' '}
             <button className="link" onClick={onShowAll}>Show the whole library</button>
           </div>
           {related.map((e) => <EntryCard key={e.id} e={e} onCite={cite} />)}

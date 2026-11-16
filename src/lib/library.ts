@@ -401,7 +401,7 @@ export const ENTRIES: LibraryEntry[] = [
   {
     id: 'new-venue-or-altitude', title: 'A new venue, or altitude', phases: ['specific', 'early'], focus: 'arrival', position: 'both',
     summary:
-      'Expect the range to feel different. Accept more movement in the rifle, take two or three extra breaths before starting, check natural point of aim and rifle settings, and practise the entry into the range at the venue.',
+      'Expect the range to feel different. Accept more movement in the rifle, take two or three extra breaths before starting, check natural alignment and rifle settings, and practise the entry into the range at the venue.',
     evidence: 'practice', sources: [{ id: 'mazet2024', where: 'p. 13' }, { id: 'chabloz2026', where: 'p. 6' }, { id: 'koykka2026', where: 'p. 31' }],
   },
   {

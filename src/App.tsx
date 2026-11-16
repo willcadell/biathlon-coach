@@ -324,6 +324,12 @@ function SignedInApp({
     setTab('library')
     window.scrollTo(0, 0)
   }, [tab])
+  // "See your week" on the 545 Coach tab: over to Analysis, then down to the section
+  // once it has rendered.
+  const openWeek = useCallback(() => {
+    setTab('analysis')
+    window.setTimeout(() => document.getElementById('your-week')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }, [])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [stored, setStored] = useState<Bout[]>([])
   const [metalBouts, setMetalBouts] = useState<MetalBout[]>([])
@@ -525,6 +531,8 @@ function SignedInApp({
             {tab === 'shoot' && (
               <WorkoutView
                 settings={settings}
+                shootingDirection={shootingDirection}
+                onOpenWeek={openWeek}
                 workout={activeWorkout}
                 entries={activeEntries}
                 onStart={startWorkout}

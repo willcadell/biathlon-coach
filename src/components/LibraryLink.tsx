@@ -1,12 +1,14 @@
 import { createContext, useContext } from 'react'
 import type { FindingId } from '../lib/types'
+import type { SeasonPhase } from '../lib/seasonPhase'
 import { BookOpenIcon } from './icons'
 
 /** The IBU's own journal of coaching articles, which the in-app library draws on. */
 export const IBU_LIBRARY_URL = 'https://www.ibuacademy.com/science/journal'
 
-/** What the library was opened about: an advice finding, to show its entries. */
-export interface LibraryAbout { findingId: FindingId; title: string }
+/** What the library was opened about: an advice finding, to show its entries,
+ *  or a time of year, to open filtered to it. */
+export type LibraryAbout = { findingId: FindingId; title: string } | { phase: SeasonPhase }
 
 /** Set by the app to open the in-app library. Without it (outside the signed-in
  *  app) the links fall back to the IBU's own journal page. */

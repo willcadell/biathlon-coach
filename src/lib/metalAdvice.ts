@@ -115,7 +115,7 @@ export function analyseMetal({ bouts, workouts, direction, now }: MetalAdviceInp
     const label = position
     const groupRate = rate(group)
 
-    // One target keeps escaping: sight picture or natural point of aim on that side.
+    // One target keeps escaping: sight picture or natural alignment on that side.
     const missRate = (t: MetalTarget) => misses[t] / n
     // Exactly one target must stand out: two or more standing out is a region or
     // a stage of the bout, which the timing rules below describe better.
@@ -130,7 +130,7 @@ export function analyseMetal({ bouts, workouts, direction, now }: MetalAdviceInp
         id: 'metal_one_disc',
         title: `${cap(oneDisc)} keeps escaping ${label}`,
         evidence: `${cap(oneDisc)} is missed in ${pct(missRate(oneDisc))} of your ${n} ${label} bouts, against ${pct(mean(METAL_TARGETS.filter((o) => o !== oneDisc).map(missRate)))} for the other four.`,
-        cause: `One target, on the ${side}${side === 'middle' ? '' : ' side'}, is going wrong far more than the rest, which is rarely random. When the rifle swings to that target the sight picture or the natural point of aim is pulling away. Check natural point of aim first, then the zero, and watch how the position holds when you turn ${side === 'middle' ? 'back to centre' : `to the ${side}`}.`,
+        cause: `One target, on the ${side}${side === 'middle' ? '' : ' side'}, is going wrong far more than the rest, which is rarely random. When the rifle swings to that target the sight picture or the natural alignment is pulling away. Check natural alignment first, then the zero, and watch how the position holds when you turn ${side === 'middle' ? 'back to centre' : `to the ${side}`}.`,
         severity: missRate(oneDisc) - mean(METAL_TARGETS.filter((o) => o !== oneDisc).map(missRate)) >= 0.4 ? 'priority' : 'watch',
         confidence: 0.7 * weight(n, 12),
         sampleSize: n,

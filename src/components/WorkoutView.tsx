@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Bout, ClickAdjustment, MetalBout, MetalTarget, NationalTest, PendingTarget, Position, RaceType, SensorSession, Settings, TemplateStep, Wind, WindDirection, Workout, WorkoutEntry, WorkoutTemplate } from '../lib/types'
+import type { Bout, ClickAdjustment, MetalBout, MetalTarget, NationalTest, PendingTarget, Position, RaceType, SensorSession, Settings, ShootingDirection, TemplateStep, Wind, WindDirection, Workout, WorkoutEntry, WorkoutTemplate } from '../lib/types'
 import { RACE_STAGES, RACE_TYPE_LABEL } from '../lib/types'
 import { DISCS_PER_METAL_BOUT, METAL_TARGETS, ZONES, ZONE_COLOR, allMissed, comboLabel, hitCount, hitsOf, missCount, timeline } from '../lib/metal'
 import { deleteBout, deleteMetalBout, deleteSensorSession, putMetalBout, putSensorSession } from '../lib/db'
@@ -19,7 +19,8 @@ import { clockTime, fromLocalInput, rangeTimeNote, toLocalInput } from '../lib/t
 import { RangeTimeField } from './RangeTimeField'
 import { PageTitle } from './LibraryLink'
 import { MiniTargets } from './MiniTargets'
-import { fireSmallConfetti } from './Confetti'
+import { Confetti, fireSmallConfetti, type ConfettiKind } from './Confetti'
+import { TrainingWeekLine } from './TrainingWeek'
 import { SensorTrainerCard } from './SensorTrainer'
 import { DryfireTimer } from './DryfireTimer'
 import { SensorSessionCard } from './SensorSessionCard'
@@ -384,9 +385,11 @@ function TargetDial({ hits, onChange }: { hits: Record<MetalTarget, boolean>; on
 }
 
 function MetalForm({
-  workoutId, initial, comboId, comboZone, presetPosition, stageLabel, onSaved, onCancel,
+  workoutId, initial, comboId, comboZone, presetPosition, stageLabel, celebrate, onSaved, onCancel,
 }: {
   workoutId: string
+  /** The colour of the confetti for a clean bout: the session it belongs to. */
+  celebrate: ConfettiKind
   /** Present when editing an existing metal bout rather than adding a new one. */
   initial?: MetalBout
   /** The active combo to attach a NEW bout to, if any. Ignored when editing —
@@ -437,7 +440,7 @@ function MetalForm({
       await putMetalBout(bout)
       // A clean bout is celebrated once it is saved (the form is about to close, so the confetti is
       // mounted outside it). Re-saving a bout that was already 5 for 5 does not repeat it.
-      if (downNow === DISCS_PER_METAL_BOUT && !(initial && hitCount(hitsOf(initial)) === DISCS_PER_METAL_BOUT)) fireSmallConfetti()
+      if (downNow === DISCS_PER_METAL_BOUT && !(initial && hitCount(hitsOf(initial)) === DISCS_PER_METAL_BOUT)) fireSmallConfetti(celebrate)
       onSaved()
     } catch (e) {
       setError(errorMessage(e, 'Could not save this bout. Check your connection and try again.'))
@@ -603,6 +606,8 @@ function SessionComplete({
 
   return (
     <div className="session-complete">
+      {/* Finishing a race is worth a full burst, in Race red, whatever the result. */}
+      {workout.raceType && <Confetti kinds={['race']} />}
       <div className="check-circle">
         <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
       </div>
@@ -927,6 +932,10 @@ interface Props {
   onDataChanged: () => void
   /** The athlete's whole logged history, for the goal progress on the start screen. */
   history?: GoalData
+  /** The order the athlete fires the metal targets, for the training-week suggestions. */
+  shootingDirection?: ShootingDirection
+  /** Opens "Your week" in Analysis, from the line under the title. */
+  onOpenWeek?: () => void
   /** Every saved sensor session; this workout's are shown under the sensor trainer. */
   sensorSessions?: SensorSession[]
   /** Every saved National Team test; a range workout may hold one, shot with the guided view. */
@@ -951,7 +960,7 @@ interface Props {
  * actually dialed in logged once at the workout level; a dryfire session is
  * just time spent and how it went, no range required.
  */
-export function WorkoutView({ settings, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history, sensorSessions = [], nationalTests = [], onNationalTestChanged, onStartNationalTest, onDeleteNationalTest, templates = [], onSaveTemplate, onDeleteTemplate, pendingTargets = [], onMarkPending, onDeletePending }: Props) {
+export function WorkoutView({ settings, shootingDirection, onOpenWeek, workout, entries, onStart, onFinish, onCancel, onWorkoutChanged, onDataChanged, history, sensorSessions = [], nationalTests = [], onNationalTestChanged, onStartNationalTest, onDeleteNationalTest, templates = [], onSaveTemplate, onDeleteTemplate, pendingTargets = [], onMarkPending, onDeletePending }: Props) {
   const [testError, setTestError] = useState('')
   // The workout for which "Start a new workout" was chosen, so the choice is per session.
   const [choseNewFor, setChoseNewFor] = useState<string | null>(null)
@@ -1028,6 +1037,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
       <>
         <PersonalCoachRequests />
         <PageTitle>Start a session</PageTitle>
+        {history && onOpenWeek && <TrainingWeekLine data={history} settings={settings} direction={shootingDirection} onOpen={onOpenWeek} />}
         <p className="lede">
           A range session holds any number of precision and metal bouts, with wind and clicks
           logged once for the whole session. A dry-fire session just tracks time and notes.
@@ -1207,6 +1217,7 @@ export function WorkoutView({ settings, workout, entries, onStart, onFinish, onC
     return (
       <MetalForm
         workoutId={workout.id}
+        celebrate={workout.raceType ? 'race' : 'range'}
         initial={editingMetal ?? undefined}
         comboId={activeComboId}
         comboZone={activeComboZone}

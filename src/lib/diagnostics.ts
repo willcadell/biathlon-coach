@@ -177,7 +177,7 @@ function analysePosition(
       evidence: `${Math.round(horizontalShare * 100)}% of your ${label} bouts produced a wide flat group, averaging ${avgAspect.toFixed(1)}:1 wider than tall.`,
       cause:
         position === 'prone'
-          ? 'Sideways spread prone usually means the natural point of aim is off to one side, so you are steering the rifle back onto the target for every shot and it fights you back between them. An elbow that creeps in or slides out over the course of a bout produces the same signature, so check your elbow lands in the same spot on the mat every time before retraining the aim.'
+          ? 'Sideways spread prone usually means the natural alignment is off to one side, so you are steering the rifle back onto the target for every shot and it fights you back between them. An elbow that creeps in or slides out over the course of a bout produces the same signature, so check your elbow lands in the same spot on the mat every time before retraining the aim.'
           : 'Sideways spread standing is balance: the sway is left-to-right and the shot is being released as it passes the target rather than when it settles. A trigger finger pressing sideways against the stock instead of straight back can add the same sideways nudge on every shot — worth ruling out on its own.',
       severity: 'priority',
       confidence: 0.75 * w,
@@ -278,7 +278,7 @@ function analysePosition(
       cause:
         position === 'prone'
           ? 'A steady walk prone means the position is slipping while you shoot — a sling that settles and tightens over the bout, an elbow sliding out from under you, or breath being held so long the body starts to move. Random scatter is a hold problem; a walk is a position-build problem, so check what changes physically between shot 1 and shot 5 rather than the sight picture.'
-          : 'A steady walk standing means the position is slipping while you shoot — usually the natural point of aim was never quite right, so gravity and fatigue pull you back toward where the body actually wants to stand, shot by shot. Random scatter is a hold problem; a walk is a position-build problem.',
+          : 'A steady walk standing means the position is slipping while you shoot — usually the natural alignment was never quite right, so gravity and fatigue pull you back toward where the body actually wants to stand, shot by shot. Random scatter is a hold problem; a walk is a position-build problem.',
       severity: 'watch',
       confidence: 0.7 * w,
       sampleSize: n,
@@ -295,7 +295,7 @@ function analysePosition(
         title: `Group centre moves between bouts ${label}`,
         evidence: `Your ${label} group centre wanders ${mm(spread)} from bout to bout — more than the ${mm(avgMeanRadius)} spread inside a single bout.`,
         cause:
-          'Each bout shoots tightly enough, but you are building a slightly different position every time, so the whole group lands somewhere new. This is a natural-point-of-aim problem: settle into position, close your eyes, relax, and open them again — if the sight has moved off the target, you built the position around forcing the rifle there rather than around where your body naturally rests. Nothing about the sight can fix this; the position needs to become repeatable first.',
+          'Each bout shoots tightly enough, but you are building a slightly different position every time, so the whole group lands somewhere new. This is a natural-alignment problem: settle into position, close your eyes, relax, and open them again — if the sight has moved off the target, you built the position around forcing the rifle there rather than around where your body naturally rests. Nothing about the sight can fix this; the position needs to become repeatable first.',
         severity: 'priority',
         confidence: 0.75 * w,
         sampleSize: n,

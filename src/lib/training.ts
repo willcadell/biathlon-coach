@@ -58,12 +58,12 @@ export const DRILLS: Drill[] = [
   },
   {
     id: 'npa-check',
-    name: 'Natural point of aim',
+    name: 'Natural alignment',
     purpose: 'Make the rifle point at the target on its own, so you are not steering it for every shot.',
     steps: [
       'Build your position and settle on the target.',
       'Close your eyes, take three relaxed breaths, and let everything go slack.',
-      'Open your eyes without moving. Wherever the sight is now is your natural point of aim.',
+      'Open your eyes without moving. Wherever the sight is now is where your natural alignment points (also called natural point of aim).',
       'If it sits off the target, do not push it back. Move your whole body — hips prone, feet standing — and rebuild.',
       'Repeat until the sight opens onto the target three times running.',
     ],
@@ -209,7 +209,7 @@ export const DRILLS: Drill[] = [
     purpose: 'Build a position that survives the uphill and downhill lanes a real course puts you on.',
     steps: [
       'Find or build even a shallow slope — a grass bank, a folded mat under one side of a mattress, anything with a consistent tilt.',
-      'Build your normal position across the slope and note where the natural point of aim lands before you correct anything.',
+      'Build your normal position across the slope and note where your natural alignment lands before you correct anything.',
       'Adjust only your legs and hips to bring it back on target prone, or your stance width and knee bend standing — never fight it with your arms or shoulders.',
       'Shoot or dry-fire a full bout there before returning to flat ground.',
       'Repeat facing the opposite way so you build the correction for both uphill and downhill.',

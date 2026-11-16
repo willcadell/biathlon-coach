@@ -1,7 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 
-const COLOURS = ['#2f8f5b', '#e8892b', '#3b82c4', '#d9534f', '#f2c94c', '#8e63c7']
+/** What is being celebrated, so the confetti is in that session's colour: the
+ *  red of Race, the blue of Range (precision, metal and combos), the violet of
+ *  Dryfire. Shades of each, from deep to pale, so a burst still sparkles. */
+export type ConfettiKind = 'race' | 'range' | 'dryfire'
+const PALETTES: Record<ConfettiKind, string[]> = {
+  race: ['#d03b3b', '#b82e2e', '#eb4d4d', '#f28b82', '#eb6834', '#ffd0cc'],
+  range: ['#2a78d6', '#1d5aa6', '#3987e5', '#7fb2ef', '#5b9be8', '#cfe2fa'],
+  dryfire: ['#8a70c2', '#6a52a3', '#a38fd6', '#c7b8ea', '#7b5fb8', '#e6def7'],
+}
 const DURATION_MS = 3200
 /** A small burst, for a quick win rather than a goal: fewer pieces, lower and shorter. */
 const SMALL_DURATION_MS = 1800
@@ -14,7 +22,11 @@ interface Piece { x: number; y: number; vx: number; vy: number; w: number; h: nu
  * draws nothing at all for someone who has asked their device for less motion
  * (the message it accompanies carries the news on its own).
  */
-export function Confetti({ small = false }: { small?: boolean }) {
+export function Confetti({ small = false, kinds = ['range'] }: {
+  small?: boolean
+  /** More than one (several goals met at once) mixes their palettes. */
+  kinds?: ConfettiKind[]
+}) {
   const canvas = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -24,6 +36,7 @@ export function Confetti({ small = false }: { small?: boolean }) {
     if (!el || !ctx || reduced) return
 
     const DURATION = small ? SMALL_DURATION_MS : DURATION_MS
+    const colours = kinds.flatMap((k) => PALETTES[k])
     const dpr = window.devicePixelRatio || 1
     const width = window.innerWidth
     const height = window.innerHeight
@@ -45,7 +58,7 @@ export function Confetti({ small = false }: { small?: boolean }) {
         h: 8 + Math.random() * 8,
         angle: Math.random() * Math.PI,
         spin: (Math.random() - 0.5) * 0.35,
-        colour: COLOURS[Math.floor(Math.random() * COLOURS.length)],
+        colour: colours[Math.floor(Math.random() * colours.length)],
       }
     })
 
@@ -74,6 +87,7 @@ export function Confetti({ small = false }: { small?: boolean }) {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
+    // Keyed on size only: a burst fires once, and a fresh `kinds` array on a re-render must not restart it.
   }, [small])
 
   return (
@@ -87,10 +101,10 @@ export function Confetti({ small = false }: { small?: boolean }) {
 /** Plays one small burst from anywhere, including as a screen is closing: it mounts its own canvas
  *  on the page and takes it away again, so it does not depend on the component that asked for it
  *  still being there. */
-export function fireSmallConfetti(): void {
+export function fireSmallConfetti(kind: ConfettiKind = 'range'): void {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
-  root.render(<Confetti small />)
+  root.render(<Confetti small kinds={[kind]} />)
   window.setTimeout(() => { root.unmount(); host.remove() }, SMALL_DURATION_MS + 300)
 }

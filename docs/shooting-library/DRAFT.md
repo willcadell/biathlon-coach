@@ -3,6 +3,9 @@
 Status: draft, written 2026-10-17. Nothing here is in the app yet. It is for you to cut,
 correct and approve before any code is written.
 
+Updated 2026-11-15: section 8 added (season phase tags for drills, and phase notes for
+advice findings). Also a draft, not yet in the app.
+
 Sources are the IBU Exercise Catalogue (2018) and the *Journal of Biathlon Coaching*,
 Issues 1 to 6. The reading notes behind every entry are in `docs/ibu-journal/notes/`.
 Summaries are in our own words and cite their source. Evidence is graded
@@ -46,6 +49,9 @@ unstable-support, resistance-pull, incline-shooting, position-build, range-entry
 combo-intervals, standing-volume, shot-plan, progression.
 
 Entries below that extend one of these say so.
+
+Term: athlete-facing text says **natural alignment** (Will's term, 2026-11-15) for what
+the IBU sources call natural point of aim. Internal ids keep `npa` (`npa-check`, `unstable_npa`).
 
 ## 3. Draft entries
 
@@ -255,13 +261,13 @@ Issue 1. Evidence: R (review).
 
 **L28 New venue or altitude.** Phases: specific, early. Focus: conditions. Expect the
 range to feel different; accept more movement in the rifle and take two or three extra
-breaths before starting; check natural point of aim and rifle settings; practise the
+breaths before starting; check natural alignment and rifle settings; practise the
 entry into the range at the venue. Source: Mazet, Issue 1; Chabloz and Köykkä et al.,
 Issue 6. Evidence: P.
 
 **L29 Fit the rifle to the athlete, with care.** Phases: transition, general, specific.
 Focus: equipment. Cheekpiece, hand stop, grip, butt plate (and standing grip), sight
-set-up and natural point of aim, tuned to the athlete for comfort and alignment; zero in
+set-up and natural alignment, tuned to the athlete for comfort and alignment; zero in
 calm, windless conditions. Test a change where improvement is expected and in small
 steps; avoid big changes before key races. Coach note: this is a checklist for athlete
 and coach; the app cannot see rifle setup. Source: Issue 6. Evidence: P.
@@ -306,7 +312,7 @@ number of bouts before it speaks (suggest 8 per position, 6 in a comparison):
 | Id | What the data shows | Reads as | Surfaces |
 |---|---|---|---|
 | M1 standing_vs_prone | Standing hit rate 20+ points under prone | Stability | L02, L05, L06, L08 |
-| M2 one_disc_missed | One disc 25+ points under the rest | Aim or natural point of aim (side) | L06, L29, L08 |
+| M2 one_disc_missed | One disc 25+ points under the rest | Aim or natural alignment (side) | L06, L29, L08 |
 | M3 scattered_misses | Misses spread evenly across all discs, low rate | Stability or hold (not aim) | L01, L05, L07 |
 | M4 late_discs | Last two discs miss far more than the first two | Timing, rushing, fatigue | L09, L10, L14 |
 | M5 first_disc | First disc misses clearly | Arrival, timing | L17, L19, L03 |
@@ -333,3 +339,120 @@ entries, especially for altitude and the transition phase (L30 is thin).
 3. Metal: which of M1 to M9 would you want first?
 4. Wording and reading level: these are written for an informed athlete and a coach.
    Should athlete-facing text be shorter, with the detail one tap away?
+5. Section 8 (season phase for the advice): see the questions at the end of that section.
+
+## 8. Season phase in the shooting advice
+
+**Status: draft for review, 2026-11-15. Not in the app yet.**
+
+Today the advice ignores the time of year. The findings ("what your groups are saying")
+read only the shot data, the drills in "Your next two weeks" are picked by finding alone,
+and each finding links to the same library entries in July and in February.
+
+**What would change, and what would not.** What the data shows should not change with the season:
+a vertical spread is a vertical spread in any month. What changes is what to *do* about it.
+Three things:
+
+1. **Drills get phase tags.** In "Your next two weeks", drills that suit the current
+   phase rank first. Out-of-phase drills rank lower but are **not hidden**, because a
+   real fault in January still needs an answer. When one does appear, it carries a short
+   line saying so, e.g. "Best done in general preparation."
+2. **Findings get a phase note.** One line under the cause, saying what this finding
+   means for training at this time of year (8.2).
+3. **Library links sort by phase.** A finding's library entries show the current
+   phase's entries first. No new data is needed: entries already have phases.
+
+Phase codes below: **T** transition (Apr–May), **G** general prep (Jun–Aug), **S**
+specific prep (Sep–Oct), **E** early season (Nov–Dec), **C** competition (Jan–Mar).
+
+### 8.1 Drill phase tags
+
+The basis for these is the season structure entries in section 3: foundations at
+rest first (L21), load added in steps (L22, L23), from experimenting to repeating
+as racing nears (L24), keep shooting in the taper (L25), no big changes before key
+races (L29).
+
+| Drill | Phases | Why |
+|---|---|---|
+| zero-check | T G S E C | A sight error is never worth carrying. New venues and altitude change the zero (L28). |
+| click-calibration | T G S | A one-off job, best done in calm conditions before winter. In race season, only after a new sight. |
+| breathing-pause | G S E | Foundation work (L21). Still useful in early season, but by competition the breathing pattern should be set. |
+| npa-check | T G S E C | A quick check, not a technique change. Do it at every new venue (L28). |
+| ball-and-dummy | T G S | Exposes trigger anticipation and makes the athlete rework the trigger. That is technique change, so keep it to the build phases (L21, L24). |
+| plateau-trigger | T G | A new trigger technique: learn it at rest, well before racing (L21, L29). |
+| trigger-variations | G S | Cold, gloves, pressure: proof the trigger before winter arrives. |
+| follow-through | T G S E C | An awareness habit, not a change. It helps in any phase. |
+| hold-build | G S | Raw stability, built at rest (L21). |
+| balance-ladder | T G S | Stance stability built up in small steps. Best started early. |
+| unstable-support | T G | Exploratory work at rest. It unsettles the position on purpose, so not when racing. |
+| resistance-pull | G S | Stability under a disturbing force: the step between rest and load (L22). |
+| incline-shooting | S E | Course-specific. Fits camps and new venues (L28). |
+| position-build | G S E | Repetition for a consistent position. Early season still allows small adjustments. In competition, only the existing position (L29). |
+| range-entry | S E C | Range approach is this period's work (L17, L19). Rehearse it the day before races (L25). |
+| combo-intervals | S E | Shooting under load (L23). In competition, races and the taper replace it (L25). |
+| standing-volume | G S | Volume of precision shots is a general prep job (L21). |
+| shot-plan | S E C | Routine to repeat under race pressure (L24). |
+| progression | S E C | Clock, penalty loops, a competitor: race pressure once nothing is broken (L22, L20). |
+
+So in competition the in-phase set is zero-check, npa-check, follow-through,
+range-entry, shot-plan and progression: checks, routines and pressure, no rebuilds.
+That matches L24 and the "don't rebuild mid-season" idea.
+
+### 8.2 Phase notes on findings
+
+A default note per phase, with overrides only where a finding reads differently.
+
+**Defaults** (used for any finding not listed in the overrides):
+
+| Phase | Note |
+|---|---|
+| T | Off-season: a good time to look at this calmly, with no race to protect. Keep sessions light. |
+| G | Good time to fix this at the root: technique at rest, plenty of quiet precision shots, before load goes on (L21). |
+| S | If this shows up only under load, go back to rest until it holds, then add load in steps (L22). |
+| E | Racing has started: work on this in small steps, and avoid big changes in a race week (L24, L29). |
+| C | Mid-season: don't rebuild technique now. Keep the routine you race with, manage this with the drills below, and note it to work on in April (L24). |
+
+**Overrides:**
+
+| Finding | Phase | Note |
+|---|---|---|
+| zero_offset | all | Fix this now, whatever the time of year. Re-check zero at every new venue (L28). |
+| vertical_stringing | C | Don't rework your breathing pattern now. Use a respiratory pause you already know, and call every shot. |
+| trigger_bias, flier | G | Best time of year to rework the trigger: plateau trigger, ball and dummy. |
+| trigger_bias, flier | C | Don't change your trigger technique mid-season. A written shot plan and calling every shot help most now. |
+| unstable_npa | E C | Check natural alignment at each new venue. Small adjustments only (L28, L29). |
+| cold_first_shot, metal_first_disc | T G | Expected off-season, with little race-pace skiing into the range. It becomes the main job in specific prep. |
+| cold_first_shot, metal_first_disc | S E | Right on time: the range approach is this period's main work (L17, L19). |
+| cold_first_shot, metal_first_disc | C | Rehearse the range entry at race speed the day before each race (L25). Ease off over the last 200–300 m (L17). |
+| fatigue_drift, metal_intensity_drop | G | Don't chase this at high intensity yet. Build steadiness at rest and low intensity first (L22). |
+| fatigue_drift, metal_intensity_drop | S | This is the phase for it: shooting under load, a little beyond race intensity (L23). |
+| fatigue_drift, metal_intensity_drop | E C | On race days, arrive with your breathing under control and ease off before the range (L17). |
+| standing_gap, metal_standing_gap, metal_standing_volume | G | Best time to add standing volume, half of it dry at home (L21). |
+| standing_gap, metal_standing_gap, metal_standing_volume | C | Standing decides sprints, and the last standing stage decides pursuits and mass starts (L27). Keep standing in every session through the taper (L25). |
+| metal_race_gap | T G | Look back over last season's races and plan routine work for the autumn. |
+| metal_race_gap | E | Normal early on, while you move from experimenting to repeating (L24). |
+| metal_race_gap | C | Trust the routine. A written shot plan takes the decision out of the moment. |
+| solid | T | Nothing stands out. Rest, service the rifle, keep it light (L30). |
+| solid | G | Nothing stands out. Build precision volume, then start adding load (L21, L22). |
+| solid | S | Nothing stands out. Add pressure: speed and heart rate (L23). |
+| solid | E C | Nothing stands out. Keep the routine and work on range time (L20). |
+
+### 8.3 Not changed
+
+- **The diagnosis rules and their thresholds** stay as they are in every phase.
+- **The 60-day window.** In November it still reaches back into specific prep. That
+  seems fine, since the faults are the same. Revisit if early-season advice feels stale.
+- **Metal and precision** use the same tags. Metal findings already share drills
+  with precision ones.
+
+### 8.4 Questions for you
+
+1. **Drill tags:** anything you would move? The ones I am least sure of are
+   ball-and-dummy (many coaches use it all year), breathing-pause (left out of C), and
+   combo-intervals (left out of C).
+2. **Out-of-phase drills:** rank them lower (as proposed), or leave them out of "Your
+   next two weeks" and show them behind a "More drills" tap instead?
+3. **Competition note:** is "note it to work on in April" the right tone, or too
+   discouraging for a novice who has a real fault mid-season?
+4. **Transition:** the notes there are thin, like L30. Keep them, or treat transition
+   as general prep?

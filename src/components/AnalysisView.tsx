@@ -4,21 +4,23 @@ import { RACE_TYPE_LABEL, SHOOTING_DIRECTION_LABEL } from '../lib/types'
 import { ofWorkouts } from '../lib/scope'
 import { Help } from './Help'
 import { PageTitle, IBU_LIBRARY_URL, useOpenLibrary } from './LibraryLink'
+import { SeasonRibbon } from './LibraryDiagrams'
+import { SEASON_PHASE_LABEL, seasonPhase } from '../lib/seasonPhase'
 import { entriesForFinding } from '../lib/library'
-import { AppMark, ChevronIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
+import { AppMark, ChevronIcon, TrainingWeekIcon, DryfireIcon, RaceMedalIcon, RangeIcon } from './icons'
 import { DISCS_PER_METAL_BOUT, ZONE_COLOR, hitsOf, missCount, targetSeries, targetStats, type TargetStat } from '../lib/metal'
 import { analyse } from '../lib/diagnostics'
+import { WINDOW_DAYS, precisionWindow } from '../lib/advice'
 import { analyseMetal, metalWindow } from '../lib/metalAdvice'
 import { sensorAsBouts, sensorSummary } from '../lib/sensorStats'
-import { recommend } from '../lib/training'
+import { recommend, type Recommendation } from '../lib/training'
 import { TrendChart } from './TrendChart'
 import { HistoryView } from './HistoryView'
+import { WEEK_PLAN_LIMIT, YourWeek } from './TrainingWeek'
 
-/** Bouts older than this stop counting toward the coaching read below — the
- *  breakdown and trends above it stay all-time, since a distribution is only
- *  honest over the long run. */
-const WINDOW_DAYS = 60
-const MAX_BOUTS = 20
+// Bouts older than WINDOW_DAYS stop counting toward the coaching read below — the
+// breakdown and trends above it stay all-time, since a distribution is only
+// honest over the long run.
 
 /** Ring points scored as a percentage of what was possible — turns a ring
  *  value out of 10 into the same units as a metal hit rate, so the two
@@ -310,6 +312,17 @@ const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
   return <span style={{ color: colour, display: 'inline-flex' }}><Icon size={22} /></span>
 }
 
+function TrainingWeekSection({ plan }: { plan: Recommendation[] }) {
+  return (
+    <CollapsibleSection
+      title="Training week"
+      icon={<span style={{ color: 'var(--text-primary)', display: 'inline-flex' }}><TrainingWeekIcon /></span>}
+    >
+      <YourWeek plan={plan} />
+    </CollapsibleSection>
+  )
+}
+
 /** One finding: what the data shows, the likely cause, how much it rests on. */
 function FindingCard({ f }: { f: Finding }) {
   const openLibrary = useOpenLibrary()
@@ -374,6 +387,22 @@ export function CollapsibleSection({
       </div>
       {open && <div style={{ marginTop: 12 }}>{children}</div>}
     </>
+  )
+}
+
+/** Where the athlete is in the biathlon year, so the read below is taken in
+ *  context: a loose group in transition means something different from one in
+ *  competition. Tapping a phase opens the library at that time of year. */
+function SeasonContext() {
+  const openLibrary = useOpenLibrary()
+  const now = seasonPhase(new Date())
+  return (
+    <SeasonRibbon
+      month={new Date().getMonth() + 1}
+      selected={now}
+      onSelect={openLibrary ? (phase) => openLibrary({ phase }) : undefined}
+      caption={`You are in ${SEASON_PHASE_LABEL[now].toLowerCase()}.${openLibrary ? ' Tap a phase to see the library’s advice for it.' : ''}`}
+    />
   )
 }
 
@@ -443,13 +472,7 @@ export function AnalysisView({
   // The coaching read is built from the last 60 days. After a longer break (the
   // off-season) nothing falls in that window, and the whole section used to
   // vanish: so fall back to the most recent bouts there are, and say so.
-  const { recent, stale, daysSince } = useMemo(() => {
-    const cutoff = Date.now() - WINDOW_DAYS * 86400_000
-    const inWindow = bouts.filter((b) => new Date(b.shotAt).getTime() >= cutoff).slice(0, MAX_BOUTS)
-    if (inWindow.length > 0 || bouts.length === 0) return { recent: inWindow, stale: false, daysSince: 0 }
-    const latest = Math.max(...bouts.map((b) => new Date(b.shotAt).getTime()))
-    return { recent: bouts.slice(0, MAX_BOUTS), stale: true, daysSince: Math.max(1, Math.round((Date.now() - latest) / 86400_000)) }
-  }, [bouts])
+  const { recent, stale, daysSince } = useMemo(() => precisionWindow(bouts), [bouts])
 
   // Race metal bouts, grouped by the format they were raced under — a coach
   // wants to know how a sprint compares to a pursuit, not just one blended
@@ -486,6 +509,7 @@ export function AnalysisView({
   )
   const metalRead = useMemo(() => metalWindow(metalBouts), [metalBouts])
   const plan = useMemo(() => recommend([...findings, ...metalFindings]), [findings, metalFindings])
+  const weekPlan = useMemo(() => recommend([...findings, ...metalFindings], WEEK_PLAN_LIMIT), [findings, metalFindings])
 
   // Sensor sessions, read as whole bouts of five so the per-target circles and trends work as they do for metal.
   const sensorSum = useMemo(() => sensorSummary(sensorSessions), [sensorSessions])
@@ -541,6 +565,8 @@ export function AnalysisView({
     return (
       <>
         {!readOnly && <PageTitle>Analysis</PageTitle>}
+        <SeasonContext />
+        {!readOnly && <TrainingWeekSection plan={[]} />}
         <div className="empty">
           <p>Nothing to analyse yet.</p>
           <p className="meta">
@@ -564,6 +590,7 @@ export function AnalysisView({
     <>
       {/* A coach is already under the athlete's name, so "Analysis" would only repeat it. */}
       {!readOnly && <PageTitle>Analysis</PageTitle>}
+      <SeasonContext />
 
       {/* The advice reads every kind of shooting, so it sits under the page title
           rather than inside Precision. */}
@@ -613,7 +640,7 @@ export function AnalysisView({
             </>
           )}
 
-          {plan.length > 0 && (
+          {plan.length > 0 && (readOnly ? (
             <>
               <h3 style={{ marginTop: 20 }}>
                 Your next two weeks
@@ -645,7 +672,31 @@ export function AnalysisView({
                 </div>
               ))}
             </>
-          )}
+          ) : (
+            <details style={{ marginTop: 20 }}>
+              <summary>All suggested drills ({plan.length})</summary>
+              <div style={{ marginTop: 10 }}>
+              {plan.map(({ drill, reason }, i) => (
+                <div key={drill.id} className="card">
+                  <div className="badge" style={{ marginBottom: 4 }}>
+                    {i + 1} · {drill.minutes} min · {drill.dryFire ? 'no range needed' : 'range'}
+                  </div>
+                  <h3>{drill.name}</h3>
+                  <p>{drill.purpose}</p>
+                  <p className="meta">Because of: {reason}. {drill.frequency}.</p>
+                  <details open={openDrill === drill.id} onToggle={(e) =>
+                    setOpenDrill((e.currentTarget as HTMLDetailsElement).open ? drill.id : null)
+                  }>
+                    <summary>How to do it</summary>
+                    <ol className="steps">
+                      {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
+                    </ol>
+                  </details>
+                </div>
+              ))}
+              </div>
+            </details>
+          ))}
 
           <p className="meta" style={{ marginTop: 20, marginBottom: 0 }}>
             {openLibrary
@@ -654,6 +705,10 @@ export function AnalysisView({
           </p>
         </CollapsibleSection>
       )}
+
+      {/* The drills from the advice above, sized to the athlete's own time. Not for a
+          coach viewing an athlete: the time budget lives in the athlete's browser. */}
+      {!readOnly && <TrainingWeekSection plan={weekPlan} />}
 
       <CollapsibleSection title="Precision" icon={sessionIcon('range')}>
         {bouts.length === 0 ? (

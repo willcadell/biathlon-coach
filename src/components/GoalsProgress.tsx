@@ -6,7 +6,7 @@ import {
 import {
   markGoalAchieved, markGoalsCelebrated, myDismissedProgramGoals, myGoals, myProgramGoals, programGoalProgress, setGoalArchived, setProgramGoalDismissed, sharedGoalsOf,
 } from '../lib/goals'
-import { Confetti } from './Confetti'
+import { Confetti, type ConfettiKind } from './Confetti'
 import { GoalRow } from './GoalRow'
 import { ArchiveIcon, ChevronIcon, ShareIcon, TrophyIcon } from './icons'
 import { ShareSheet } from './ShareSheet'
@@ -217,7 +217,7 @@ function Celebration({ goals, data, onDone }: { goals: Goal[]; data: GoalData; o
 
   return (
     <>
-      <Confetti />
+      <Confetti kinds={[...new Set(goals.map((g): ConfettiKind => (g.metric === 'dryfire_minutes' ? 'dryfire' : 'range')))]} />
       <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Goal achieved" onClick={onDone}>
         <div className="modal-card goal-celebration" onClick={(e) => e.stopPropagation()}>
           <div className="goal-medal"><TrophyIcon size={30} /></div>

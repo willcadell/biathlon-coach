@@ -372,58 +372,45 @@ const YEAR: { phase: SeasonPhase; from: number; to: number; label: string }[] = 
  * a phase filters the library to it.
  */
 export function SeasonRibbon({
-  month, selected, onSelect,
+  month, selected, onSelect, caption = 'The marker is this month. Tap a phase to see its advice.',
 }: {
   /** 1-12. */
   month: number
   selected: SeasonPhase | 'all'
-  onSelect: (p: SeasonPhase) => void
+  /** Without it the ribbon is a picture only: no phase can be picked. */
+  onSelect?: (p: SeasonPhase) => void
+  caption?: string
 }) {
-  const x0 = 6, w = 288
-  const cell = w / 12
-  const X = (m: number) => x0 + (m - 1) * cell // left edge of month m
-  const barY = 28, barH = 20
+  // HTML rather than SVG, so the labels set in the page's own type sizes
+  // instead of scaling up and down with the width of the page.
+  const Phase = onSelect ? 'button' : 'div'
   return (
-    <figure style={{ margin: '12px 0 4px' }}>
-      <svg
-        viewBox="0 0 300 100" role="group"
-        aria-label={`The biathlon year in five phases. This month is ${MONTH_NAMES[month - 1]}. Choose a phase to show its advice.`}
-        style={{ width: '100%', height: 'auto', display: 'block' }}
+    <figure className="season-ribbon">
+      <div
+        className="season-ribbon__grid" role="group"
+        aria-label={`The biathlon year in five phases. This month is ${MONTH_NAMES[month - 1]}.${onSelect ? ' Choose a phase to show its advice.' : ''}`}
       >
         {MONTHS.map((m, i) => (
-          <text key={i} x={X(i + 1) + cell / 2} y={12} textAnchor="middle" style={{ ...text(10.5), fill: i + 1 === month ? INK : MUTED, fontWeight: i + 1 === month ? 700 : 400 }}>{m}</text>
+          <span key={i} aria-hidden className={`season-ribbon__month${i + 1 === month ? ' is-now' : ''}`}>{m}</span>
         ))}
         {YEAR.map((y, idx) => {
           const active = selected === y.phase
-          const left = X(y.from), width = (y.to - y.from + 1) * cell
-          const cx = left + width / 2
-          // Labels alternate between two rows so neighbours never collide.
-          const lower = idx % 2 === 1
-          const ly = barY + barH + (lower ? 34 : 17)
-          const anchor = idx === YEAR.length - 1 ? 'end' : 'middle'
-          const lx = idx === YEAR.length - 1 ? 296 : cx
           return (
-            <g
-              key={y.phase} role="button" tabIndex={0} aria-pressed={active}
-              aria-label={`${SEASON_PHASE_LABEL[y.phase]}, months ${y.from} to ${y.to}`}
-              onClick={() => onSelect(y.phase)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(y.phase) } }}
-              style={{ cursor: 'pointer', outline: 'none' }}
+            <Phase
+              key={y.phase}
+              {...(onSelect && { type: 'button' as const, 'aria-pressed': active, onClick: () => onSelect(y.phase) })}
+              aria-label={`${SEASON_PHASE_LABEL[y.phase]}, ${MONTH_NAMES[y.from - 1]} to ${MONTH_NAMES[y.to - 1]}`}
+              // Labels alternate between two rows on a narrow page so neighbours never collide.
+              className={`season-ribbon__phase${active ? ' is-active' : ''}${idx % 2 === 1 ? ' is-lower' : ''}${idx === YEAR.length - 1 ? ' is-last' : ''}`}
+              style={{ gridColumn: `${y.from} / ${y.to + 1}` }}
             >
-              <rect x={left + 1} y={barY} width={width - 2} height={barH} rx={5} fill={BLUE} fillOpacity={active ? 0.95 : 0.22} stroke={BLUE} strokeOpacity={active ? 0 : 0.55} strokeWidth={1} />
-              {lower && <line x1={cx} y1={barY + barH + 2} x2={cx} y2={ly - 12} stroke={LINE} strokeWidth={1} />}
-              <text x={lx} y={ly} textAnchor={anchor} style={{ ...text(10.5), fill: active ? INK : SOFT, fontWeight: active ? 700 : 400 }}>
-                {y.label}
-              </text>
-            </g>
+              <span className="season-ribbon__bar" />
+              <span className="season-ribbon__label">{y.label}</span>
+            </Phase>
           )
         })}
-        {/* this month */}
-        <path d={`M ${X(month) + cell / 2} ${barY - 2} l -4.5 -7 h 9 z`} fill={INK} />
-      </svg>
-      <figcaption className="meta" style={{ marginTop: 2 }}>
-        The marker is this month. Tap a phase to see its advice.
-      </figcaption>
+      </div>
+      <figcaption className="meta">{caption}</figcaption>
     </figure>
   )
 }
