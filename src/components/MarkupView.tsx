@@ -220,14 +220,14 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
     <div>
       <div className="row" style={{ marginBottom: 8 }}>
         <button
-          className="secondary"
+          className="primary"
           onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z / ZOOM_STEP))}
           disabled={zoom <= MIN_ZOOM}
         >
           − Zoom out
         </button>
         <button
-          className="secondary"
+          className="primary"
           onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * ZOOM_STEP))}
           disabled={zoom >= MAX_ZOOM}
         >
@@ -361,15 +361,16 @@ export function MarkupView({ imageUrl, bulls, aspect, onChange, ringLocked }: Pr
 
       <div className="row" style={{ marginTop: 12 }}>
         <button
-          className="secondary"
+          className="primary"
           onClick={() => setAdding((a) => !a)}
           aria-pressed={adding}
-          style={adding ? { borderColor: 'var(--series-1)', color: 'var(--series-1)' } : undefined}
+          // While adding, the button is the chosen state: outlined, as the other blue choices are.
+          style={adding ? { outline: '3px solid var(--text-primary)', outlineOffset: 2, fontWeight: 700 } : undefined}
         >
           {adding ? 'Tap the photo…' : '+ Add shot'}
         </button>
         <button className="secondary danger" onClick={removeSelected} disabled={!selected}>
-          Remove shot
+          − Remove shot
         </button>
       </div>
 

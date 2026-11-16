@@ -9,6 +9,7 @@ import { deletePendingTarget, putBout, updateBoutShots } from '../lib/db'
 import { errorMessage } from '../lib/errors'
 import { uuid } from '../lib/id'
 import { MarkupView } from './MarkupView'
+import { TrashIcon } from './icons'
 import { ResultsView } from './ResultsView'
 
 type Stage = 'setup' | 'reading' | 'markup' | 'done'
@@ -226,8 +227,8 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
         <p className="lede">Saved to your history.</p>
         <ResultsView bout={saved} settings={settings} workout={workout} imageUrl={imageUrl} />
         <div className="row" style={{ marginTop: 16 }}>
-          {onExit && <button className="secondary" onClick={onExit}>Back to workout</button>}
-          <button className="secondary" onClick={refine}>Refine placement</button>
+          {onExit && <button className="primary" onClick={onExit}>Back to workout</button>}
+          <button className="primary" onClick={refine}>Refine placement</button>
           {!fixedPosition && <button className="primary" onClick={reset}>Score another</button>}
         </div>
       </>
@@ -269,11 +270,12 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
         <MarkupView imageUrl={imageUrl} bulls={bulls} aspect={aspect} onChange={setBulls} ringLocked={ringDetected} />
         <div className="row" style={{ marginTop: 14 }}>
           <button
-            className="secondary"
-            onClick={() => (saved ? setStage('done') : reset())}
-            disabled={saving}
+            className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+            aria-label={saved ? 'Discard changes' : 'Start over, discard this photo'}
+            title={saved ? 'Discard changes' : 'Start over, discard this photo'}
+            onClick={() => (saved ? setStage('done') : reset())} disabled={saving}
           >
-            {saved ? 'Cancel' : 'Start over'}
+            <TrashIcon />
           </button>
           <button className="primary" onClick={() => void save()} disabled={saving}>
             {saving ? 'Saving…' : saved ? 'Save changes' : found ? 'Confirm and score' : 'Score it'}
@@ -294,7 +296,7 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
         {!fixedPosition && (
           <label className="field">
             <span>Position</span>
-            <div className="seg">
+            <div className="seg range-blue filled">
               {(['prone', 'standing'] as Position[]).map((p) => (
                 <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>
                   {p === 'prone' ? 'Prone · 45 mm' : 'Standing · 115 mm'}
@@ -322,13 +324,23 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
         </label>
       </div>
 
-      <label className="filelabel">
-        Photograph or choose a photo
-        <input
-          type="file" accept="image/*"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
-        />
-      </label>
+      <div className="row">
+        {onExit && (
+          <button
+            className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }}
+            aria-label="Cancel, back to workout" title="Cancel, back to workout" onClick={onExit}
+          >
+            <TrashIcon />
+          </button>
+        )}
+        <label className="filelabel">
+          Photograph or choose a photo
+          <input
+            type="file" accept="image/*"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f) }}
+          />
+        </label>
+      </div>
       {error && <div className="notice error" style={{ marginTop: 10 }}>{error}</div>}
 
       <p className="meta" style={{ marginTop: 10, textAlign: 'center' }}>
@@ -337,11 +349,6 @@ export function CaptureView({ settings, workout, onSaved, onExit, fixedPosition,
           : 'No API key set — you will mark the shots by hand. Add a key in Settings to have them found for you.'}
       </p>
 
-      {onExit && (
-        <button className="secondary" style={{ marginTop: 14 }} onClick={onExit}>
-          Cancel, back to workout
-        </button>
-      )}
     </>
   )
 }

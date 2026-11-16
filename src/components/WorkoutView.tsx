@@ -685,7 +685,7 @@ function PrecisionChoiceDialog({
         {fixed ? (
           <p className="meta">{fixed === 'prone' ? 'Prone' : 'Standing'}, ten shots.</p>
         ) : (
-          <div className="seg" style={{ marginBottom: 10 }}>
+          <div className="seg range-blue filled" style={{ marginBottom: 10 }}>
             {(['prone', 'standing'] as Position[]).map((p) => (
               <button key={p} aria-pressed={position === p} onClick={() => setPosition(p)}>{p === 'prone' ? 'Prone' : 'Standing'}</button>
             ))}
@@ -695,9 +695,11 @@ function PrecisionChoiceDialog({
           The range is open while you shoot, so the target stays put. Record the bout now and photograph the
           target after, once the range is closed.
         </p>
-        <button className="primary" style={{ width: '100%' }} onClick={() => void onLater(position)}>Shot — photograph the target later</button>
-        <button className="secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => onNow(position)}>I have the target — photograph it now</button>
-        <button className="link" style={{ marginTop: 8 }} onClick={onCancel}>Cancel</button>
+        <button className="primary" style={{ width: '100%' }} onClick={() => void onLater(position)}>Add target later</button>
+        <div className="row" style={{ marginTop: 8 }}>
+          <button className="secondary danger" style={{ flex: 'none', width: 44, padding: '13px 0' }} aria-label="Cancel" title="Cancel" onClick={onCancel}><TrashIcon /></button>
+          <button className="primary" onClick={() => onNow(position)}>Add target now</button>
+        </div>
       </div>
     </div>
   )
