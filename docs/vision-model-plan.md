@@ -107,36 +107,55 @@ not clear it, we do not ship it; we keep the current detector and keep collectin
 
 ## Results so far (Stage 1, 2026-11-15)
 
-Model: a small fully convolutional network (about 250k parameters, under 1 MB), trained for 1,200 steps (about two
-minutes on a laptop GPU) on the 11 contributed targets that kept the athlete's confirmed ring fit. Scored with the
-**automatic** ring fit, as the app would, with a threshold of 0.5 fixed before scoring. Code and per-target results:
-`ml/`.
+Model: a small fully convolutional network (about 250k parameters, under 1 MB), trained for 1,200 to 1,500 steps (a few
+minutes on a laptop GPU). Scored with the **automatic** ring fit and the athletes' **original labels**, as the app would
+meet them, with a threshold of 0.5 fixed before scoring. Detections outside the outermost scoring ring (handwriting, the
+score table in the margin) are discarded. Code and per-target results: `ml/`.
 
-| test | targets | model found | model invented | baseline found | baseline invented |
+**Round 2: all 44 targets, 5-fold cross-validation.** Every target is scored by a model that never trained on it.
+Training used the 11 targets with the athlete's confirmed ring and 27 more whose labels were placed on the photo by
+`ml/register_labels.py` (6 more could not be placed and are scored but not trained on).
+
+| | targets | model found | model invented | baseline found | baseline invented |
 |---|---|---|---|---|---|
-| 5-fold cross-validation, each target scored by a model that never saw it | 11 | 97/110 (88%) | 31 | 34/110 (31%) | 64 |
-| trained on those 11, scored on targets it never saw: developer eval photos | 27 | 223/270 (83%) | 113 | 174/270 (64%) | 92 |
-| the same, contributed targets without an exact ring fit | 6 | 50/60 (83%) | 9 | 16/60 (27%) | 23 |
-| the same, all 33 | 33 | 273/330 (83%) | 122 | 190/330 (58%) | 115 |
+| all targets | 44 | 369/440 (84%) | 42 (1.0 per target) | 224/440 (51%) | 179 (4.1) |
+| developer eval photos | 27 | 227/270 (84%) | 30 | 174/270 (64%) | 92 |
+| contributed targets | 17 | 142/170 (84%) | 12 | 50/170 (29%) | 87 |
+| the 38 with a trusted registration | 38 | 331/380 (87%) | 27 (0.7) | 203/380 (53%) | 150 |
 
-Keeping only the K strongest peaks, K being the shots the bout should have (the app knows it), cuts the invented
-markers on the 33 never-seen targets from 122 to 62 for a found rate of 81%. Position error on a found hole is about 1.3
-mm, against about 1.5 to 2.1 mm for the baseline.
+Keeping only the K strongest peaks, K being the shots the bout should have (the app knows it), brings the invented
+count on all 44 to 32 (0.7 per target) with no loss in found. Position error on a found hole is about 1.2 mm, against
+1.6 mm for the baseline.
 
-The model barely cares whether it is given the automatic or the exact ring fit (88% against 87% in cross-validation), so
-the weak aiming-circle fit that hurt the baseline is not what limits it.
+**Round 1: 11 targets trained on, 33 never seen** (an earlier, smaller run): 83% found against 58% for the baseline, with
+3.7 invented per target before the ring limit and the extra training data. A second seed gave the same answer
+(273/330 found), so it was not a lucky run.
+
+**Against the proposed gate** (at least 85% found, about one invented per target): 84% found and 1.0 invented per target
+on all 44, 87% and 0.7 on the 38 with a trusted registration. It is one point short on the full set and level on the
+rest.
+
+**What was learned on the way.**
+- A first attempt at registering the other 33 targets by aligning them to the printed rings failed its own check (it made 5
+  of the 11 known cases worse, because the printed rings do not fix the frame of the athlete's confirmed circle) and was
+  dropped. Registering the labels with a model's detections, one transform per target and never one label at a time,
+  worked: 197 of 330 labels sat on a detection before, 262 after, and the shifts were small (mostly under 1.5 mm).
+- The old detector's "registration" misses were mostly its own detection mistakes, not a wrong ring fit: the per-target
+  fits were within a few millimetres.
+- Several remaining "misses" are label noise: the labels sit a few millimetres off a hole the model found, because the
+  labels came from a slightly different perspective fit than the automatic one. That counts against the model and the
+  baseline alike.
+- The drop from 3.7 to 1.0 invented per target came from two changes made together (more training data, and discarding
+  detections outside the outermost ring). They have not been separated.
 
 **Read this carefully.**
-- It is promising and well short of proven. It is ahead of the baseline by a wide margin on both tests, but it has not yet
-  reached the proposed gate (85% found, about one invented per target) on targets it never saw: 83% found and 1.9
-  invented per target with top-K.
-- All the photos come from few contributors, one printed sheet and few cameras. How it does on another athlete's phone
-  and lighting is untested, and that is the thing most likely to differ. Contributions from more athletes are the fix.
-- Eleven training sheets is very little. The gains from more data, from adding the developer photos to training once they
-  are aligned to the sheet, and from a larger or averaged model are not yet explored.
-- One configuration, no tuning. Only the 0.5 threshold and two seeds are reported; nothing was selected on the test
-  targets. A second random seed gave the same answer on the 33 never-seen targets (273/330 found, 116 invented; top-K 269
-  found, 60 invented), so the result is not a lucky run.
+- It is promising and not yet proven. The most likely thing to go wrong is a different athlete: the 44 targets are, as far
+  as I can tell, all one athlete's (44 scored bouts, all with photos, match the 44 unique labelled targets), on one phone,
+  one printed sheet and one range. Another phone, light or sheet is untested. Contributions from more athletes are the fix.
+- One run of round 2 (one seed), one threshold, nothing tuned on the test targets. Round 1's two seeds agreed closely.
+- The 27 targets registered with a model's help are scored here with their original labels, so that step cannot flatter the
+  headline numbers; the separate "detection only" figure (88% found) does lean on it slightly and is not used as the
+  headline.
 
 ## Running it
 

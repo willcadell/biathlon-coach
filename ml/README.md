@@ -2,7 +2,7 @@
 
 The plan and the reasoning are in `docs/vision-model-plan.md`. This folder is the code for Stage 0 and Stage 1: measure
 the current detector, then train a small network that finds holes on a rectified target and score it against that
-detector on the same targets.
+detector on the same targets. The results are in `docs/vision-model-plan.md`.
 
 Kept out of git (see `.gitignore`): `ml/.venv` (Python environment), `ml/data` (exported images, labels),
 `ml/runs` (trained weights), and the photos in `test-images/`. Committed: the code and `ml/results/*.json` (the scored
@@ -29,16 +29,23 @@ output of each run).
    where the contribution kept the athlete's confirmed circle, an *exact* fit too (`exact`). Training uses the exact
    ones, because their labels line up exactly. Scoring uses the automatic ones.
 
-3. **Cross-validate**, scoring each target with a model that never saw it (only targets with an exact fit can be
-   trained on, so they are the ones cross-validated):
-
-       ml/.venv/bin/python ml/train.py cv --name cv-v1
-
-4. **Train on all of them and score the rest**, the targets that were never trained on (the developer photos and the
-   contributions without an exact fit):
+3. **Train a first model on the 11 exactly-registered targets.** Its weights (`ml/runs/final-v1.pt`) are used only
+   to register the labels of the others, in the next step.
 
        ml/.venv/bin/python ml/train.py final --name final-v1
 
-The measure matches `test/cv-eval.ts`: a detection is *found* if it is within one bullet diameter of a confirmed shot;
-the rest are *missed* and *invented*. "Top-K" keeps only the K strongest peaks, K being the number of shots the bout
-should have, which the app knows.
+4. **Place the labels of the other 33 targets on their photos.** One transform per target, fitted so the labels land on
+   the holes the first model finds. Targets where fewer than 7 of 10 labels end up on a detection are not trained on, but
+   they are still scored.
+
+       ml/.venv/bin/python ml/register_labels.py
+
+5. **Cross-validate on every target.** Each target is scored, with the app's automatic ring fit and the athlete's
+   original labels, by a model that never trained on it. The result is compared with the current detector on the same
+   targets.
+
+       ml/.venv/bin/python ml/train.py cv --name cv-v2
+
+6. **Train on everything and save the weights** (for Stage 2, running it in the browser).
+
+       ml/.venv/bin/python ml/train.py final --name final-v2

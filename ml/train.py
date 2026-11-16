@@ -1,13 +1,16 @@
 """Trains and scores a small hole-finding network on the rectified target images from ml/export_dataset.ts.
 
-    ml/.venv/bin/python ml/train.py cv      # 5-fold cross-validation over the targets with an exact ring fit
-    ml/.venv/bin/python ml/train.py final   # train on all of them, score on the targets it never saw
+    ml/.venv/bin/python ml/train.py cv      # 5-fold cross-validation over every labelled target
+    ml/.venv/bin/python ml/train.py final   # train on every target with a trusted registration; saves the weights
 
 The network reads a rectified grayscale target (4 px per mm) and outputs a heatmap of hole centres at half
-resolution. Peaks are the holes. Training sees only targets whose ring fit the athlete confirmed (their labels line up
-exactly), with random scale, rotation, mirroring, lighting, blur and noise, plus hole patches pasted onto other
-sheets. Scoring uses the *automatic* ring fit the app computes, as the app would, and the same found / missed /
-invented measure as test/cv-eval.ts, so the baseline detector is compared on identical targets.
+resolution. Peaks are the holes. Training sees the targets whose labels are known to line up with the image: those with the athlete's confirmed ring fit
+("exact"), and those whose labels ml/register_labels.py placed on the photo ("aligned"). It uses random scale,
+rotation, mirroring, lighting, blur and noise, plus hole patches pasted onto other sheets. Scoring uses the
+*automatic* ring fit the app computes and the athlete's original labels, as the app would meet them, with the same
+found / missed / invented measure as test/cv-eval.ts, so the baseline detector is compared on identical targets.
+Detections outside the outermost scoring ring (handwriting, the score table in the margin) are discarded, as the app's
+own detector does by cropping to that ring.
 """
 import argparse, json, math, os, random, sys, time
 import numpy as np
@@ -52,14 +55,24 @@ class Net(nn.Module):
 
 # --- training data ---------------------------------------------------------------------------------------------
 
+def registration(it):
+    """The image and labels that are known to agree: the exact fit, or labels placed by register_labels.py, else None."""
+    if it.get('exact'):
+        return it['exact']
+    if it.get('aligned') and it['aligned'].get('reliable'):
+        return it['aligned']
+    return None
+
+
 class Pool:
-    """The exact-registered training sheets, with their hole positions (px), and a library of hole patches."""
+    """The training sheets with trusted registration, their hole positions (px), and a library of hole patches."""
 
     def __init__(self, items):
         self.imgs, self.holes = [], []
         for it in items:
-            self.imgs.append(load(it['exact']['image']))
-            self.holes.append(np.array([[p['u'], p['v']] for p in it['exact']['truth']], dtype=np.float32))
+            reg = registration(it)
+            self.imgs.append(load(reg['image']))
+            self.holes.append(np.array([[p['u'], p['v']] for p in reg['truth']], dtype=np.float32))
         self.patches = []
         R = 32  # half window, px
         for img, hs in zip(self.imgs, self.holes):
@@ -233,12 +246,19 @@ def match(det, truth, max_dist):
 
 
 def score(net, item, which, thresh=0.5, topk=None):
-    reg = item[which]
+    reg = item[which] if which in ('auto', 'exact') else registration(item)
     img = load(reg['image'])
-    det = peaks(predict(net, img), thresh, topk)
+    det = peaks(predict(net, img), thresh, None)
+    # Nothing outside the outermost scoring ring is a hole: the square view reaches into the margin (handwriting,
+    # the score table). The ring radius follows from the view: it covers the outer ring plus 8%.
+    c = reg['size'] / 2
+    limit = (reg['size'] / 2 / 1.08 + 2 * PX_PER_MM)
+    det = [d for d in det if math.hypot(d[0] - c, d[1] - c) <= limit]
+    if topk:
+        det = det[:topk]
     truth = [(p['u'], p['v']) for p in reg['truth']]
     f, m, e, errs = match(det, truth, item['bulletDiameterMm'] * PX_PER_MM)
-    return dict(label=item['label'], set=item['set'], reg=which, found=f, missed=m, extra=e,
+    return dict(label=item['label'], set=item['set'], reg=which, usable=registration(item) is not None, found=f, missed=m, extra=e,
                 err_mm=(sum(errs) / len(errs) / PX_PER_MM) if errs else None, truth=len(truth))
 
 
@@ -256,47 +276,46 @@ def baseline_rows(items):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('mode', choices=['cv', 'final'])
-    ap.add_argument('--steps', type=int, default=1200)
+    ap.add_argument('--steps', type=int, default=1500)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--name', default=None)
     a = ap.parse_args()
     man = json.load(open(os.path.join(DATA, 'manifest.json')))
     items = [i for i in man['items'] if i['auto']]
-    exact = [i for i in items if i['exact']]
-    others = [i for i in items if not i['exact']]
+    usable = [i for i in items if registration(i)]
     name = a.name or a.mode
     os.makedirs('ml/runs', exist_ok=True); os.makedirs('ml/results', exist_ok=True)
     rows = []
-    print(f'device {DEV}; {len(exact)} exact-registered targets, {len(others)} never-trained targets')
+    print(f'device {DEV}; {len(items)} targets, {len(usable)} with a trusted registration to train on '
+          f'({sum(1 for i in usable if i.get("exact"))} exact, {sum(1 for i in usable if not i.get("exact"))} aligned)')
 
     if a.mode == 'cv':
         for f in range(man['folds']):
-            test = [i for i in exact if i['fold'] == f]
-            tr = [i for i in exact if i['fold'] != f]
-            if not test:
-                continue
-            print(f'fold {f}: train {len(tr)} targets, test {[t["label"] for t in test]}', flush=True)
+            test = [i for i in items if i['fold'] == f]
+            tr = [i for i in usable if i['fold'] != f]
+            print(f'fold {f}: train on {len(tr)} targets, score {len(test)}', flush=True)
             net = train(tr, a.steps, a.seed + f)
             for it in test:
-                for which in ('auto', 'exact'):
-                    rows.append(score(net, it, which))
-                    rows.append({**score(net, it, which, topk=it['shots']), 'reg': which + '-topK'})
-        tested = [i for i in exact]
-        for which in ('auto', 'exact', 'auto-topK', 'exact-topK'):
-            print(summarise([r for r in rows if r['reg'] == which], f'model, {which} ring fit'))
-        print(summarise(baseline_rows(tested), 'baseline detector (auto ring fit)'))
-    else:
-        net = train(exact, a.steps, a.seed)
-        torch.save(net.state_dict(), f'ml/runs/{name}.pt')
-        for it in others:
-            rows.append(score(net, it, 'auto'))
-            rows.append({**score(net, it, 'auto', topk=it['shots']), 'reg': 'auto-topK'})
-        for label, sel in (('all', others), ('eval photos', [i for i in others if i['set'] == 'eval']),
-                           ('contributed, no exact fit', [i for i in others if i['set'] == 'contributed'])):
+                rows.append(score(net, it, 'auto'))
+                rows.append({**score(net, it, 'auto', topk=it['shots']), 'reg': 'auto-topK'})
+                if registration(it):
+                    rows.append(score(net, it, 'reg'))
+        groups = [('all 44 targets', items), ('developer eval photos', [i for i in items if i['set'] == 'eval']),
+                  ('contributed targets', [i for i in items if i['set'] == 'contributed']),
+                  ('trusted-registration targets only', usable)]
+        for gname, sel in groups:
             ids = {i['label'] for i in sel}
-            print(summarise([r for r in rows if r['reg'] == 'auto' and r['label'] in ids], f'model on {label}'))
-            print(summarise([r for r in rows if r['reg'] == 'auto-topK' and r['label'] in ids], f'model on {label} (top-K)'))
-            print(summarise(baseline_rows(sel), f'baseline on {label}'))
+            print(f'\n{gname}')
+            print('  ' + summarise([r for r in rows if r['reg'] == 'auto' and r['label'] in ids], 'model (app view: auto fit, original labels)'))
+            print('  ' + summarise([r for r in rows if r['reg'] == 'auto-topK' and r['label'] in ids], 'model, top-K'))
+            print('  ' + summarise(baseline_rows(sel), 'baseline detector'))
+        ids = {i['label'] for i in usable}
+        print('\nmodel on the registered labels (detection only, registration taken out)')
+        print('  ' + summarise([r for r in rows if r['reg'] == 'reg' and r['label'] in ids], 'model, trusted-registration targets'))
+    else:
+        net = train(usable, a.steps, a.seed)
+        torch.save(net.state_dict(), f'ml/runs/{name}.pt')
+        print(f'saved ml/runs/{name}.pt')
     json.dump(rows, open(f'ml/results/{name}.json', 'w'), indent=1)
 
 
