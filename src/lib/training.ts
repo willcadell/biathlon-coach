@@ -324,7 +324,7 @@ export interface Recommendation {
   score: number
 }
 
-const SEVERITY_WEIGHT = { priority: 3, watch: 1.6, info: 0.6 } as const
+export const SEVERITY_WEIGHT = { priority: 3, watch: 1.6, info: 0.6 } as const
 
 /**
  * Rank drills against the findings.
@@ -333,8 +333,8 @@ const SEVERITY_WEIGHT = { priority: 3, watch: 1.6, info: 0.6 } as const
  * finding is and how much evidence sits behind it. Capped at six so a beginner
  * gets a training week, not a reading list.
  */
-export function recommend(findings: Finding[], limit = 6): Recommendation[] {
-  if (findings.length === 0) return []
+export function recommend(findings: Finding[], limit = 6, adjust?: RecommendAdjust): Recommendation[] {
+  if (findings.length === 0 && !adjust?.extra?.length) return []
 
   const byId = new Map<FindingId, Finding>()
   for (const f of findings) {
@@ -342,7 +342,7 @@ export function recommend(findings: Finding[], limit = 6): Recommendation[] {
     if (!existing || f.confidence > existing.confidence) byId.set(f.id, f)
   }
 
-  const scored: Recommendation[] = []
+  const scored = new Map<string, Recommendation>()
   for (const drill of DRILLS) {
     let score = 0
     const causes: Finding[] = []
@@ -354,18 +354,43 @@ export function recommend(findings: Finding[], limit = 6): Recommendation[] {
     }
     if (score <= 0) continue
     causes.sort((a, b) => SEVERITY_WEIGHT[b.severity] * b.confidence - SEVERITY_WEIGHT[a.severity] * a.confidence)
-    scored.push({
+    scored.set(drill.id, {
       drill,
       score,
       reason: causes.map((c) => c.title.toLowerCase()).slice(0, 2).join(', and '),
     })
   }
 
+  // Drills the athlete's own answers point at: a cause they picked over the app's
+  // first read. Their reason leads, because it is the athlete's.
+  for (const x of adjust?.extra ?? []) {
+    const drill = DRILLS.find((d) => d.id === x.drillId)
+    if (!drill) continue
+    const r = scored.get(drill.id)
+    if (r) {
+      r.score += x.score
+      r.reason = r.reason ? `${x.reason}, and ${r.reason}` : x.reason
+    } else {
+      scored.set(drill.id, { drill, score: x.score, reason: x.reason })
+    }
+  }
+
   // A zero problem outranks everything: there is no point drilling technique
   // against a sight that is pointing somewhere else.
   if (byId.has('zero_offset')) {
-    for (const r of scored) if (r.drill.addresses.includes('zero_offset')) r.score += 10
+    for (const r of scored.values()) if (r.drill.addresses.includes('zero_offset')) r.score += 10
   }
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, limit)
+  // What the athlete said about a drill they have tried.
+  if (adjust?.factor) for (const r of scored.values()) r.score *= adjust.factor(r.drill.id)
+
+  return [...scored.values()].sort((a, b) => b.score - a.score).slice(0, limit)
+}
+
+/** How the athlete's feedback moves the ranking (see feedbackRules.ts). */
+export interface RecommendAdjust {
+  /** Score added to a drill, with the reason to show for it. */
+  extra?: { drillId: string; score: number; reason: string }[]
+  /** Multiplies a drill's final score: up for one that helped, down for one that did not. */
+  factor?: (drillId: string) => number
 }

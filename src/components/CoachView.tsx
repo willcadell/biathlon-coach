@@ -488,6 +488,7 @@ function AthleteDetail({ athlete, platform = false }: { athlete: RosterAthlete; 
         bouts={bouts} metalBouts={metalBouts} settings={DEFAULT_SETTINGS} workouts={workouts}
         onChanged={refresh}
         readOnly
+        feedbackAthleteId={athlete.athleteId}
         shootingDirection={direction}
         sensorSessions={sensorSessions}
         onAddCoachNote={platform ? undefined : async (workoutId, note) => {

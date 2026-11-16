@@ -8,6 +8,8 @@ import {
   type Activity, type Place, type TrainingBudget,
 } from '../lib/weeklyPlan'
 import { DryfireIcon, RangeIcon } from './icons'
+import { DrillFeedback, useAdviceFeedback } from './AdviceFeedback'
+import type { DrillVerdict, FeedbackEvent } from '../lib/feedbackRules'
 
 const OPTIONS = [0, 30, 60, 120, 180]
 const optionText = (min: number) => (min === 0 ? 'None' : formatMinutes(min))
@@ -22,7 +24,12 @@ export const WEEK_PLAN_LIMIT = 12
  * from what their own shooting shows (`plan`, best first). It suggests, it never
  * schedules: no days, so the athlete fits them in where they can.
  */
-export function YourWeek({ plan }: { plan: Recommendation[] }) {
+export function YourWeek({ plan, events = [], onDrillAnswer }: {
+  plan: Recommendation[]
+  /** The athlete's answers, to ask "did it help?" on each activity. */
+  events?: FeedbackEvent[]
+  onDrillAnswer?: (drillId: string) => ((v: DrillVerdict) => Promise<void>) | undefined
+}) {
   const [budget, setBudget] = useState<TrainingBudget | null>(loadBudget)
   const week = useMemo(() => (budget ? suggestWeek(plan, budget) : null), [plan, budget])
 
@@ -51,8 +58,8 @@ export function YourWeek({ plan }: { plan: Recommendation[] }) {
               suggestions from your own shooting.
             </div>
           )}
-          <ActivityList place="home" activities={week.home} spare={week.spare.homeMinutes} foundations={week.foundations} />
-          <ActivityList place="range" activities={week.range} spare={week.spare.rangeMinutes} foundations={week.foundations} />
+          <ActivityList place="home" activities={week.home} spare={week.spare.homeMinutes} foundations={week.foundations} events={events} onDrillAnswer={onDrillAnswer} />
+          <ActivityList place="range" activities={week.range} spare={week.spare.rangeMinutes} foundations={week.foundations} events={events} onDrillAnswer={onDrillAnswer} />
           <p className="meta" style={{ marginTop: 12, marginBottom: 0 }}>
             Do them on whichever days suit you. Keep to one clear focus a session, and close each one with a couple of calm dry-fire clips.
           </p>
@@ -75,11 +82,12 @@ export function TrainingWeekLine({ data, settings, direction, onOpen }: {
   onOpen: () => void
 }) {
   const [budget] = useState<TrainingBudget | null>(loadBudget)
+  const { events } = useAdviceFeedback({ enabled: budget !== null })
   const week = useMemo(() => {
     if (!budget) return null
-    const plan = adviceFor({ ...data, settings, direction, limit: WEEK_PLAN_LIMIT }).plan
+    const plan = adviceFor({ ...data, settings, direction, limit: WEEK_PLAN_LIMIT, events }).plan
     return suggestWeek(plan, budget)
-  }, [budget, data, settings, direction])
+  }, [budget, data, settings, direction, events])
 
   const items = week ? [...week.home, ...week.range] : []
   return (
@@ -118,7 +126,14 @@ function BudgetRow({ place, label, value, onChange }: {
   )
 }
 
-function ActivityList({ place, activities, spare, foundations }: { place: Place; activities: Activity[]; spare: number; foundations: boolean }) {
+function ActivityList({ place, activities, spare, foundations, events, onDrillAnswer }: {
+  place: Place
+  activities: Activity[]
+  spare: number
+  foundations: boolean
+  events: FeedbackEvent[]
+  onDrillAnswer?: (drillId: string) => ((v: DrillVerdict) => Promise<void>) | undefined
+}) {
   if (activities.length === 0) return null
   return (
     <>
@@ -135,6 +150,7 @@ function ActivityList({ place, activities, spare, foundations }: { place: Place;
             <summary>How to do it</summary>
             <ol className="steps">{a.drill.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
           </details>
+          {onDrillAnswer && <DrillFeedback drillId={a.drill.id} events={events} onAnswer={onDrillAnswer(a.drill.id)} />}
         </div>
       ))}
       {spare >= 15 && (

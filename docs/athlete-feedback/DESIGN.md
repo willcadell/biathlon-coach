@@ -161,6 +161,28 @@ One migration:
 - `WEEKLY-PLAN.md`: a suggested week built from the advice, sized to how much time the
   athlete has. That's where drill feedback gets asked.
 
+## Built so far (2026-11-15)
+
+Step 2, coach-style feedback:
+- Each finding card asks "Does this sound like you?". "Not me" asks which cause sounds
+  closer (`src/lib/differentials.ts`, from DIFFERENTIALS.md), and "Don't know" opens
+  the check. A set-aside finding folds down to the athlete's pick.
+- Checks with answer buttons confirm the first read, switch to an alternative, or
+  re-ask about a set-aside finding.
+- Re-ask and dismissal rules, and the drill re-ranking, live in `src/lib/feedbackRules.ts`,
+  with tests.
+- Drill feedback ("Helped" / "Didn't help" / "Haven't tried it") on every activity
+  in the training week and in the full drill list. A drill that didn't help drops, and
+  the next one moves up.
+- Coaches see the athlete's answers, read-only.
+- Storage: table `advice_feedback`, migration `20261115000000_advice_feedback.sql`.
+
+Not yet:
+- Drill feedback can be given at any time, rather than only after a week on the
+  plan. That would need the app to remember when each drill first appeared.
+- The two-week progress message ("your group is 18% tighter since…").
+- Steps 1, 3 and 4 (check-in, bout tags, and using them in the advice).
+
 ## Build order
 
 Each step can ship on its own:

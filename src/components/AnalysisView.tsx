@@ -13,10 +13,12 @@ import { analyse } from '../lib/diagnostics'
 import { WINDOW_DAYS, precisionWindow } from '../lib/advice'
 import { analyseMetal, metalWindow } from '../lib/metalAdvice'
 import { sensorAsBouts, sensorSummary } from '../lib/sensorStats'
-import { recommend, type Recommendation } from '../lib/training'
+import type { Recommendation } from '../lib/training'
 import { TrendChart } from './TrendChart'
 import { HistoryView } from './HistoryView'
 import { WEEK_PLAN_LIMIT, YourWeek } from './TrainingWeek'
+import { DrillFeedback, FindingFeedback, SetAsideFinding, findingAnswer, useAdviceFeedback, type AnswerFinding } from './AdviceFeedback'
+import { assessFinding, planWithFeedback, type DrillVerdict, type FeedbackEvent, type FindingState } from '../lib/feedbackRules'
 
 // Bouts older than WINDOW_DAYS stop counting toward the coaching read below — the
 // breakdown and trends above it stay all-time, since a distribution is only
@@ -312,21 +314,27 @@ const sessionIcon = (kind: keyof typeof SESSION_ICON) => {
   return <span style={{ color: colour, display: 'inline-flex' }}><Icon size={22} /></span>
 }
 
-function TrainingWeekSection({ plan }: { plan: Recommendation[] }) {
+function TrainingWeekSection({ plan, events, onDrillAnswer }: {
+  plan: Recommendation[]
+  events?: FeedbackEvent[]
+  onDrillAnswer?: (drillId: string) => ((v: DrillVerdict) => Promise<void>) | undefined
+}) {
   return (
     <CollapsibleSection
       title="Training week"
       icon={<span style={{ color: 'var(--text-primary)', display: 'inline-flex' }}><TrainingWeekIcon /></span>}
     >
-      <YourWeek plan={plan} />
+      <YourWeek plan={plan} events={events} onDrillAnswer={onDrillAnswer} />
     </CollapsibleSection>
   )
 }
 
 /** One finding: what the data shows, the likely cause, how much it rests on. */
-function FindingCard({ f }: { f: Finding }) {
+function FindingCard({ state, onAnswer }: { state: FindingState; onAnswer?: AnswerFinding }) {
+  const f = state.finding
   const openLibrary = useOpenLibrary()
   const related = entriesForFinding(f.id)
+  if (state.status === 'dismissed') return <SetAsideFinding state={state} onAnswer={onAnswer} />
   return (
     <div className={`finding ${f.severity}`}>
       <div className="badge">
@@ -337,7 +345,7 @@ function FindingCard({ f }: { f: Finding }) {
       <p>{f.evidence}</p>
       <p className="cause">{f.cause}</p>
       <p className="meta">
-        {Math.round(f.confidence * 100)}% confidence, from {f.sampleSize} bout
+        {Math.round(state.confidence * 100)}% confidence, from {f.sampleSize} bout
         {f.sampleSize === 1 ? '' : 's'}
       </p>
       {openLibrary && related.length > 0 && (
@@ -347,6 +355,7 @@ function FindingCard({ f }: { f: Finding }) {
           </button>
         </p>
       )}
+      <FindingFeedback state={state} onAnswer={onAnswer} />
     </div>
   )
 }
@@ -418,6 +427,7 @@ export function AnalysisView({
   onOpenSettings,
   sensorSessions = [],
   nationalTests = [],
+  feedbackAthleteId,
 }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
@@ -438,6 +448,8 @@ export function AnalysisView({
   /** Saved sensor sessions (dry-fire on the optical target), for the Sensor section. */
   sensorSessions?: SensorSession[]
   nationalTests?: NationalTest[]
+  /** A coach viewing an athlete: whose answers to their advice to show. */
+  feedbackAthleteId?: string
 }) {
   // Only bouts shot in the workouts we were given — see scope.ts.
   const bouts = useMemo(() => ofWorkouts(suppliedBouts, workouts), [suppliedBouts, workouts])
@@ -508,8 +520,18 @@ export function AnalysisView({
     [metalBouts, workouts, shootingDirection],
   )
   const metalRead = useMemo(() => metalWindow(metalBouts), [metalBouts])
-  const plan = useMemo(() => recommend([...findings, ...metalFindings]), [findings, metalFindings])
-  const weekPlan = useMemo(() => recommend([...findings, ...metalFindings], WEEK_PLAN_LIMIT), [findings, metalFindings])
+  // The athlete's answers to their advice. A coach reads the athlete's, and answers nothing.
+  const feedback = useAdviceFeedback({ athleteId: feedbackAthleteId, enabled: !readOnly || !!feedbackAthleteId })
+  const states = useMemo(
+    () => new Map([...findings, ...metalFindings].map((f) => [f, assessFinding(f, feedback.events)] as const)),
+    [findings, metalFindings, feedback.events],
+  )
+  const plan = useMemo(() => planWithFeedback([...states.values()], feedback.events), [states, feedback.events])
+  const weekPlan = useMemo(() => planWithFeedback([...states.values()], feedback.events, WEEK_PLAN_LIMIT), [states, feedback.events])
+  const answerFinding = (f: Finding): AnswerFinding | undefined =>
+    readOnly ? undefined : (verdict, detail) => feedback.add(findingAnswer(f, verdict, detail))
+  const answerDrill = (drillId: string) =>
+    readOnly ? undefined : (verdict: DrillVerdict) => feedback.add({ kind: 'drill', ref: drillId, position: null, verdict, detail: null, confidence: null })
 
   // Sensor sessions, read as whole bouts of five so the per-target circles and trends work as they do for metal.
   const sensorSum = useMemo(() => sensorSummary(sensorSessions), [sensorSessions])
@@ -617,7 +639,7 @@ export function AnalysisView({
                   ? `Built from your ${recent.length} most recent precision bout${recent.length === 1 ? '' : 's'}: your last was ${daysSince} days ago, beyond the ${WINDOW_DAYS}-day window this read normally uses.`
                   : `Built from your last ${recent.length} precision bout${recent.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
               </p>
-              {findings.map((f, i) => <FindingCard key={`${f.id}-${i}`} f={f} />)}
+              {findings.map((f, i) => <FindingCard key={`${f.id}-${i}`} state={states.get(f)!} onAnswer={answerFinding(f)} />)}
             </>
           )}
 
@@ -636,7 +658,7 @@ export function AnalysisView({
                   ? `Built from your ${metalRead.bouts.length} most recent metal bouts, older than the ${WINDOW_DAYS}-day window this read normally uses.`
                   : `Built from your last ${metalRead.bouts.length} metal bout${metalRead.bouts.length === 1 ? '' : 's'} — the last ${WINDOW_DAYS} days, not your all-time record.`}
               </p>
-              {metalFindings.map((f, i) => <FindingCard key={`${f.id}-${i}`} f={f} />)}
+              {metalFindings.map((f, i) => <FindingCard key={`${f.id}-${i}`} state={states.get(f)!} onAnswer={answerFinding(f)} />)}
             </>
           )}
 
@@ -669,6 +691,7 @@ export function AnalysisView({
                       {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
                     </ol>
                   </details>
+                  <DrillFeedback drillId={drill.id} events={feedback.events} onAnswer={answerDrill(drill.id)} />
                 </div>
               ))}
             </>
@@ -692,6 +715,7 @@ export function AnalysisView({
                       {drill.steps.map((s, si) => <li key={si}>{s}</li>)}
                     </ol>
                   </details>
+                  <DrillFeedback drillId={drill.id} events={feedback.events} onAnswer={answerDrill(drill.id)} />
                 </div>
               ))}
               </div>
@@ -708,7 +732,7 @@ export function AnalysisView({
 
       {/* The drills from the advice above, sized to the athlete's own time. Not for a
           coach viewing an athlete: the time budget lives in the athlete's browser. */}
-      {!readOnly && <TrainingWeekSection plan={weekPlan} />}
+      {!readOnly && <TrainingWeekSection plan={weekPlan} events={feedback.events} onDrillAnswer={answerDrill} />}
 
       <CollapsibleSection title="Precision" icon={sessionIcon('range')}>
         {bouts.length === 0 ? (

@@ -1,6 +1,7 @@
 import { analyse } from './diagnostics'
 import { analyseMetal } from './metalAdvice'
-import { recommend, type Recommendation } from './training'
+import type { Recommendation } from './training'
+import { assessFinding, planWithFeedback, type FeedbackEvent } from './feedbackRules'
 import type { Bout, Finding, MetalBout, Settings, ShootingDirection, Workout } from './types'
 
 /** Precision bouts older than this stop counting toward the coaching read. */
@@ -20,7 +21,7 @@ export function precisionWindow(bouts: Bout[], now = Date.now()): { recent: Bout
 
 /** Everything the advice says, from the athlete's own shooting: what the precision
  *  groups and the metal bouts show, and the drills that answer it, best first. */
-export function adviceFor({ bouts, metalBouts, workouts, settings, direction, limit }: {
+export function adviceFor({ bouts, metalBouts, workouts, settings, direction, limit, events = [] }: {
   bouts: Bout[]
   metalBouts: MetalBout[]
   workouts: Workout[]
@@ -28,8 +29,10 @@ export function adviceFor({ bouts, metalBouts, workouts, settings, direction, li
   direction?: ShootingDirection
   /** How many drills to rank (Analysis shows six). */
   limit?: number
+  /** The athlete's answers to their advice, which re-rank the drills. */
+  events?: FeedbackEvent[]
 }): { findings: Finding[]; metalFindings: Finding[]; plan: Recommendation[] } {
   const findings = analyse(precisionWindow(bouts).recent, settings, workouts)
   const metalFindings = analyseMetal({ bouts: metalBouts, workouts, direction })
-  return { findings, metalFindings, plan: recommend([...findings, ...metalFindings], limit) }
+  return { findings, metalFindings, plan: planWithFeedback([...findings, ...metalFindings].map((f) => assessFinding(f, events)), events, limit) }
 }

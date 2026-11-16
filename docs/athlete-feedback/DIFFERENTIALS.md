@@ -1,7 +1,7 @@
-# Differentials and checks: draft for review
+# Differentials and checks
 
-Status: draft, 2026-11-15. Nothing here is in the app. For Will to cut, correct and
-approve, the same way as `docs/shooting-library/DRAFT.md`. The design that uses it is
+Status: reviewed by Will, 2026-11-15 (see "Decisions" at the end). Nothing here is in
+the app yet. The design that uses it is
 `DESIGN.md` in this folder (items 4 and 6 under "How each one changes the advice").
 
 ## What this is
@@ -14,8 +14,8 @@ athlete without a coach needs the app to ask. So each finding gets:
 - **"Not me" → which sounds closer?** Up to three other causes, as chips in the
   athlete's words, plus **Don't know**. Picking one swaps the cause text and the drills.
 - **Check:** a test the athlete can run to tell the causes apart, with two or three
-  answer buttons. "Don't know" leads here. Some checks need a partner, and those
-  include a version for shooting alone.
+  answer buttons. "Don't know" leads here. Where a partner helps, the check says so
+  ("Easier with a partner") and also gives a version for shooting alone.
 
 **Where the content comes from.** Most alternatives are already in the app's own cause
 text (for example, "check the sling tension" for vertical stringing prone). This draft
@@ -98,7 +98,7 @@ L06). *I can feel my finger on the stock* → trigger.
 | Grip or cheek pressure changes | Squeezing the grip or pressing the cheek harder on some shots **(ours)** | position-build, follow-through |
 
 **Check: ball and dummy** (already in the app's text, and the `ball-and-dummy` drill).
-A partner loads dummy rounds at random. *The rifle dips on the dummy* → confirms
+Easier with a partner: they load dummy rounds at random. *The rifle dips on the dummy* → confirms
 anticipation. *It stays still* → rules out anticipation; next is natural alignment.
 **Alone:** ten dry clicks watching the front sight. *It jumps low and to the side at
 the click* → likely anticipation (counts as a weaker confirm). *Still* → no answer, as
@@ -115,9 +115,14 @@ dry fire without recoil may not show it, so suggest finding a partner.
 | Wind or gusts | Conditions, not hold | wind_sensitivity advice |
 
 **Check: shoot from a rest.** One group with the rifle on a solid rest (sandbag,
-bench). *Still loose from a rest* → the rifle or ammunition, not you (rules out
-stability; see L29 and get the rifle checked). *Tight from a rest* → confirms the hold
-is the cause.
+bench). *Tight from a rest* → confirms the hold is the cause. *Still loose from a rest*
+→ the rifle or ammunition, not you (rules out stability). What to do next depends
+on whose rifle it is, so the check asks:
+- *My own rifle* → check the bedding screws are tight, clean the barrel, and try a
+  different batch of ammunition. Then see L29.
+- *Borrowed, club or rented* → tell whoever looks after it (club armourer, coach or
+  rental desk), and ask to try another rifle if one is available. Don't adjust a rifle
+  that isn't yours.
 
 ### flier: one shot per bout escaping
 
@@ -228,12 +233,18 @@ don't log here?" *Yes* → hide it for 30 days.
 | Chip | Cause | Drills |
 |---|---|---|
 | That's where I start or finish | It is the first or last shot, so it is timing, not aim (cross-check with shooting direction) | range-entry or shot-plan |
-| Light or background on that side | Sight picture affected by light on that side **(ours)** | none yet; flag as a gap |
+| Light or background on that side | Sight picture affected by sun, shadow or background on that side, most of all at race venues **(ours)** | no drill; a race-day note instead (below) |
 | Sight or zero | The whole zero is off a little toward that side | zero-check |
 
 **Check: swing the rifle across.** Dry, in position: aim at each target in turn, eyes
 closed on each, open. *The sight drifts off on that target* → confirms natural
 alignment. *Holds on all five* → timing or sight picture.
+
+**Race-day note, for light.** If the athlete picks light or background, there is no
+drill. It is something to know at a venue: during zeroing, look at each target in turn
+and note any target in sun, in shadow, or against a busy background. On the range,
+give that target the same settled sight picture as the others rather than
+rushing it. Ties to L28 (new venue) and the day-before range check in L25.
 
 ### metal_scattered: misses across every target
 
@@ -258,7 +269,7 @@ confirms steadiness. *Clean or nearly* → load or pace.
 | I get excited when the first ones fall | Speeding up after early hits (L13) | shot-plan, follow-through |
 | My position is slipping | The position settles over the bout (as in fatigue_drift) | position-build |
 
-**Check: time your shots.** Have someone time the shot rhythm, or film one bout on a phone. *Shots 4 and 5 come faster* → confirms
+**Check: time your shots.** Easier with a partner timing the shot rhythm. Alone, film one bout on a phone propped by the mat. *Shots 4 and 5 come faster* → confirms
 timing. *Even pace* → breath or position.
 
 ### metal_first_disc: first shot missed
@@ -307,15 +318,13 @@ logging, so ask instead if none is logged.
 
 ---
 
-## Questions for Will
+## Decisions (Will, 2026-11-15)
 
-1. Are the alternatives the right ones, in the right order? The **(ours)** items need
-   checking most: grip/cheek pressure, different ammo, swaying in wind, and light on one
-   side.
-2. **Ammunition and rifle checks** (wide_group's shoot-from-a-rest test): are they
-   realistic for a club athlete, or should the app just say "ask your club armourer"?
-3. **Checks that need a partner** (ball and dummy, timing, filming): is the alone
-   version good enough, or should the app say plainly that some checks need a second
-   person?
-4. **metal_one_disc and light on one side:** there is no drill for it. Drop that
-   alternative, or add a drill?
+1. **Alternatives and order:** fine for now, including the (ours) items.
+2. **Rifle and ammunition checks:** realistic, depending on whether the athlete uses
+   their own rifle or borrows or rents one. The wide_group check now asks which and
+   gives different next steps.
+3. **Checks that need a partner:** say a partner helps ("Easier with a partner"), and
+   keep the alone version otherwise.
+4. **Light on one side:** keep it. It's worth knowing for race situations, as a race-day
+   note rather than a drill (metal_one_disc).

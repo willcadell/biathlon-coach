@@ -770,3 +770,24 @@ button.season-ribbon__phase { cursor: pointer; }
 .training-week__dose { font-size: 13px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .training-week__activity details { margin-top: 4px; }
 .training-week__activity details summary { font-size: 13px; }
+
+/* --- The athlete's answers to their advice (AdviceFeedback.tsx) --- */
+.finding.set-aside { border-left-color: var(--axis); opacity: 0.92; }
+.finding.set-aside .dot { background: var(--axis); }
+.feedback { margin-top: 8px; }
+.feedback__ask { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.feedback__q { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.feedback__buttons, .feedback__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.feedback__buttons button, .feedback__chips button {
+  padding: 6px 10px; font: inherit; font-size: 13px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--axis); background: transparent; color: var(--text-primary);
+}
+.feedback__buttons button:hover, .feedback__chips button:hover { border-color: var(--series-1); }
+.feedback__buttons button:disabled, .feedback__chips button:disabled { opacity: 0.5; cursor: wait; }
+.feedback__check-link { font-size: 13px; flex-basis: 100%; text-align: left; }
+.feedback__change { font-size: 12px; }
+.finding p.feedback__said, p.feedback__said { margin: 6px 0 0; }
+.feedback__which, .feedback__checkcard {
+  margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, var(--surface-1)); border: 1px solid var(--border);
+}
+.feedback__drill { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }

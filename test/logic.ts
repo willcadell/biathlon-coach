@@ -15,7 +15,7 @@ import { legsOf, rowsFromLegs, sensorAsBouts, sensorBouts, sensorLine, sensorSho
 import { analyseMetal, metalWindow } from '../src/lib/metalAdvice.ts'
 import { SEASON_PHASE_LABEL, seasonPhase, type SeasonPhase } from '../src/lib/seasonPhase.ts'
 import { METAL_TARGETS, hitCount, metalStats, missCount, shotOrder, targetStats } from '../src/lib/metal.ts'
-import { DEFAULT_SETTINGS, faceById, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
+import { DEFAULT_SETTINGS, faceById, type Finding, scoringContext, settingsContext, type Bout, type Bull, type MetalBout, type MetalTarget, type Position, type Settings, type Shot, type Workout } from '../src/lib/types.ts'
 import { ofWorkouts } from '../src/lib/scope.ts'
 import { buildCoachContext, localDate } from '../src/lib/coachContext.ts'
 import { applyDismissals, canArchive, goalAchievedText, evaluateGoal, evaluateProgramGoal, goalStatusText, goalsFor, goalTitle, needsCelebration, newlyAchieved, type Goal } from '../src/lib/goalProgress.ts'
@@ -30,6 +30,8 @@ import { formatMinutes, sessionsPerWeek, suggestWeek } from '../src/lib/weeklyPl
 import { precisionWindow } from '../src/lib/advice.ts'
 import { pendingAsShot, stepLabel, stepsDone, stepsFromEntries, summariseSteps } from '../src/lib/templates.ts'
 
+import { assessFinding, planWithFeedback, type FeedbackEvent } from '../src/lib/feedbackRules.ts'
+import { DIFFERENTIALS, alternativesFor, checkFor } from '../src/lib/differentials.ts'
 const CTX = settingsContext(DEFAULT_SETTINGS)
 
 let failures = 0
@@ -912,6 +914,77 @@ function paintSquare(img: PixelBuffer, x0: number, y0: number, size: number, gra
 
 // --- Training week: suggestions sized to the athlete's time, never to days.
 {
+// --- Athlete feedback: "not me", checks and drill verdicts, the way a coach would use them.
+{
+  const allDrills = new Set(DRILLS.map((d) => d.id))
+  const alts = Object.values(DIFFERENTIALS).flatMap((d) => d!.alternatives)
+  ok('differentials: every alternative names real drills', alts.every((a) => a.drills.every((id) => allDrills.has(id))))
+  ok('differentials: an alternative with no drill has a cause or a note', alts.filter((a) => a.drills.length === 0).every((a) => a.cause || a.note))
+  ok('differentials: at most four alternatives a finding', Object.values(DIFFERENTIALS).every((d) => d!.alternatives.length <= 4))
+  ok('differentials: every check answer points at the first read, an alternative, or nothing', Object.values(DIFFERENTIALS).every((d) =>
+    !d!.check || d!.check.answers.every((a) => a.points === null || a.points === 'first' || d!.alternatives.some((x) => x.id === a.points))))
+  ok('differentials: prone-only causes are not offered standing', !alternativesFor('vertical_stringing', 'standing').some((a) => a.id === 'sling') && alternativesFor('vertical_stringing', 'prone').some((a) => a.id === 'sling'))
+  ok('differentials: a check drops answers for causes not offered', !checkFor('vertical_stringing', 'standing')!.answers.some((a) => a.points === 'sling'))
+
+  const f: Finding = { id: 'trigger_bias', title: 'Group pulling low and left prone', evidence: '', cause: '', severity: 'priority', confidence: 0.6, sampleSize: 6, position: 'prone' }
+  const t0 = Date.parse('2026-11-01T10:00:00Z')
+  let n = 0
+  const ev = (verdict: FeedbackEvent['verdict'], detail: string | null, at: number, extra: Partial<FeedbackEvent> = {}): FeedbackEvent => ({
+    id: String(++n), kind: 'finding', ref: 'trigger_bias', position: 'prone', verdict, detail, confidence: 0.6, createdAt: new Date(at).toISOString(), ...extra,
+  })
+  const day = 86400_000
+
+  ok('feedback: nothing said leaves a finding open and unchanged', assessFinding(f, [], t0).status === 'open' && assessFinding(f, [], t0).confidence === 0.6)
+  const agreed = assessFinding(f, [ev('agree', null, t0)], t0)
+  ok('feedback: "sounds like me" lifts confidence a little', agreed.status === 'agreed' && agreed.confidence > 0.6 && agreed.confidence < 0.75)
+  ok('feedback: a position the answer was not about is untouched', assessFinding({ ...f, position: 'standing' }, [ev('agree', null, t0)], t0).status === 'open')
+
+  const notMe = assessFinding(f, [ev('not-me', 'steer', t0)], t0 + day)
+  ok('feedback: "not me" keeps the finding, set aside, with less confidence', notMe.status === 'dismissed' && Math.abs(notMe.confidence - 0.4) < 1e-9)
+  ok('feedback: the picked cause replaces the first read', notMe.alternative?.id === 'steer' && notMe.altConfirmed === false)
+
+  const plan0 = planWithFeedback([assessFinding(f, [], t0)], [])
+  const plan1 = planWithFeedback([notMe], [])
+  ok('feedback: with no answers, the first read\'s drills lead', plan0[0]?.drill.id === 'ball-and-dummy' || plan0[0]?.drill.id === 'plateau-trigger')
+  ok('feedback: after "not me", the picked cause\'s drills lead, with the athlete\'s reason', plan1[0]?.drill.id === 'npa-check' && plan1[0].reason.includes('had to steer the rifle on'))
+
+  const unknown = assessFinding(f, [ev('not-me', 'unknown', t0)], t0 + day)
+  ok('feedback: "don\'t know" sets it aside with no replacement', unknown.status === 'dismissed' && !unknown.alternative)
+
+  const confirmed = assessFinding(f, [ev('check', 'dips', t0)], t0)
+  ok('feedback: a check that confirms the first read marks it confirmed', confirmed.status === 'confirmed' && confirmed.confidence > agreed.confidence)
+  const weakCheck = assessFinding(f, [ev('check', 'jumps-dry', t0)], t0)
+  ok('feedback: a weak check only counts as agreeing', weakCheck.status === 'agreed')
+  const checkAlt = assessFinding(f, [ev('check', 'still', t0)], t0)
+  ok('feedback: a check that points elsewhere switches to that cause, confirmed', checkAlt.status === 'dismissed' && checkAlt.alternative?.id === 'steer' && checkAlt.altConfirmed === true)
+
+  const overturned = assessFinding(f, [ev('not-me', 'steer', t0), ev('check', 'dips', t0 + day)], t0 + 2 * day)
+  ok('feedback: a check pointing back at a dismissed finding re-asks at once', overturned.status === 'reask' && !!overturned.reaskReason)
+
+  const soon = assessFinding({ ...f, confidence: 0.9 }, [ev('not-me', 'steer', t0)], t0 + 10 * day)
+  ok('feedback: stronger data does not re-ask within 30 days', soon.status === 'dismissed')
+  const later = assessFinding({ ...f, confidence: 0.9 }, [ev('not-me', 'steer', t0)], t0 + 31 * day)
+  ok('feedback: stronger data re-asks after 30 days', later.status === 'reask')
+  const same = assessFinding(f, [ev('not-me', 'steer', t0)], t0 + 60 * day)
+  ok('feedback: time alone never re-asks', same.status === 'dismissed')
+
+  const drillNo = (id: string, at: number): FeedbackEvent => ({ id: String(++n), kind: 'drill', ref: id, position: null, verdict: 'not-helped', detail: null, confidence: null, createdAt: new Date(at).toISOString() })
+  const altFailed = assessFinding(f, [ev('not-me', 'steer', t0), drillNo('npa-check', t0 + day), drillNo('position-build', t0 + 2 * day)], t0 + 31 * day)
+  ok('feedback: re-asks after 30 days when the picked cause\'s drills did not help', altFailed.status === 'reask' && altFailed.reaskReason!.includes('didn'))
+
+  const twice = assessFinding({ ...f, confidence: 0.9 }, [ev('not-me', 'steer', t0), ev('not-me', 'grip', t0 + day)], t0 + 90 * day)
+  ok('feedback: "not me" twice stays set aside for good', twice.status === 'dismissed' && twice.final === true)
+  ok('feedback: "sounds like me" after "not me" brings it back', assessFinding(f, [ev('not-me', 'steer', t0), ev('agree', null, t0 + day)], t0 + 2 * day).status === 'agreed')
+
+  const helped: FeedbackEvent = { ...drillNo('ball-and-dummy', t0), verdict: 'helped' }
+  const base = planWithFeedback([assessFinding(f, [], t0)], [])
+  const top = base[0].drill.id
+  const down = planWithFeedback([assessFinding(f, [], t0)], [drillNo(top, t0)])
+  ok('feedback: a drill that did not help drops, and the next takes its place', down[0].drill.id !== top && down.some((r) => r.drill.id === top))
+  const up = planWithFeedback([assessFinding(f, [], t0)], [helped])
+  ok('feedback: a drill that helped stays at or near the top', up.findIndex((r) => r.drill.id === 'ball-and-dummy') <= base.findIndex((r) => r.drill.id === 'ball-and-dummy'))
+}
+
   ok('week: frequency text reads as times a week', sessionsPerWeek('2–3× per week, dry') === 3 && sessionsPerWeek('3× per week, dry') === 3 && sessionsPerWeek('1–2× per week') === 2)
   ok('week: no weekly count reads as once, and counts are capped', sessionsPerWeek('Every live session') === 1 && sessionsPerWeek('4-week block') === 1 && sessionsPerWeek('5× per week') === 3)
   ok('week: minutes read naturally', formatMinutes(30) === '30 min' && formatMinutes(60) === '1 h' && formatMinutes(90) === '1 h 30 min')
